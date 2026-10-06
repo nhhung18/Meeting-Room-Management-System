@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  booking-service:
+    name: booking-service · lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/booking-service
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/booking-service/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Unit test
+        run: python -m pytest
+
+  smoke-test:
+    name: docker compose · smoke test
+    needs: booking-service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tạo .env từ mẫu
+        run: cp .env.example .env
+      - name: Build và chạy toàn bộ hệ thống
+        run: docker compose up --build -d --wait
+      - name: Gọi API qua Nginx
+        run: |
+          curl --fail --silent --show-error http://localhost:8080/health
+          curl --fail --silent --show-error http://localhost:8080/api/bookings/health
+      - name: Log khi lỗi
+        if: failure()
+        run: docker compose logs
+      - name: Dọn dẹp
+        if: always()
+        run: docker compose down -v
