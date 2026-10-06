@@ -1,0 +1,6 @@
+# Thư viện chạy production. Ghim version cụ thể để build lúc nào cũng ra cùng kết quả.
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.3
+psycopg[binary]==3.3.6
+pydantic-settings==2.15.0

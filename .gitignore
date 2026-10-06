@@ -1,0 +1,30 @@
+# Secret: tuyệt đối không commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# File tạm của Word/LibreOffice khi đang mở tài liệu
+~$*
+.~lock.*
+*.docx

@@ -1,0 +1,22 @@
+[project]
+name = "booking-service"
+version = "0.1.0"
+description = "Booking Service - Meeting Room Management System"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: lỗi cơ bản, I: sắp xếp import, UP: cú pháp Python hiện đại,
+# B: các lỗi hay gặp, SIM: code có thể viết gọn hơn
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends(...) trong tham số mặc định là cách dùng chuẩn của FastAPI.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
