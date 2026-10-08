@@ -35,7 +35,9 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      # Dùng 127.0.0.1 (IPv4) thay vì localhost: trong image alpine, localhost
+      # có thể resolve ra IPv6 ::1 trong khi uvicorn chỉ listen IPv4 -> healthcheck fail.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -52,7 +54,9 @@ services:
       booking-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      # 127.0.0.1 thay cho localhost: tránh localhost -> IPv6 ::1 trong alpine
+      # khi Nginx chỉ listen IPv4 (xem docker-compose booking-service ở trên).
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 3s
       retries: 5
