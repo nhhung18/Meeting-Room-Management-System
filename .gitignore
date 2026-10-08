@@ -24,7 +24,12 @@ build/
 .idea/
 .DS_Store
 
-# File tạm của Word/LibreOffice khi đang mở tài liệu
+# Word / LibreOffice temporary files
 ~$*
 .~lock.*
+
+# Word documents
 *.docx
+
+# ZIP files
+*.zip
