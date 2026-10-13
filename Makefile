@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps test lint format reset-db
+.PHONY: help setup up down logs ps test lint format reset-db migrate
 
 BOOKING := services/booking-service
 
@@ -32,3 +32,6 @@ format: ## Tự format code
 
 reset-db: ## XÓA dữ liệu Postgres và khởi tạo lại từ đầu
 	docker compose down -v
+
+migrate: ## Chạy migration mới nhất trên booking_db trong Docker
+	docker compose run --rm booking-service alembic upgrade head

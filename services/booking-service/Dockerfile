@@ -16,6 +16,8 @@ RUN pip install -r requirements.txt
 
 # --chown: code thuộc về appuser, nên chạy được bất kể quyền file trên máy build.
 COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser alembic ./alembic
 
 USER appuser
 EXPOSE 8000
