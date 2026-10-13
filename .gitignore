@@ -24,6 +24,9 @@ build/
 .idea/
 .DS_Store
 
+# CodeGraph: index cục bộ của công cụ, không chia sẻ qua git
+.codegraph/
+
 # Word / LibreOffice temporary files
 ~$*
 .~lock.*
@@ -33,3 +36,5 @@ build/
 
 # ZIP files
 *.zip
+
+.task/
