@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration
 
 BOOKING := services/booking-service
 
@@ -35,3 +35,6 @@ reset-db: ## XÓA dữ liệu Postgres và khởi tạo lại từ đầu
 
 migrate: ## Chạy migration mới nhất trên booking_db trong Docker
 	docker compose run --rm booking-service alembic upgrade head
+
+test-integration: ## Chạy integration test trên DB thật trong Docker (migrate trước)
+	docker compose run --rm booking-service sh -c "alembic upgrade head && python -m pytest -m integration -v"
