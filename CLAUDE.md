@@ -133,8 +133,10 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
   dùng `127.0.0.1`) đã nằm trong `main`. `origin/main` đồng bộ.
 - 🔄 **Đang làm — nhánh `docs/data-model`**: task 3–5 (ADR-0003, `assumptions.md`, `erd.md`) +
   việt hóa tên job CI + ignore `.codegraph/`. Chờ push → PR → **squash** merge → xóa nhánh.
-- ⏳ Sau khi merge: bật GitHub ruleset `protect-main` (yêu cầu PR, **required approvals = 0** 
-  vì solo dev, yêu cầu cả 2 CI checks, chặn force-push). Chỉ cho phép squash merge; auto-xóa head branches.
+- 🔄 **Đang làm — nhánh `feat/booking-alembic`**: task #6 — Alembic scaffold + migration 0001
+  (bookings, booking_attendees, room_snapshots, EXCLUDE constraint, partial indexes) + integration tests.
+  `make migrate` và `make test-integration` hoạt động trong Docker.
+- ⏳ Sau khi merge `docs/data-model`: bật GitHub ruleset `protect-main`.
 - ⏳ Chưa làm: GitHub Project board và labels.
 
 ## 6. Roadmap: các task còn lại tuần 1–2
@@ -144,7 +146,7 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 | 3 | ✅ ADR-0003 (biên giới dữ liệu phòng) | ADR chấp nhận | — |
 | 4 | ✅ `docs/assumptions.md` (6 giả định kinh doanh) | Tất cả giả định có code examples | — |
 | 5 | ✅ `docs/erd.md` (Mermaid + chi tiết tables) | bookings, booking_attendees, room_snapshots, rooms; EXCLUDE constraint; partial indexes | — |
-| 6 | Alembic trong booking-service + migration đầu (`bookings`, `booking_attendees`, `room_snapshots` nếu B, constraint loại trừ) | `alembic upgrade head` hoạt động trong Docker | 5 |
+| 6 | ✅ Alembic trong booking-service + migration đầu (`bookings`, `booking_attendees`, `room_snapshots`, constraint loại trừ) | `alembic upgrade head` hoạt động trong Docker; integration tests 3/3 | 5 |
 | 7 | RabbitMQ trong compose + notification-worker skeleton | worker log thông báo test với `request_id` | — |
 | 8 | ADR-0004: chiến lược code chung | ADR chấp nhận | — |
 | 9 | room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
@@ -170,10 +172,13 @@ curl -i http://localhost:8080/api/bookings/health
 # Swagger: http://localhost:8080/api/bookings/docs
 
 make help | make test | make lint | make format
+make migrate              # chạy alembic upgrade head trong Docker (booking_db)
+make test-integration     # chạy integration tests trong Docker (yêu cầu postgres đang chạy)
 pre-commit install && pre-commit run --all-files
 ```
 
 Unit tests chạy không cần database (`database_is_healthy` bị override trong `tests/conftest.py`).
+Integration tests (`-m integration`) yêu cầu Postgres + migration; dùng `make test-integration`.
 
 ## 8. Quy ước (không thương lượng)
 

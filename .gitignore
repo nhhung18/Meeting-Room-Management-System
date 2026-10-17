@@ -38,3 +38,5 @@ build/
 *.zip
 
 .task/
+
+.superpower/

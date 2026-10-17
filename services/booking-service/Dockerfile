@@ -11,11 +11,16 @@ WORKDIR /app
 RUN useradd --create-home --uid 10001 appuser
 
 # Copy requirements trước code: Docker cache lại bước cài thư viện, chỉ cài lại khi file này đổi.
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# requirements-dev.txt cài thêm pytest/ruff để `make test-integration` chạy được trong container.
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install -r requirements-dev.txt
 
 # --chown: code thuộc về appuser, nên chạy được bất kể quyền file trên máy build.
 COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser alembic ./alembic
+COPY --chown=appuser:appuser tests ./tests
+COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
 USER appuser
 EXPOSE 8000
