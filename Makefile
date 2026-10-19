@@ -1,7 +1,8 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker
 
 BOOKING := services/booking-service
 COMMON := libs/common
+WORKER := services/notification-worker
 
 help: ## Liệt kê các lệnh
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -42,3 +43,6 @@ test-integration: ## Chạy integration test trên DB thật trong Docker (migra
 
 test-common: ## Chạy test của libs/common
 	cd $(COMMON) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v
+
+test-worker: ## Chạy test của notification-worker
+	cd $(WORKER) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v
