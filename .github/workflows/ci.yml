@@ -56,9 +56,59 @@ jobs:
       - name: Unit test
         run: python -m pytest
 
+  room-service:
+    name: room-service · kiểm tra + test
+    needs: libs-common
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/room-service
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/room-service/requirements*.txt
+      - name: Cài libs/common
+        run: pip install -e libs/common
+        working-directory: .
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check app/ tests/
+          ruff format --check app/ tests/
+      - name: Unit test
+        run: python -m pytest -v
+
+  notification-worker:
+    name: notification-worker · kiểm tra + test
+    needs: libs-common
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notification-worker
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/notification-worker/requirements*.txt
+      - name: Cài libs/common
+        run: pip install -e libs/common
+        working-directory: .
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check app/ tests/
+          ruff format --check app/ tests/
+      - name: Unit test
+        run: python -m pytest -v
+
   smoke-test:
     name: docker compose · kiểm tra smoke
-    needs: booking-service
+    needs: [booking-service, room-service, notification-worker]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -70,6 +120,10 @@ jobs:
         run: |
           curl --fail --silent --show-error http://localhost:8080/health
           curl --fail --silent --show-error http://localhost:8080/api/bookings/health
+      - name: Kiểm tra room-service và notification-worker health
+        run: |
+          curl --fail --silent --show-error http://localhost:8080/api/rooms/health
+          curl --fail --silent --show-error http://localhost:8080/api/notifications/health
       - name: Log khi lỗi
         if: failure()
         run: docker compose logs

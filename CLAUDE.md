@@ -50,11 +50,11 @@ Auth0 (external): cấp phát JWT; từng service xác thực JWT và RBAC riên
 |---|---|---|
 | `libs/common` | ✅ | shared logging, request_id, config base class |
 | `services/booking-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID; dùng libs/common |
-| `services/room-service` | ⏳ tuần 2 | cùng layout như booking-service |
-| `services/notification-worker` | ⏳ | tiêu thụ RabbitMQ |
+| `services/room-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID; dùng libs/common |
+| `services/notification-worker` | ✅ skeleton | dùng libs/common; consumer RabbitMQ `notifications` queue; health `/api/notifications/health` |
 | `infra/nginx/nginx.conf` | ✅ | routing; rate limiting hoãn đến tuần 6 |
 | `infra/postgres/init/` | ✅ | tạo một DB + một user cho từng service |
-| RabbitMQ | ⏳ tuần 1 (task #7) | |
+| RabbitMQ | ✅ | trong compose; management UI :15672 khi local |
 | Auth0 | ⏳ tuần 2 | roles: Employee, Room Manager, Administrator |
 | `frontend/` (React + TS) | ⏳ | xây dựng tăng dần từ tuần 3, ~1 ngày/tuần |
 
@@ -136,7 +136,8 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 - 🔄 **Đang làm — nhánh `feat/booking-alembic`**: task #6 — Alembic scaffold + migration 0001
   (bookings, booking_attendees, room_snapshots, EXCLUDE constraint, partial indexes) + integration tests.
   `make migrate` và `make test-integration` hoạt động trong Docker.
-- 🔄 **Đang làm — nhánh `feat/libs-common`** (base từ `feat/booking-alembic`): task #8 — ADR-0004 + `libs/common` package + refactor booking-service core/ sang re-export.
+- ✅ **Nhánh `feat/libs-common`**: task #8 done (committed `9f0d89e`). Chưa merge — đang chờ `feat/booking-alembic` merge trước.
+- 🔄 **Đang làm — nhánh `feat/rabbitmq-worker`** (base từ `feat/libs-common`): task #7 — RabbitMQ + notification-worker skeleton.
 - ⏳ Sau khi merge `docs/data-model` và `feat/booking-alembic`: bật GitHub ruleset `protect-main`.
 - ⏳ Chưa làm: GitHub Project board và labels.
 
@@ -148,11 +149,11 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 | 4 | ✅ `docs/assumptions.md` (6 giả định kinh doanh) | Tất cả giả định có code examples | — |
 | 5 | ✅ `docs/erd.md` (Mermaid + chi tiết tables) | bookings, booking_attendees, room_snapshots, rooms; EXCLUDE constraint; partial indexes | — |
 | 6 | ✅ Alembic trong booking-service + migration đầu (`bookings`, `booking_attendees`, `room_snapshots`, constraint loại trừ) | `alembic upgrade head` hoạt động trong Docker; integration tests 3/3 | 5 |
-| 7 | RabbitMQ trong compose + notification-worker skeleton | worker log thông báo test với `request_id` | — |
+| 7 | ✅ RabbitMQ trong compose + notification-worker skeleton | worker log thông báo test với `request_id` | — |
 | 8 | ✅ ADR-0004 + `libs/common` package + refactor booking-service | ADR accepted; libs/common tests 7/7; booking-service unit tests 6/6 | — |
-| 9 | room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
+| 9 | ✅ room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
 | 10 | Room CRUD + equipment + soft delete + status | Swagger hoạt động; unit + integration tests | 9 |
-| 11 | Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |
+| 11 | ⏳ Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |
 | 12 | JWT validation + RBAC trong services | 401 (không/token hết hạn), 403 (sai role), có tests | 11 |
 | 13 | Seed data | `make seed` tạo demo rooms/users | 10 |
 
@@ -209,6 +210,9 @@ Integration tests (`-m integration`) yêu cầu Postgres + migration; dùng `mak
 | Healthcheck fail trong alpine image | `localhost` → IPv6 `::1` | Dùng `127.0.0.1` trong healthchecks |
 | Booking không log in vào Postgres sau edit `.env` | DB init script chỉ chạy trên volume trống | `docker compose down -v` |
 | CI hiển thị "Checks 0" | Workflow file không ở `.github/workflows/` trong repo root | Di chuyển tới repo root |
+| `/api/bookings/health` → 502 sau `docker compose up` | Nginx `upstream` block cache IP lúc khởi động; container recreate → IP mới | Dùng `set $var http://hostname` + `proxy_pass $var` (đã làm); `resolver 127.0.0.11` bắt buộc |
+| `notification-worker` health: `worker: "stopped"` sau vài giờ | `connect_robust` reconnect tự động nhưng channel/queue iterator bị đóng → task exit | Tuần 5: bọc `run_worker()` trong retry loop; tạm thời restart container |
+| Nginx route mới → 404 dù volume đúng | Nginx container không được recreate → config cũ trong memory | `docker compose restart nginx` sau khi sửa nginx.conf |
 
 ## 10. Định nghĩa xong cho bất kỳ thay đổi nào
 
