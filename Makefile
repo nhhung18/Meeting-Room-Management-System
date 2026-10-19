@@ -1,6 +1,7 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common
 
 BOOKING := services/booking-service
+COMMON := libs/common
 
 help: ## Liệt kê các lệnh
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -38,3 +39,6 @@ migrate: ## Chạy migration mới nhất trên booking_db trong Docker
 
 test-integration: ## Chạy integration test trên DB thật trong Docker (migrate trước)
 	docker compose run --rm booking-service sh -c "alembic upgrade head && python -m pytest -m integration -v"
+
+test-common: ## Chạy test của libs/common
+	cd $(COMMON) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v

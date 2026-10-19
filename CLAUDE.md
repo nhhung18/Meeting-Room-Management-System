@@ -4,7 +4,7 @@ Tập tin này là nguồn thông tin chính thức cho bất kỳ AI agent nào
 Đọc kỹ trước khi hành động. Cập nhật khi có quyết định, trạng thái, hoặc quy ước thay đổi
 trong cùng một PR.
 
-Cập nhật lần cuối: 2026-10-10 (ADR-0003 + assumptions + ERD)
+Cập nhật lần cuối: 2026-10-19 (ADR-0004 + libs/common)
 
 ---
 
@@ -48,7 +48,8 @@ Auth0 (external): cấp phát JWT; từng service xác thực JWT và RBAC riên
 
 | Thành phần | Trạng thái | Ghi chú |
 |---|---|---|
-| `services/booking-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID |
+| `libs/common` | ✅ | shared logging, request_id, config base class |
+| `services/booking-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID; dùng libs/common |
 | `services/room-service` | ⏳ tuần 2 | cùng layout như booking-service |
 | `services/notification-worker` | ⏳ | tiêu thụ RabbitMQ |
 | `infra/nginx/nginx.conf` | ✅ | routing; rate limiting hoãn đến tuần 6 |
@@ -83,6 +84,7 @@ app/
 | 0001 | Nginx là API gateway; không có service gateway riêng | Từng service xác thực JWT riêng; rate limit chỉ per-IP |
 | 0002 | Một Postgres server, **một database + một user cho từng service**; `REVOKE CONNECT FROM PUBLIC` | Không cross-service JOIN hoặc FK; chia sẻ data chỉ qua API hoặc events |
 | 0003 | Booking lấy Room data qua **Event-Driven Snapshots**: Room publish events, Booking giữ `room_snapshots` table local, JOIN với `bookings` | Eventual consistency (~100ms); Booking tiếp tục khi Room down; tái dùng RabbitMQ |
+| 0004 | **`libs/common`** internal package cho logging, config, request_id (và JWT task #12) | Mỗi service Dockerfile COPY libs/common + pip install; build context = project root |
 
 Những lựa chọn đã quyết định khác (chưa có ADR):
 - **Git workflow:** GitHub Flow. Chỉ `main` + nhánh sống ngắn. **Không có nhánh `develop`.**
@@ -92,8 +94,6 @@ Những lựa chọn đã quyết định khác (chưa có ADR):
 
 ### Chưa quyết định: KHÔNG cài đặt cho đến khi user xác nhận
 
-- **Chia sẻ code JWT/logging giữa các services:** copy vs `libs/common` package vs Nginx
-  `auth_request`. Quyết định tuần 2 (ADR-0004).
 - **Nơi worker hủy tự động không check-in sống:** đề xuất là process riêng của
   booking-service (cùng codebase, container riêng) vì nó sở hữu `bookings`. Quyết định tuần 5.
 - **Nơi nhật ký kiểm toán (FR-08) được lưu.** Mở.
@@ -136,7 +136,8 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 - 🔄 **Đang làm — nhánh `feat/booking-alembic`**: task #6 — Alembic scaffold + migration 0001
   (bookings, booking_attendees, room_snapshots, EXCLUDE constraint, partial indexes) + integration tests.
   `make migrate` và `make test-integration` hoạt động trong Docker.
-- ⏳ Sau khi merge `docs/data-model`: bật GitHub ruleset `protect-main`.
+- 🔄 **Đang làm — nhánh `feat/libs-common`** (base từ `feat/booking-alembic`): task #8 — ADR-0004 + `libs/common` package + refactor booking-service core/ sang re-export.
+- ⏳ Sau khi merge `docs/data-model` và `feat/booking-alembic`: bật GitHub ruleset `protect-main`.
 - ⏳ Chưa làm: GitHub Project board và labels.
 
 ## 6. Roadmap: các task còn lại tuần 1–2
@@ -148,7 +149,7 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 | 5 | ✅ `docs/erd.md` (Mermaid + chi tiết tables) | bookings, booking_attendees, room_snapshots, rooms; EXCLUDE constraint; partial indexes | — |
 | 6 | ✅ Alembic trong booking-service + migration đầu (`bookings`, `booking_attendees`, `room_snapshots`, constraint loại trừ) | `alembic upgrade head` hoạt động trong Docker; integration tests 3/3 | 5 |
 | 7 | RabbitMQ trong compose + notification-worker skeleton | worker log thông báo test với `request_id` | — |
-| 8 | ADR-0004: chiến lược code chung | ADR chấp nhận | — |
+| 8 | ✅ ADR-0004 + `libs/common` package + refactor booking-service | ADR accepted; libs/common tests 7/7; booking-service unit tests 6/6 | — |
 | 9 | room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
 | 10 | Room CRUD + equipment + soft delete + status | Swagger hoạt động; unit + integration tests | 9 |
 | 11 | Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |

@@ -25,7 +25,9 @@ services:
     # ports: ["5432:5432"]
 
   booking-service:
-    build: ./services/booking-service
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     environment:
       SERVICE_NAME: booking-service
       ENVIRONMENT: ${ENVIRONMENT:-local}
