@@ -1,0 +1,5 @@
+# Thư viện chỉ dùng khi phát triển và chạy CI, không đưa vào Docker image.
+-r requirements.txt
+pytest==9.1.1
+httpx2==2.13.1
+ruff==0.16.10

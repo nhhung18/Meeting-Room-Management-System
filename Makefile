@@ -1,8 +1,9 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker token
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker test-room token
 
 BOOKING := services/booking-service
 COMMON := libs/common
 WORKER := services/notification-worker
+ROOM := services/room-service
 
 help: ## Liệt kê các lệnh
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -46,6 +47,9 @@ test-common: ## Chạy test của libs/common
 
 test-worker: ## Chạy test của notification-worker
 	cd $(WORKER) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v
+
+test-room: ## Chạy test của room-service
+	cd $(ROOM) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v
 
 token: ## Lấy Auth0 JWT token (make token ROLE=m2m|employee|manager|admin)
 	scripts/get-token.sh $(or $(ROLE),m2m) | python3 -m json.tool
