@@ -153,7 +153,7 @@ Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201
 | 8 | ✅ ADR-0004 + `libs/common` package + refactor booking-service | ADR accepted; libs/common tests 7/7; booking-service unit tests 6/6 | — |
 | 9 | room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
 | 10 | Room CRUD + equipment + soft delete + status | Swagger hoạt động; unit + integration tests | 9 |
-| 11 | Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |
+| 11 | ⏳ Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |
 | 12 | JWT validation + RBAC trong services | 401 (không/token hết hạn), 403 (sai role), có tests | 11 |
 | 13 | Seed data | `make seed` tạo demo rooms/users | 10 |
 

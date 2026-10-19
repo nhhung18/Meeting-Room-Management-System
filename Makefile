@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker token
 
 BOOKING := services/booking-service
 COMMON := libs/common
@@ -46,3 +46,6 @@ test-common: ## Chạy test của libs/common
 
 test-worker: ## Chạy test của notification-worker
 	cd $(WORKER) && .venv-local/bin/python -m pytest -v 2>/dev/null || python -m pytest -v
+
+token: ## Lấy Auth0 JWT token (make token ROLE=m2m|employee|manager|admin)
+	scripts/get-token.sh $(or $(ROLE),m2m) | python3 -m json.tool
