@@ -66,15 +66,15 @@ case "$MODE" in
     ;;
   employee)
     echo "=== Employee Token ===" >&2
-    get_user_token "employee@test.mrms" "Test@12345"
+    get_user_token "employee@test.mrms" "Employee@Demo123"
     ;;
   manager)
     echo "=== Room Manager Token ===" >&2
-    get_user_token "manager@test.mrms" "Test@12345"
+    get_user_token "manager@test.mrms" "Manager@Demo123"
     ;;
   admin)
     echo "=== Administrator Token ===" >&2
-    get_user_token "admin@test.mrms" "Test@12345"
+    get_user_token "admin@test.mrms" "Admintest@Demo123"
     ;;
   *)
     echo "Usage: $0 [m2m|employee|manager|admin]" >&2

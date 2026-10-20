@@ -76,9 +76,9 @@ Sau khi hoàn thành, bạn sẽ lấy được JWT token theo từng role để
 
    | Email | Password | Role |
    |---|---|---|
-   | `employee@test.mrms` | `Test@12345` | Employee |
-   | `manager@test.mrms` | `Test@12345` | Room Manager |
-   | `admin@test.mrms` | `Test@12345` | Administrator |
+   | `employee@test.mrms` | `Employee@Demo123` | Employee |
+   | `manager@test.mrms` | `Manager@Demo123` | Room Manager |
+   | `admin@test.mrms` | `Admintest@Demo123` | Administrator |
 
 2. Sau khi tạo mỗi user → tab **Roles** → **Assign Roles** → gán role tương ứng
 
