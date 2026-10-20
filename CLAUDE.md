@@ -1,66 +1,67 @@
-# CLAUDE.md — Meeting Room Management System (MRMS)
+# CLAUDE.md — Hệ thống quản lý phòng họp (MRMS)
 
-This file is the source of truth for any AI agent working in this repository.
-Read it fully before acting. Keep it current: when a decision, status, or convention
-changes, update the relevant section in the same PR.
+Tập tin này là nguồn thông tin chính thức cho bất kỳ AI agent nào làm việc trong repository này.
+Đọc kỹ trước khi hành động. Cập nhật khi có quyết định, trạng thái, hoặc quy ước thay đổi
+trong cùng một PR.
 
-Last updated: 2026-10-09
+Cập nhật lần cuối: 2026-10-19 (ADR-0004 + libs/common)
 
 ---
 
-## 1. Project at a glance
+## 1. Dự án tại một cái nhìn
 
-- **What:** Web app for booking company meeting rooms: search free rooms, book / edit /
-  cancel, check-in, auto-cancel on no-show, async notifications, admin reports, audit log.
-- **Why:** 2026 internship project (InternshipBlueOC). Graded on architecture, concurrency,
-  security, testing, DevOps and the ability to **justify every technical choice**.
-- **Team:** one developer (Hùng), ~8 weeks, started 2026-10-05.
-- **Requirements:** `Internship Program_ Meeting Room Management System – Hệ thống quản lý phòng họp.docx`
-  in the repo root. It is git-ignored on purpose (internal document, repo is public). Never commit it.
+- **Là gì:** Ứng dụng web để đặt phòng họp công ty: tìm phòng trống, đặt / sửa /
+  hủy, check-in, hủy tự động khi không check-in, thông báo bất đồng bộ, báo cáo quản trị viên, nhật ký kiểm toán.
+- **Tại sao:** Dự án thực tập 2026 (InternshipBlueOC). Được chấm điểm dựa trên kiến trúc, xử lý
+  tính toán song song, bảo mật, kiểm thử, DevOps và khả năng **biện minh cho từng lựa chọn kỹ thuật**.
+- **Nhóm:** một developer (Hùng), ~8 tuần, bắt đầu 2026-10-05.
+- **Yêu cầu:** `Internship Program_ Meeting Room Management System – Hệ thống quản lý phòng họp.docx`
+  trong thư mục gốc repo. Bị git-ignore có chủ ý (tài liệu nội bộ, repo là public). Không bao giờ commit.
 - **Remote:** https://github.com/nhhung18/Meeting-Room-Management-System (public)
 
-## 2. How to work with the user
+## 2. Cách làm việc với user
 
-- **Language:** reply in **Vietnamese**. Code, identifiers, commit messages and file
-  names stay in English.
-- **Background:** strong in Java / Spring Boot; new to Python, FastAPI, Docker, CI.
-  Explain new concepts by mapping them to Spring equivalents
+- **Ngôn ngữ:** trả lời bằng **tiếng Việt**. Code, identifiers, commit messages và tên file
+  giữ nguyên **tiếng Anh**.
+- **Nền tảng:** thành thạo Java / Spring Boot; mới tìm hiểu Python, FastAPI, Docker, CI.
+  Giải thích khái niệm mới bằng cách so sánh với các thành phần Spring tương ứng
   (FastAPI ≈ Spring Boot, SQLAlchemy ≈ JPA, Alembic ≈ Flyway, Pydantic ≈ Bean Validation).
-- **Role:** act as a senior architect / mentor, not just a code generator.
-  - For architecture or data-model decisions, present 2–3 options with trade-offs and
-    **let the user decide**. Then record the decision as an ADR.
-  - Every proposal must answer: *what risk does this solve?* and *what happens if this
-    component crashes?*
-  - Point out flawed assumptions and gaps candidly and respectfully.
-- **Code you write must be understandable by the user**, who has to defend it in review.
-  Comment the *why*, not the *what*. Prefer simple over clever.
+- **Vai trò:** đóng vai mentor / kiến trúc sư cấp cao, không chỉ là code generator.
+  - Khi quyết định kiến trúc hoặc data model, trình bày 2–3 phương án kèm trade-off và
+    **để user quyết định**. Sau đó ghi lại quyết định thành ADR.
+  - Mỗi đề xuất phải trả lời: *rủi ro nào được giải quyết?* và *điều gì xảy ra nếu thành phần
+    này hỏng?*
+  - Nêu ra các giả định sai lầm và khoảng trống một cách thẳng thắn nhưng tôn trọng.
+- **Code viết phải hiểu được bởi user**, người phải biện minh cho nó trong review.
+  Comment giải thích **tại sao**, không phải **cái gì**. Ưu tiên đơn giản hơn thông minh.
 
-## 3. Architecture
+## 3. Kiến trúc
 
 ```
-Browser ──► Nginx :8080 (API gateway) ──► booking-service :8000 ──► PostgreSQL (booking_db)
-                 │                     └─► room-service :8000    ──► PostgreSQL (room_db)    [week 2]
-                 │                                    │
-                 │                              RabbitMQ ──► notification-worker              [week 1–5]
-                 └─ adds X-Request-ID to every request
-Auth0 (external): issues JWT; each service validates JWT and RBAC itself.
+Trình duyệt ──► Nginx :8080 (API gateway) ──► booking-service :8000 ──► PostgreSQL (booking_db)
+                │                         └─► room-service :8000    ──► PostgreSQL (room_db)    [tuần 2]
+                │                                        │
+                │                                  RabbitMQ ──► notification-worker              [tuần 1–5]
+                └─ thêm X-Request-ID vào mỗi request
+Auth0 (external): cấp phát JWT; từng service xác thực JWT và RBAC riêng.
 ```
 
-| Component | Status | Notes |
+| Thành phần | Trạng thái | Ghi chú |
 |---|---|---|
-| `services/booking-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID |
-| `services/room-service` | ⏳ week 2 | same layout as booking-service |
-| `services/notification-worker` | ⏳ | consumes RabbitMQ |
-| `infra/nginx/nginx.conf` | ✅ | routing; rate limiting deferred to week 6 |
-| `infra/postgres/init/` | ✅ | creates one DB + one user per service |
-| RabbitMQ | ⏳ week 1 (task #7) | |
-| Auth0 | ⏳ week 2 | roles: Employee, Room Manager, Administrator |
-| `frontend/` (React + TS) | ⏳ | build incrementally from week 3, ~1 day/week |
+| `libs/common` | ✅ | shared logging, request_id, config base class |
+| `services/booking-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID; dùng libs/common |
+| `services/room-service` | ✅ skeleton | FastAPI, `/health`, JSON logs, request ID; dùng libs/common |
+| `services/notification-worker` | ✅ skeleton | dùng libs/common; consumer RabbitMQ `notifications` queue; health `/api/notifications/health` |
+| `infra/nginx/nginx.conf` | ✅ | routing; rate limiting hoãn đến tuần 6 |
+| `infra/postgres/init/` | ✅ | tạo một DB + một user cho từng service |
+| RabbitMQ | ✅ | trong compose; management UI :15672 khi local |
+| Auth0 | ⏳ tuần 2 | roles: Employee, Room Manager, Administrator |
+| `frontend/` (React + TS) | ⏳ | xây dựng tăng dần từ tuần 3, ~1 ngày/tuần |
 
-**Only Nginx publishes a port to the host (8080).** Services and Postgres are reachable
-only inside the Docker network.
+**Chỉ Nginx công khai port cho host (8080).** Services và Postgres chỉ có thể gọi được
+bên trong Docker network.
 
-### Service internal layout (follow it for every new service)
+### Layout bên trong từng service (làm theo mẫu này cho mỗi service mới)
 
 ```
 app/
@@ -74,51 +75,43 @@ app/
 └── main.py
 ```
 
-## 4. Decisions
+## 4. Quyết định
 
-### Accepted (see `docs/adr/`)
+### Đã chấp nhận (xem `docs/adr/`)
 
-| ADR | Decision | Key consequence |
+| ADR | Quyết định | Hệ quả chính |
 |---|---|---|
-| 0001 | Nginx is the API gateway; no separate gateway service | Each service validates JWT itself; rate limit is per-IP only |
-| 0002 | One Postgres server, **one database + one user per service**; `REVOKE CONNECT FROM PUBLIC` | No cross-service JOIN or FK; share data only via API or events |
+| 0001 | Nginx là API gateway; không có service gateway riêng | Từng service xác thực JWT riêng; rate limit chỉ per-IP |
+| 0002 | Một Postgres server, **một database + một user cho từng service**; `REVOKE CONNECT FROM PUBLIC` | Không cross-service JOIN hoặc FK; chia sẻ data chỉ qua API hoặc events |
+| 0003 | Booking lấy Room data qua **Event-Driven Snapshots**: Room publish events, Booking giữ `room_snapshots` table local, JOIN với `bookings` | Eventual consistency (~100ms); Booking tiếp tục khi Room down; tái dùng RabbitMQ |
+| 0004 | **`libs/common`** internal package cho logging, config, request_id (và JWT task #12) | Mỗi service Dockerfile COPY libs/common + pip install; build context = project root |
 
-Other settled choices (no ADR yet):
-- **Git workflow:** GitHub Flow. Only `main` plus short-lived branches. **No `develop` branch.**
-  Environments map to `main` (dev) and version tags (demo), not to branches.
-- **SQLAlchemy sync** (not async) for simplicity. Revisit only with evidence.
-- **Rate limiting:** deferred to week 6 (`limit_req` in Nginx).
+Những lựa chọn đã quyết định khác (chưa có ADR):
+- **Git workflow:** GitHub Flow. Chỉ `main` + nhánh sống ngắn. **Không có nhánh `develop`.**
+  Environments ánh xạ tới `main` (dev) và version tags (demo), không phải nhánh.
+- **SQLAlchemy sync** (không async) để đơn giản. Xem lại chỉ khi có bằng chứng.
+- **Rate limiting:** hoãn đến tuần 6 (`limit_req` trong Nginx).
 
-### Pending: do NOT implement until the user confirms
+### Chưa quyết định: KHÔNG cài đặt cho đến khi user xác nhận
 
-- **ADR-0003: how Booking gets room data (status, capacity, equipment).**
-  Recommended **option B**: Room Service publishes `RoomCreated/RoomUpdated` events to
-  RabbitMQ; Booking keeps a local `room_snapshots` table (only fields it needs + `version`).
-  Rationale: booking keeps working when Room Service is down; FR-03 search becomes one SQL
-  query; reuses RabbitMQ. Ignore events with `version` ≤ stored version (idempotency /
-  ordering). Initial sync via Room API on empty table.
-  Alternative A: synchronous HTTP call to Room Service (simpler, but booking fails when Room is down).
-  **Status: user has not yet replied "ok B".** Ask before building on it.
-- **Sharing JWT/logging code between services:** copy vs `libs/common` package vs Nginx
-  `auth_request`. Decide in week 2 (ADR-0004).
-- **Where the no-check-in auto-cancel worker lives:** proposed as a separate process of
-  booking-service (same codebase, own container) since it owns `bookings`. Decide in week 5.
-- **Where audit logs (FR-08) are stored.** Open.
+- **Nơi worker hủy tự động không check-in sống:** đề xuất là process riêng của
+  booking-service (cùng codebase, container riêng) vì nó sở hữu `bookings`. Quyết định tuần 5.
+- **Nơi nhật ký kiểm toán (FR-08) được lưu.** Mở.
 
-### Business assumptions (proposed, not yet confirmed; to be written to `docs/assumptions.md`)
+### Các giả định kinh doanh (đề xuất, chưa xác nhận; cần viết vào `docs/assumptions.md`)
 
-1. Booking interval is half-open `[start, end)`: 09–10 and 10–11 do not overlap.
-2. Capacity check: number of attendees ≤ room capacity.
-3. Room switched to MAINTENANCE: future bookings are not auto-cancelled; owners are
-   notified; new bookings are blocked.
-4. Store all timestamps as UTC `timestamptz`; display in Asia/Saigon.
-5. Bookings cannot start in the past.
-6. Check-in window opens 15 min before start; auto-cancel 15 min after start if not checked in.
+1. Khoảng đặt là half-open `[start, end)`: 09–10 và 10–11 không trùng.
+2. Kiểm tra dung tích: số người tham dự ≤ dung tích phòng.
+3. Phòng chuyển sang MAINTENANCE: đặt trong tương lai không bị hủy tự động; chủ sở hữu
+   được thông báo; đặt mới bị chặn.
+4. Lưu tất cả timestamps dạng UTC `timestamptz`; hiển thị dạng Asia/Saigon.
+5. Đặt không thể bắt đầu ở quá khứ.
+6. Cửa sổ check-in mở 15 phút trước start; hủy tự động 15 phút sau start nếu chưa check-in.
 
-### Concurrency plan (implement in weeks 3–4, design for it now)
+### Kế hoạch xử lý song song (triển khai tuần 3–4, thiết kế cho nó bây giờ)
 
-Prevent double booking with a **PostgreSQL exclusion constraint** as the final guard,
-plus an application-level pre-check for friendly errors. Return **409 Conflict** on violation.
+Ngăn chặn double booking bằng **PostgreSQL exclusion constraint** làm bảo vệ cuối cùng,
+cộng với pre-check cấp ứng dụng để thông báo lỗi thân thiện. Trả về **409 Conflict** khi vi phạm.
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS btree_gist;
@@ -127,97 +120,103 @@ EXCLUDE USING gist (room_id WITH =, tstzrange(start_at, end_at, '[)') WITH &&)
 WHERE (status IN ('CONFIRMED', 'CHECKED_IN'));
 ```
 
-In-process locks are useless: booking-service will run ≥ 2 instances behind Nginx.
-Add this constraint in the **first** migration that creates `bookings`.
-Required test: fire N concurrent identical bookings → exactly 1 × 201, N−1 × 409.
+Locks trong process vô dụng: booking-service sẽ chạy ≥ 2 instances đằng sau Nginx.
+Thêm constraint này trong **migration đầu tiên** tạo `bookings`.
+Test bắt buộc: bắn N đặt giống nhau song parallel → đúng 1 × 201, N−1 × 409.
 
-## 5. Current status (update this section every session)
+## 5. Trạng thái hiện tại (cập nhật mục này mỗi phiên)
 
-- ✅ Walking skeleton runs locally: postgres, booking-service and nginx are healthy;
+- ✅ Walking skeleton chạy local: postgres, booking-service và nginx healthy;
   `curl localhost:8080/api/bookings/health` → 200.
-- 🔄 **PR #2** `chore/project-foundation` → `main` is **open, not merged**.
-  - CI did not run at first because the CI files were extracted into a sub-folder. Fixed
-    locally: `.github/`, `Makefile`, `.pre-commit-config.yaml` are now in the repo root.
-  - First CI run failed: `container mrms-nginx-1 is unhealthy`. Cause: healthcheck used
-    `localhost`, which resolves to IPv6 `::1` in alpine while Nginx listens on IPv4 only.
-    Fixed in `docker-compose.yml` (now `http://127.0.0.1/health`).
-    **Not yet committed/pushed. Verify with `git status`.**
-  - Stray file `bug ci docker compose .txt` in repo root: delete it, do not commit.
-- ⏳ After PR #2 is green and merged: `git switch main && git pull`, then enable the GitHub
-  ruleset `protect-main` (require PR, **required approvals = 0** because solo, require both
-  CI checks, block force-push). Allow squash merge only; auto-delete head branches.
-- ⏳ Not done yet: GitHub Project board and labels.
+- ✅ **Foundation đã lên `main`**: PR #2 (`chore/project-foundation`) đã merge (bằng merge commit,
+  chưa tuân quy ước squash — rút kinh nghiệm cho các PR sau). Fix healthcheck IPv6 (`d9b72be`,
+  dùng `127.0.0.1`) đã nằm trong `main`. `origin/main` đồng bộ.
+- 🔄 **Đang làm — nhánh `docs/data-model`**: task 3–5 (ADR-0003, `assumptions.md`, `erd.md`) +
+  việt hóa tên job CI + ignore `.codegraph/`. Chờ push → PR → **squash** merge → xóa nhánh.
+- 🔄 **Đang làm — nhánh `feat/booking-alembic`**: task #6 — Alembic scaffold + migration 0001
+  (bookings, booking_attendees, room_snapshots, EXCLUDE constraint, partial indexes) + integration tests.
+  `make migrate` và `make test-integration` hoạt động trong Docker.
+- ✅ **Nhánh `feat/libs-common`**: task #8 done (committed `9f0d89e`). Chưa merge — đang chờ `feat/booking-alembic` merge trước.
+- 🔄 **Đang làm — nhánh `feat/rabbitmq-worker`** (base từ `feat/libs-common`): task #7 — RabbitMQ + notification-worker skeleton.
+- ⏳ Sau khi merge `docs/data-model` và `feat/booking-alembic`: bật GitHub ruleset `protect-main`.
+- ⏳ Chưa làm: GitHub Project board và labels.
 
-## 6. Roadmap: remaining week-1 and week-2 tasks
+## 6. Roadmap: các task còn lại tuần 1–2
 
-| # | Task | Done when | Blocked by |
+| # | Task | Xong khi | Bị chặn bởi |
 |---|---|---|---|
-| 3 | ADR-0003 (room data boundary) | ADR accepted | user confirmation |
-| 4 | `docs/assumptions.md` | each assumption has a one-line decision | user confirmation |
-| 5 | `docs/erd.md` (Mermaid) for `room_db` and `booking_db` | PK, unique, index, constraints shown; `bookings.room_id` is **not** an FK | 3, 4 |
-| 6 | Alembic in booking-service + first migration (`bookings`, `booking_attendees`, `room_snapshots` if B, exclusion constraint) | `alembic upgrade head` works in Docker | 5 |
-| 7 | RabbitMQ in compose + notification-worker skeleton | worker logs a test message carrying the same `request_id` | — |
-| 8 | ADR-0004: shared code strategy | ADR accepted | — |
-| 9 | room-service skeleton + `/api/rooms/` route in Nginx + CI job | `/api/rooms/health` → 200 via Nginx | 8 |
-| 10 | Room CRUD + equipment + soft delete + status | Swagger works; unit + integration tests | 9 |
-| 11 | Auth0 tenant: API, 3 roles, test users | tokens obtainable per role | — |
-| 12 | JWT validation + RBAC in services | 401 (no/expired token), 403 (wrong role), with tests | 11 |
-| 13 | Seed data | `make seed` creates demo rooms/users | 10 |
+| 3 | ✅ ADR-0003 (biên giới dữ liệu phòng) | ADR chấp nhận | — |
+| 4 | ✅ `docs/assumptions.md` (6 giả định kinh doanh) | Tất cả giả định có code examples | — |
+| 5 | ✅ `docs/erd.md` (Mermaid + chi tiết tables) | bookings, booking_attendees, room_snapshots, rooms; EXCLUDE constraint; partial indexes | — |
+| 6 | ✅ Alembic trong booking-service + migration đầu (`bookings`, `booking_attendees`, `room_snapshots`, constraint loại trừ) | `alembic upgrade head` hoạt động trong Docker; integration tests 3/3 | 5 |
+| 7 | ✅ RabbitMQ trong compose + notification-worker skeleton | worker log thông báo test với `request_id` | — |
+| 8 | ✅ ADR-0004 + `libs/common` package + refactor booking-service | ADR accepted; libs/common tests 7/7; booking-service unit tests 6/6 | — |
+| 9 | ✅ room-service skeleton + route `/api/rooms/` trong Nginx + job CI | `/api/rooms/health` → 200 qua Nginx | 8 |
+| 10 | Room CRUD + equipment + soft delete + status | Swagger hoạt động; unit + integration tests | 9 |
+| 11 | ⏳ Auth0 tenant: API, 3 roles, test users | lấy được tokens theo role | — |
+| 12 | JWT validation + RBAC trong services | 401 (không/token hết hạn), 403 (sai role), có tests | 11 |
+| 13 | Seed data | `make seed` tạo demo rooms/users | 10 |
 
-Later: weeks 3–4 booking core and concurrency; week 5 check-in, auto-cancel, notifications
-(retry, DLQ, idempotency, transactional outbox); week 6 2× booking instances + rate limit;
-week 7 mandatory test scenarios + frontend; week 8 docs, demo video, slides.
+Sau đó: tuần 3–4 booking core và song parallel; tuần 5 check-in, hủy tự động, thông báo
+(retry, DLQ, idempotency, transactional outbox); tuần 6 2× instance booking + rate limit;
+tuần 7 test scenarios bắt buộc + frontend; tuần 8 docs, demo video, slides.
 
-## 7. Commands
+## 7. Lệnh
 
 ```bash
-cp .env.example .env                 # first time only; never commit .env
-docker compose up --build -d --wait  # start everything, wait until healthy
-docker compose ps                    # status
+cp .env.example .env                 # lần đầu; không bao giờ commit .env
+docker compose up --build -d --wait  # khởi động tất cả, chờ cho đến khi healthy
+docker compose ps                    # trạng thái
 docker compose logs -f booking-service
-docker compose down                  # stop, keep data
-docker compose down -v               # stop AND wipe Postgres (re-runs DB init script)
+docker compose down                  # dừng, giữ dữ liệu
+docker compose down -v               # dừng VÀ xóa Postgres (chạy lại DB init script)
 curl -i http://localhost:8080/api/bookings/health
 # Swagger: http://localhost:8080/api/bookings/docs
 
 make help | make test | make lint | make format
+make migrate              # chạy alembic upgrade head trong Docker (booking_db)
+make test-integration     # chạy integration tests trong Docker (yêu cầu postgres đang chạy)
 pre-commit install && pre-commit run --all-files
 ```
 
-Unit tests run without a database (`database_is_healthy` is overridden in `tests/conftest.py`).
+Unit tests chạy không cần database (`database_is_healthy` bị override trong `tests/conftest.py`).
+Integration tests (`-m integration`) yêu cầu Postgres + migration; dùng `make test-integration`.
 
-## 8. Conventions (non-negotiable)
+## 8. Quy ước (không thương lượng)
 
-- **Never push to `main`.** One branch per task: `feat/…`, `fix/…`, `chore/…`, `docs/…`,
-  `test/…`, `ci/…`. Keep branches short-lived (≤ 3 days). One concern per PR.
+- **Không bao giờ push tới `main`.** Một nhánh cho một task: `feat/…`, `fix/…`, `chore/…`, `docs/…`,
+  `test/…`, `ci/…`. Giữ nhánh sống ngắn (≤ 3 ngày). Một mối quan tâm mỗi PR.
 - **Conventional Commits:** `feat(booking): create booking endpoint`,
-  `fix(infra): …`, `docs: …`. Lower-case subject, no trailing period.
-- **PRs:** fill the template (purpose, changes, how to verify), link the issue
-  (`Closes #N`), merge with **Squash and merge** only when CI is green.
-- **Secrets:** all config via environment variables (`app/core/config.py`,
-  pydantic-settings). Never hard-code or commit secrets. `.env`, `*.docx`, `*.zip` are git-ignored.
-- **Style:** `ruff` (lint + format), line length 100, Python 3.12. Pre-commit enforces it.
-- **Tests:** every new business rule gets a unit test; DB behaviour gets an integration test.
-- **Logging:** JSON via `app/core/logging.py`; every log line carries `request_id`.
-  Propagate `X-Request-ID` to downstream HTTP calls and RabbitMQ messages.
-- **Database:** UTC `timestamptz`; soft delete via `deleted_at`; schema changes only via
-  Alembic migrations, never by hand.
-- **Architecture decisions** go into `docs/adr/NNNN-title.md` using the template in
-  `docs/adr/README.md`. Accepted ADRs are never edited; supersede them with a new ADR.
+  `fix(infra): …`, `docs: …`. Chữ thường, không dấu chấm ở cuối.
+- **PRs:** điền template (mục đích, thay đổi, cách xác minh), liên kết issue
+  (`Closes #N`), merge bằng **Squash and merge** chỉ khi CI xanh.
+- **Secrets:** tất cả config qua biến môi trường (`app/core/config.py`,
+  pydantic-settings). Không hard-code hoặc commit secrets. `.env`, `*.docx`, `*.zip` được git-ignore.
+- **Style:** `ruff` (lint + format), dài dòng 100, Python 3.12. Pre-commit bắt buộc.
+- **Tests:** mỗi quy tắc business mới có unit test; DB behavior có integration test.
+- **Logging:** JSON qua `app/core/logging.py`; mỗi dòng log mang `request_id`.
+  Truyền `X-Request-ID` tới các HTTP calls hạ tầng và RabbitMQ messages.
+- **Database:** UTC `timestamptz`; soft delete qua `deleted_at`; thay đổi schema chỉ qua
+  Alembic migrations, không bao giờ bằng tay.
+- **Architecture decisions** vào `docs/adr/NNNN-title.md` dùng template trong
+  `docs/adr/README.md`. ADRs chấp nhận không bao giờ edit; thay thế bằng ADR mới.
 
-## 9. Known pitfalls (already hit once)
+## 9. Cạm bẫy đã biết (đã gặp lần trước)
 
-| Symptom | Cause | Fix |
+| Triệu chứng | Nguyên nhân | Sửa |
 |---|---|---|
-| `PermissionError: /app/app/__init__.py`, container restarting | Host files not world-readable; container runs as non-root `appuser` | `COPY --chown=appuser:appuser` in Dockerfile (done); `chmod -R go+rX` on new files |
-| `pip … Read timed out` during build | Slow network on the dev machine | `PIP_DEFAULT_TIMEOUT=120`, `PIP_RETRIES=10` in Dockerfile (done); just re-run |
-| Healthcheck fails in alpine image | `localhost` → IPv6 `::1` | Use `127.0.0.1` in healthchecks |
-| Booking can't log in to Postgres after editing `.env` | DB init script only runs on an empty volume | `docker compose down -v` |
-| CI shows "Checks 0" | Workflow file not at `.github/workflows/` in repo root | Move it to the root |
+| `PermissionError: /app/app/__init__.py`, container restart | Host files không world-readable; container chạy non-root `appuser` | `COPY --chown=appuser:appuser` trong Dockerfile (đã làm); `chmod -R go+rX` trên file mới |
+| `pip … Read timed out` khi build | Mạng chậm trên dev machine | `PIP_DEFAULT_TIMEOUT=120`, `PIP_RETRIES=10` trong Dockerfile (đã làm); chỉ chạy lại |
+| Healthcheck fail trong alpine image | `localhost` → IPv6 `::1` | Dùng `127.0.0.1` trong healthchecks |
+| Booking không log in vào Postgres sau edit `.env` | DB init script chỉ chạy trên volume trống | `docker compose down -v` |
+| CI hiển thị "Checks 0" | Workflow file không ở `.github/workflows/` trong repo root | Di chuyển tới repo root |
+| `/api/bookings/health` → 502 sau `docker compose up` | Nginx `upstream` block cache IP lúc khởi động; container recreate → IP mới | Dùng `set $var http://hostname` + `proxy_pass $var` (đã làm); `resolver 127.0.0.11` bắt buộc |
+| `notification-worker` health: `worker: "stopped"` sau vài giờ | `connect_robust` reconnect tự động nhưng channel/queue iterator bị đóng → task exit | Tuần 5: bọc `run_worker()` trong retry loop; tạm thời restart container |
+| Nginx route mới → 404 dù volume đúng | Nginx container không được recreate → config cũ trong memory | `docker compose restart nginx` sau khi sửa nginx.conf |
 
-## 10. Definition of done for any change
+## 10. Định nghĩa xong cho bất kỳ thay đổi nào
 
-1. Runs locally with `docker compose up --build -d --wait`; all containers healthy.
-2. `make lint` and `make test` pass.
-3. New behaviour has tests; README / ADR / this file updated if affected.
-4. PR opened from a feature branch, CI green, diff self-reviewed, squash-merged.
+1. Chạy local với `docker compose up --build -d --wait`; tất cả containers healthy.
+2. `make lint` và `make test` pass.
+3. Behavior mới có tests; README / ADR / file này cập nhật nếu bị ảnh hưởng.
+4. PR mở từ feature branch, CI xanh, diff tự review, squash-merge.

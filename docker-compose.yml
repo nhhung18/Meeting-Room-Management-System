@@ -25,7 +25,9 @@ services:
     # ports: ["5432:5432"]
 
   booking-service:
-    build: ./services/booking-service
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     environment:
       SERVICE_NAME: booking-service
       ENVIRONMENT: ${ENVIRONMENT:-local}
@@ -44,6 +46,63 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  room-service:
+    build:
+      context: .
+      dockerfile: services/room-service/Dockerfile
+    environment:
+      SERVICE_NAME: room-service
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://room_user:${ROOM_DB_PASSWORD}@postgres:5432/room_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      # Management UI: http://localhost:15672 (guest/guest khi local)
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    # Không mở AMQP port ra ngoài: chỉ services trong Docker network gọi được.
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  notification-worker:
+    build:
+      context: .
+      dockerfile: services/notification-worker/Dockerfile
+    environment:
+      SERVICE_NAME: notification-worker
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
   nginx:
     image: nginx:1.27-alpine
     ports:
@@ -52,6 +111,10 @@ services:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       booking-service:
+        condition: service_healthy
+      room-service:
+        condition: service_healthy
+      notification-worker:
         condition: service_healthy
     healthcheck:
       # 127.0.0.1 thay cho localhost: tránh localhost -> IPv6 ::1 trong alpine

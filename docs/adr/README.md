@@ -7,6 +7,8 @@ ADR đã "Accepted" thì không sửa nội dung quyết định; nếu đổi �
 |---|---|---|
 | [0001](0001-nginx-as-api-gateway.md) | Dùng Nginx làm API Gateway | Accepted |
 | [0002](0002-database-per-service.md) | Mỗi service một database + user riêng trên cùng một Postgres server | Accepted |
+| [0003](0003-room-data-access-via-events.md) | Booking lấy dữ liệu Room qua Event-Driven Snapshots | Accepted |
+| [0004](0004-code-sharing-strategy.md) | Shared `libs/common` Python package cho logging, config, JWT | Accepted |
 
 ## Mẫu
 

@@ -1,0 +1,42 @@
+# Loại trừ khỏi Docker build context để giảm context size.
+# Build context là project root (dùng libs/common cho mọi service).
+
+.git
+.codegraph
+.superpowers
+.task
+
+# Virtualenvs
+**/.venv/
+**/.venv-local/
+**/venv/
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Frontend (chưa build)
+frontend/
+node_modules/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Docs
+*.docx
+*.zip
+docs/
+
+# Tests artifacts
+**/.coverage
+**/htmlcov/
