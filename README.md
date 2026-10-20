@@ -4,21 +4,6 @@ Hệ thống quản lý và đặt phòng họp cho doanh nghiệp: tìm phòng 
 
 Dự án thực tập 2026, xây dựng theo hướng microservices gần chuẩn production.
 
-## Trạng thái hiện tại
-
-Đang ở **tuần 1, Walking Skeleton**: bộ khung chạy được từ đầu đến cuối, chưa có tính năng nghiệp vụ.
-
-| Thành phần | Trạng thái |
-|---|---|
-| Nginx (API Gateway) | ✅ Routing, request ID, access log JSON |
-| Booking Service | ✅ `/health` có kiểm tra DB, logging JSON, request ID |
-| PostgreSQL | ✅ Database + user riêng cho từng service |
-| CI (GitHub Actions) | ✅ Lint, unit test, smoke test bằng Docker Compose |
-| Room Service | ⏳ Tuần 2 |
-| Auth0 (SSO, JWT, RBAC) | ⏳ Tuần 2 |
-| RabbitMQ + Notification Worker | ⏳ Tuần 1–5 |
-| Frontend React | ⏳ |
-
 ## Kiến trúc
 
 ```
