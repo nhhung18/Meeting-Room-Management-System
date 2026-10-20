@@ -3,7 +3,7 @@ import time
 
 from fastapi import FastAPI, Request
 
-from app.api import health
+from app.api import health, rooms
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_request_id
@@ -49,3 +49,6 @@ async def request_context(request: Request, call_next):
 # /health nội bộ cho Docker healthcheck; /api/rooms/health cho truy cập qua Nginx.
 app.include_router(health.router)
 app.include_router(health.router, prefix=settings.api_prefix, include_in_schema=False)
+
+# Room CRUD — chỉ mount với prefix để Swagger hiển thị đúng path.
+app.include_router(rooms.router, prefix=settings.api_prefix)

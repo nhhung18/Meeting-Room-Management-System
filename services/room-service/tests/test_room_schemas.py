@@ -1,4 +1,5 @@
 """Unit tests cho room Pydantic schemas — kiểm tra validation rules."""
+
 import pytest
 from pydantic import ValidationError
 
@@ -54,9 +55,7 @@ def test_room_create_equipment_deduplicates():
 
 
 def test_room_create_equipment_deduplicates_preserves_order():
-    dto = RoomCreate(
-        name="P101", capacity=10, equipment=["whiteboard", "projector", "whiteboard"]
-    )
+    dto = RoomCreate(name="P101", capacity=10, equipment=["whiteboard", "projector", "whiteboard"])
     assert dto.equipment == ["whiteboard", "projector"]
 
 

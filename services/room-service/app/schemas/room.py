@@ -6,6 +6,7 @@ RoomUpdate: PATCH body — tất cả fields optional.
 RoomResponse: single room trả về client (không expose deleted_at).
 RoomListResponse: paginated list.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

@@ -4,6 +4,7 @@ Map tới bảng `rooms` trong room_db.
 Equipment lưu dạng JSONB array of strings — không tách bảng riêng (xem docs/erd.md §4).
 Soft delete qua cột nullable `deleted_at`.
 """
+
 import enum
 
 import sqlalchemy as sa

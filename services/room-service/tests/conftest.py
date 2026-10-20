@@ -5,14 +5,19 @@ import pytest
 # Unit tests không cần DB thật: đặt URL giả trước khi import app.
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:5432/test")
 
+from unittest.mock import MagicMock  # noqa: E402
+
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.db.session import database_is_healthy  # noqa: E402
+from app.db.session import database_is_healthy, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
 @pytest.fixture
 def client():
+    # Override get_db để unit tests không cần psycopg cài sẵn.
+    mock_db = MagicMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

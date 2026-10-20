@@ -1,4 +1,5 @@
 """Unit tests cho RoomService — business logic với mocked repository."""
+
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -110,9 +111,7 @@ class TestListRooms:
 
         service.list_rooms(status="AVAILABLE", q="P1", limit=10, offset=5)
 
-        mock_repo.list_rooms.assert_called_once_with(
-            status="AVAILABLE", q="P1", limit=10, offset=5
-        )
+        mock_repo.list_rooms.assert_called_once_with(status="AVAILABLE", q="P1", limit=10, offset=5)
 
 
 class TestUpdateRoom:

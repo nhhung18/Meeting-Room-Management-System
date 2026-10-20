@@ -7,6 +7,7 @@ Nằm giữa API router và repository:
 
 Transaction: service gọi repo.flush(), commit do router quyết định.
 """
+
 import logging
 
 from app.models.room import Room
@@ -76,9 +77,7 @@ class RoomService:
             and update_data["name"] != room.name
             and self._repo.name_exists(update_data["name"], exclude_id=room_id)
         ):
-            raise self.DuplicateNameError(
-                f"Room name '{update_data['name']}' already exists"
-            )
+            raise self.DuplicateNameError(f"Room name '{update_data['name']}' already exists")
 
         for field, value in update_data.items():
             if field == "status" and value is not None and hasattr(value, "value"):

@@ -6,6 +6,7 @@ Tất cả queries tự động lọc soft-deleted rooms (WHERE deleted_at IS NU
 flush() thay vì commit() — service/router kiểm soát transaction boundary.
 updated_at set thủ công vì server_default chỉ áp dụng khi INSERT, không phải UPDATE.
 """
+
 import logging
 from datetime import UTC, datetime
 
@@ -47,9 +48,7 @@ class RoomRepository:
             base = base.where(Room.name.ilike(f"%{q}%"))
 
         total = self._db.scalar(select(func.count()).select_from(base.subquery()))
-        rooms = list(
-            self._db.scalars(base.order_by(Room.id).limit(limit).offset(offset)).all()
-        )
+        rooms = list(self._db.scalars(base.order_by(Room.id).limit(limit).offset(offset)).all())
         return rooms, total or 0
 
     def update(self, room: Room) -> Room:

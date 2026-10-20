@@ -1,4 +1,5 @@
 """Unit tests for Room ORM model — validates column names, types, and defaults."""
+
 from app.models.room import Room, RoomStatus
 
 
@@ -9,8 +10,15 @@ def test_room_tablename():
 def test_room_has_expected_columns():
     col_names = {c.name for c in Room.__table__.columns}
     expected = {
-        "id", "name", "capacity", "status", "equipment",
-        "owner_id", "created_at", "updated_at", "deleted_at",
+        "id",
+        "name",
+        "capacity",
+        "status",
+        "equipment",
+        "owner_id",
+        "created_at",
+        "updated_at",
+        "deleted_at",
     }
     assert expected == col_names
 
