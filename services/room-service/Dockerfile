@@ -21,6 +21,8 @@ RUN pip install -r requirements-dev.txt
 COPY --chown=appuser:appuser services/room-service/app ./app
 COPY --chown=appuser:appuser services/room-service/tests ./tests
 COPY --chown=appuser:appuser services/room-service/pyproject.toml ./pyproject.toml
+COPY --chown=appuser:appuser services/room-service/alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser services/room-service/alembic ./alembic
 
 USER appuser
 EXPOSE 8000
