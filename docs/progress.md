@@ -15,10 +15,10 @@
 | 7 | RabbitMQ trong compose + notification-worker skeleton | ✅ Done | consumer `notifications` queue |
 | 8 | ADR-0004 + `libs/common` package + refactor booking-service | ✅ Done | logging, request_id, config |
 | 9 | room-service skeleton + Nginx route + CI job | ✅ Done | `/api/rooms/health` → 200 |
-| 10 | Room CRUD + equipment + soft delete + status | 🔄 Đang làm | Nhánh `feat/room-crud` |
-| 11 | Auth0 tenant: API, 3 roles, test users | ⏳ | |
-| 12 | JWT validation + RBAC trong services | ⏳ | Chờ task 11 |
-| 13 | Seed data (`make seed`) | ⏳ | Chờ task 10 |
+| 10 | Room CRUD + equipment + soft delete + status | ✅ Done | Alembic migration, unit + integration tests, Swagger |
+| 11 | Auth0 tenant: API, 3 roles, test users | ⏳ | Manual setup |
+| 12 | JWT validation + RBAC trong services | ✅ Done | libs/common JWT validator, room-service wired; e2e blocked chờ task 11 |
+| 13 | Seed data (`make seed`) | ✅ Done | 11 demo rooms, idempotent; verify Docker manual |
 
 ## Tuần 3–4: Booking Core & Xử lý song song
 
