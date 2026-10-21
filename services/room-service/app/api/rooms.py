@@ -8,9 +8,11 @@ Transaction: commit do router quyết định sau khi service thành công.
 
 import logging
 
+from common.auth import TokenPayload
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.security import current_user, require_room_manager
 from app.db.session import get_db
 from app.repositories.room_repository import RoomRepository
 from app.schemas.room import RoomCreate, RoomListResponse, RoomResponse, RoomUpdate
@@ -29,6 +31,7 @@ def _get_service(db: Session = Depends(get_db)) -> RoomService:
 @router.post("/", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
 def create_room(
     body: RoomCreate,
+    _user: TokenPayload = Depends(require_room_manager),
     service: RoomService = Depends(_get_service),
     db: Session = Depends(get_db),
 ):
@@ -46,6 +49,7 @@ def list_rooms(
     q: str | None = Query(None, max_length=100),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    _user: TokenPayload = Depends(current_user),
     service: RoomService = Depends(_get_service),
 ):
     return service.list_rooms(status=status_filter, q=q, limit=limit, offset=offset)
@@ -54,6 +58,7 @@ def list_rooms(
 @router.get("/{room_id}", response_model=RoomResponse)
 def get_room(
     room_id: int,
+    _user: TokenPayload = Depends(current_user),
     service: RoomService = Depends(_get_service),
 ):
     try:
@@ -68,6 +73,7 @@ def get_room(
 def update_room(
     room_id: int,
     body: RoomUpdate,
+    _user: TokenPayload = Depends(require_room_manager),
     service: RoomService = Depends(_get_service),
     db: Session = Depends(get_db),
 ):
@@ -86,6 +92,7 @@ def update_room(
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_room(
     room_id: int,
+    _user: TokenPayload = Depends(require_room_manager),
     service: RoomService = Depends(_get_service),
     db: Session = Depends(get_db),
 ):
