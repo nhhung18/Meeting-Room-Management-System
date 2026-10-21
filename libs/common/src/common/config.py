@@ -13,3 +13,6 @@ class ServiceSettings(BaseSettings):
     service_name: str
     environment: str = "local"
     log_level: str = "INFO"
+
+    auth0_domain: str | None = None
+    auth0_audience: str | None = None
