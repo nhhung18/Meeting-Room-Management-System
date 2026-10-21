@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker test-room migrate-room test-room-integration token
+.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker test-room migrate-room test-room-integration seed token
 
 BOOKING := services/booking-service
 COMMON := libs/common
@@ -56,6 +56,9 @@ migrate-room: ## Chạy migration mới nhất trên room_db trong Docker
 
 test-room-integration: ## Chạy integration tests của room-service trong Docker (migrate trước)
 	docker compose run --rm room-service sh -c "alembic upgrade head && python -m pytest -m integration -v"
+
+seed: ## Chèn demo rooms vào room_db (idempotent)
+	docker compose run --rm room-service sh -c "alembic upgrade head && python scripts/seed.py"
 
 token: ## Lấy Auth0 JWT token (make token ROLE=m2m|employee|manager|admin)
 	scripts/get-token.sh $(or $(ROLE),m2m) | python3 -m json.tool
