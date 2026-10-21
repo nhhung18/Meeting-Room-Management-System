@@ -23,6 +23,7 @@ COPY --chown=appuser:appuser services/room-service/tests ./tests
 COPY --chown=appuser:appuser services/room-service/pyproject.toml ./pyproject.toml
 COPY --chown=appuser:appuser services/room-service/alembic.ini ./alembic.ini
 COPY --chown=appuser:appuser services/room-service/alembic ./alembic
+COPY --chown=appuser:appuser services/room-service/scripts ./scripts
 
 USER appuser
 EXPOSE 8000
