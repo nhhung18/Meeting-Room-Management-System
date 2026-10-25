@@ -18,6 +18,9 @@ class Settings(ServiceSettings):
     # Bắt buộc phải có: thiếu thì service dừng ngay khi khởi động (fail fast).
     database_url: str
 
+    # URL của room-service để đồng bộ room snapshots (ADR-0003).
+    room_service_url: str = "http://room-service:8000"
+
 
 @lru_cache
 def get_settings() -> Settings:

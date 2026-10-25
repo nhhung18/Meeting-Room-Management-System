@@ -12,7 +12,6 @@ from app.repositories.room_snapshot_repository import RoomSnapshotRepository
 from app.schemas.booking import AttendeeInput, BookingCreate, BookingUpdate
 from app.services.booking_service import BookingService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
