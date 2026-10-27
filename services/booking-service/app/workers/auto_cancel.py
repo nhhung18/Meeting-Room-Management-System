@@ -8,6 +8,7 @@ Pattern:
   run_forever(session_factory, interval): loop gọi run_once mỗi interval giây.
 """
 
+import json
 import logging
 import time
 from datetime import UTC, datetime
@@ -15,6 +16,7 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.models.booking import BookingStatus
+from app.models.outbox_event import OutboxEvent
 from app.repositories.booking_repository import BookingRepository
 
 logger = logging.getLogger(__name__)
@@ -37,27 +39,21 @@ def run_once(session: Session) -> int:
         booking.status = BookingStatus.CANCELLED
         booking.auto_cancelled_at = now
         repo.update(booking)
+        session.add(OutboxEvent(
+            event_type="booking.auto_cancelled",
+            payload=json.dumps({
+                "booking_id": booking.id,
+                "room_id": booking.room_id,
+                "user_id": booking.user_id,
+                "auto_cancelled_at": now.isoformat(),
+            }),
+        ))
         logger.info(
             "auto-cancelled booking",
             extra={"fields": {"booking_id": booking.id, "room_id": booking.room_id}},
         )
 
     session.commit()
-
-    # Publish events after commit — best-effort, không roll back nếu fail
-    from app.events import get_publisher
-
-    for booking in overdue:
-        get_publisher().publish(
-            "booking.auto_cancelled",
-            {
-                "booking_id": booking.id,
-                "room_id": booking.room_id,
-                "user_id": booking.user_id,
-                "auto_cancelled_at": booking.auto_cancelled_at.isoformat(),
-            },
-        )
-
     return len(overdue)
 
 

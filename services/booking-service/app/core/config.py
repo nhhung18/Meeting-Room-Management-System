@@ -31,6 +31,9 @@ class Settings(ServiceSettings):
     # Auto-cancel worker: khoảng thời gian giữa các lần scan (giây).
     auto_cancel_interval_seconds: int = 60
 
+    # Outbox relay worker: khoảng thời gian giữa các lần relay (giây).
+    outbox_relay_interval_seconds: int = 5
+
 
 @lru_cache
 def get_settings() -> Settings:
