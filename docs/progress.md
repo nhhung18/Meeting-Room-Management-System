@@ -44,9 +44,9 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 24 | Chạy 2× instance booking-service đằng sau Nginx | ⏳ | Chứng minh stateless |
-| 25 | Rate limiting trong Nginx (`limit_req`) | ⏳ | Per-IP |
-| 26 | Load test cơ bản | ⏳ | |
+| 24 | Chạy 2× instance booking-service đằng sau Nginx | ✅ Done | `--scale booking-service=2`; resolver valid=1s; health trả hostname |
+| 25 | Rate limiting trong Nginx (`limit_req`) | ✅ Done | 20r/s per-IP, burst=40, 429 khi vượt |
+| 26 | Load test cơ bản | ✅ Done | `scripts/load-test.py`: concurrent + rate-limit test |
 
 ## Tuần 7: Test scenarios & Frontend
 
