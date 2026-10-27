@@ -1,5 +1,6 @@
 pyproject.toml
 src/common/__init__.py
+src/common/auth.py
 src/common/config.py
 src/common/logging.py
 src/common/request_id.py
@@ -8,5 +9,6 @@ src/mrms_common.egg-info/SOURCES.txt
 src/mrms_common.egg-info/dependency_links.txt
 src/mrms_common.egg-info/requires.txt
 src/mrms_common.egg-info/top_level.txt
+tests/test_auth.py
 tests/test_logging.py
 tests/test_request_id.py

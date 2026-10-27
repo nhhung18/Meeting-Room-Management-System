@@ -220,3 +220,15 @@ Integration tests (`-m integration`) yêu cầu Postgres + migration; dùng `mak
 2. `make lint` và `make test` pass.
 3. Behavior mới có tests; README / ADR / file này cập nhật nếu bị ảnh hưởng.
 4. PR mở từ feature branch, CI xanh, diff tự review, squash-merge.
+
+## 11. Prompt rules (thêm dần khi làm việc)
+
+Mỗi khi hoàn thành một rule dưới đây, agent **phải** tuân theo mà không cần nhắc lại.
+
+- Khi hoàn thành một task, **cập nhật trạng thái** trong `docs/progress.md` (đổi ⏳ → 🔄 hoặc ✅, thêm ghi chú ngắn).
+- Khi hoàn thành task, **chạy `./scripts/check.sh`** và báo kết quả thật trước khi báo xong.
+- Liệt kê các file đã thêm / sửa / xóa ở cuối mỗi task, kèm **tóm tắt mục đích** của task vừa hoàn thành (task này giải quyết vấn đề gì, đóng góp gì vào dự án).
+- **Trước khi thực hiện task có plan:** copy nội dung plan vào file `.task` ở thư mục gốc repo,
+  sau đó **đánh dấu `x`** vào từng subtask / substep ngay khi hoàn thành nó.
+  Format: `- [x] subtask đã xong` thay cho `- [ ] subtask chưa làm`.
+  File `.task` được git-ignore; dùng để theo dõi tiến độ trong phiên làm việc.

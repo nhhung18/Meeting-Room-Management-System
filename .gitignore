@@ -37,6 +37,9 @@ build/
 # ZIP files
 *.zip
 
+.task
 .task/
 
 .superpower/
+
+docs/superpowers
