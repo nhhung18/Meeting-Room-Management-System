@@ -1,0 +1,14 @@
+  chore/project-foundation[m
+  dev[m
+  docs/data-model[m
+  feat/auth0[m
+  feat/booking-alembic[m
+  feat/booking-core[m
+* [32mfeat/booking-features[m
+  feat/jwt-rbac[m
+  feat/libs-common[m
+  feat/rabbitmq-worker[m
+  feat/room-crud[m
+  feat/room-service[m
+  feat/seed-data[m
+  main[m
