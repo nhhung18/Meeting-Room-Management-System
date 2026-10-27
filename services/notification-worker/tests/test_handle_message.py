@@ -4,8 +4,7 @@ Dùng mock để giả lập IncomingMessage của aio_pika.
 """
 
 import json
-from contextlib import asynccontextmanager
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -29,13 +28,8 @@ def _make_message(body: dict | str, headers: dict | None = None) -> MagicMock:
     msg = MagicMock()
     msg.body = raw
     msg.headers = headers or {}
-
-    # process() là async context manager — **kwargs để tương thích requeue=True
-    @asynccontextmanager
-    async def _process(**kwargs):
-        yield
-
-    msg.process = _process
+    msg.ack = AsyncMock()
+    msg.reject = AsyncMock()
     return msg
 
 

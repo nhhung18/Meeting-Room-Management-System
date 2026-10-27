@@ -17,11 +17,8 @@ def _make_message(event_type: str, event_id: str = "evt-001", payload: dict | No
     msg = MagicMock()
     msg.body = body
     msg.headers = {}
-    # process() là async context manager
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(return_value=None)
-    ctx.__aexit__ = AsyncMock(return_value=False)
-    msg.process = MagicMock(return_value=ctx)
+    msg.ack = AsyncMock()
+    msg.reject = AsyncMock()
     return msg
 
 

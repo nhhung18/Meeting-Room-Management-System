@@ -16,6 +16,9 @@ class Settings(ServiceSettings):
     smtp_from_email: str = "noreply@mrms.local"
     # booking_db — dùng để track processed_events (idempotency)
     database_url: str = ""
+    # Retry + DLQ: số lần thử lại tối đa trước khi route sang DLQ
+    max_retries: int = 3
+    dlq_queue: str = "notifications.dlq"
 
 
 @lru_cache
