@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
+from app.events import get_publisher
 from app.repositories.booking_repository import BookingRepository
 from app.repositories.room_snapshot_repository import RoomSnapshotRepository
 from app.schemas.booking import (
@@ -94,6 +95,19 @@ def create_booking(
     try:
         result = service.create_booking(body, user_id=user.sub)
         db.commit()
+        get_publisher().publish(
+            "booking.created",
+            {
+                "booking_id": result.id,
+                "room_id": result.room_id,
+                "user_id": result.user_id,
+                "start_at": result.start_at.isoformat(),
+                "end_at": result.end_at.isoformat(),
+                "attendees": [
+                    {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                ],
+            },
+        )
         return result
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
@@ -187,6 +201,10 @@ def cancel_booking(
     try:
         result = service.cancel_booking(booking_id)
         db.commit()
+        get_publisher().publish(
+            "booking.cancelled",
+            {"booking_id": result.id, "room_id": result.room_id, "user_id": result.user_id},
+        )
         return result
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
@@ -208,6 +226,15 @@ def check_in_booking(
     try:
         result = service.check_in_booking(booking_id)
         db.commit()
+        get_publisher().publish(
+            "booking.checked_in",
+            {
+                "booking_id": result.id,
+                "room_id": result.room_id,
+                "user_id": result.user_id,
+                "checked_in_at": result.checked_in_at.isoformat() if result.checked_in_at else None,
+            },
+        )
         return result
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc

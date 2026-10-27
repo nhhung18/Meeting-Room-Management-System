@@ -21,6 +21,10 @@ class Settings(ServiceSettings):
     # URL của room-service để đồng bộ room snapshots (ADR-0003).
     room_service_url: str = "http://room-service:8000"
 
+    # RabbitMQ: publish booking lifecycle events.
+    rabbitmq_url: str = "amqp://guest:guest@rabbitmq:5672/"
+    notifications_queue: str = "notifications"
+
     # Check-in window: số phút trước/sau start_at mà user được check-in.
     check_in_window_minutes: int = 15
 

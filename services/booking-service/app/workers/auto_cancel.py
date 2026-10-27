@@ -43,6 +43,21 @@ def run_once(session: Session) -> int:
         )
 
     session.commit()
+
+    # Publish events after commit — best-effort, không roll back nếu fail
+    from app.events import get_publisher
+
+    for booking in overdue:
+        get_publisher().publish(
+            "booking.auto_cancelled",
+            {
+                "booking_id": booking.id,
+                "room_id": booking.room_id,
+                "user_id": booking.user_id,
+                "auto_cancelled_at": booking.auto_cancelled_at.isoformat(),
+            },
+        )
+
     return len(overdue)
 
 
