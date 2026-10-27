@@ -60,6 +60,8 @@ def _domain_to_http(exc: BookingService.DomainError) -> HTTPException:
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, (BookingService.CapacityExceededError, BookingService.PastBookingError)):
         return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, BookingService.CheckInWindowError):
+        return HTTPException(status_code=400, detail=str(exc))
     return HTTPException(status_code=500, detail=str(exc))
 
 
@@ -184,6 +186,27 @@ def cancel_booking(
 
     try:
         result = service.cancel_booking(booking_id)
+        db.commit()
+        return result
+    except BookingService.DomainError as exc:
+        raise _domain_to_http(exc) from exc
+
+
+@router.post("/{booking_id}/check-in", response_model=BookingResponse)
+def check_in_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    user: TokenPayload = Depends(current_user),
+    service: BookingService = Depends(_get_booking_service),
+) -> BookingResponse:
+    try:
+        existing = service.get_booking(booking_id)
+    except BookingService.DomainError as exc:
+        raise _domain_to_http(exc) from exc
+    _check_ownership(existing, user)
+
+    try:
+        result = service.check_in_booking(booking_id)
         db.commit()
         return result
     except BookingService.DomainError as exc:

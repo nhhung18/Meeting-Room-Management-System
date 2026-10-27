@@ -5,7 +5,7 @@ Never calls session.commit() — that is the router's responsibility.
 Domain exceptions are inner classes for clean namespacing in the API layer.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.models.booking import Booking, BookingAttendee, BookingStatus
 from app.repositories.booking_repository import BookingRepository
@@ -17,6 +17,8 @@ from app.schemas.booking import (
     BookingResponse,
     BookingUpdate,
 )
+
+CHECK_IN_WINDOW = timedelta(minutes=15)
 
 
 class BookingService:
@@ -43,6 +45,9 @@ class BookingService:
         pass
 
     class InvalidStateError(DomainError):
+        pass
+
+    class CheckInWindowError(DomainError):
         pass
 
     # ------------------------------------------------------------------
@@ -151,6 +156,31 @@ class BookingService:
             raise BookingService.InvalidStateError("Booking is already cancelled")
 
         booking.status = BookingStatus.CANCELLED
+        self._booking_repo.update(booking)
+
+        snapshot = self._snapshot_repo.get_by_room_id(booking.room_id)
+        return self._to_response(booking, snapshot.name if snapshot else None)
+
+    def check_in_booking(self, booking_id: int) -> BookingResponse:
+        booking = self._booking_repo.get_by_id(booking_id)
+        if booking is None:
+            raise BookingService.NotFoundError(f"Booking {booking_id} not found")
+
+        if booking.status != BookingStatus.CONFIRMED:
+            raise BookingService.InvalidStateError(
+                f"Cannot check in booking with status={booking.status}"
+            )
+
+        now = datetime.now(UTC)
+        window_open = booking.start_at - CHECK_IN_WINDOW
+        window_close = booking.start_at + CHECK_IN_WINDOW
+        if now < window_open or now > window_close:
+            raise BookingService.CheckInWindowError(
+                f"Check-in window is [{window_open.isoformat()}, {window_close.isoformat()}]"
+            )
+
+        booking.status = BookingStatus.CHECKED_IN
+        booking.checked_in_at = now
         self._booking_repo.update(booking)
 
         snapshot = self._snapshot_repo.get_by_room_id(booking.room_id)
