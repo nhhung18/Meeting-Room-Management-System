@@ -2,3 +2,5 @@ aio-pika==9.5.5
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
 pydantic-settings==2.15.0
+SQLAlchemy==2.0.41
+psycopg[binary]==3.2.9

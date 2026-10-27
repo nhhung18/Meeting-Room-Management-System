@@ -1,8 +1,4 @@
-"""RabbitMQ consumer loop cho notification-worker.
-
-Worker nhận message từ queue 'notifications', log message kèm request_id,
-rồi ack. Tuần 5: thay phần log bằng gửi email/push thật sự.
-"""
+"""RabbitMQ consumer loop cho notification-worker."""
 
 import asyncio
 import json
@@ -16,10 +12,31 @@ from app.core.request_id import request_id_ctx, resolve_request_id
 
 logger = logging.getLogger("worker")
 
+# Lazy-initialised — patched in tests
+SessionLocal = None  # type: ignore[assignment]
+_email_sender = None
+
+
+def _init_db() -> None:
+    global SessionLocal
+    from app.db import get_session_factory
+    SessionLocal = get_session_factory()
+
+
+def get_email_sender():
+    global _email_sender
+    if _email_sender is None:
+        from app.email_sender import EmailSender
+        s = get_settings()
+        _email_sender = EmailSender(
+            s.smtp_host, s.smtp_port, s.smtp_user, s.smtp_password, s.smtp_from_email
+        )
+    return _email_sender
+
 
 async def handle_message(message: aio_pika.IncomingMessage) -> None:
-    """Xử lý một notification message, đảm bảo ack dù có lỗi."""
-    async with message.process():
+    """Xử lý notification message: idempotency check → dispatch email → mark processed."""
+    async with message.process(requeue=True):
         try:
             body = json.loads(message.body)
         except json.JSONDecodeError:
@@ -29,19 +46,51 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
             )
             return
 
-        # Lấy request_id từ message header để trace xuyên service.
         raw_id = (message.headers or {}).get("X-Request-ID")
         request_id = resolve_request_id(raw_id)
         token = request_id_ctx.set(request_id)
+
         try:
+            event_id = body.get("event_id")
+            event_type = body.get("event_type")
+            payload = body.get("payload", {})
+
+            # Idempotency check
+            from app.models import ProcessedEvent
+            with SessionLocal() as session:
+                existing = session.get(ProcessedEvent, event_id)
+                if existing:
+                    logger.info(
+                        "duplicate event, skipping",
+                        extra={"fields": {"event_id": event_id}},
+                    )
+                    return
+
+            # Dispatch to email sender
+            sender = get_email_sender()
+            dispatch = {
+                "booking.created": sender.send_booking_created,
+                "booking.cancelled": sender.send_booking_cancelled,
+                "booking.checked_in": sender.send_booking_checked_in,
+                "booking.auto_cancelled": sender.send_booking_auto_cancelled,
+            }
+            handler = dispatch.get(event_type)
+            if handler:
+                handler(payload)
+            else:
+                logger.warning(
+                    "unknown event type, skipping",
+                    extra={"fields": {"event_type": event_type}},
+                )
+
+            # Mark as processed
+            with SessionLocal() as session:
+                session.add(ProcessedEvent(event_id=event_id))
+                session.commit()
+
             logger.info(
                 "notification received",
-                extra={
-                    "fields": {
-                        "event_type": body.get("event_type"),
-                        "payload": body,
-                    }
-                },
+                extra={"fields": {"event_type": event_type, "event_id": event_id}},
             )
         finally:
             request_id_ctx.reset(token)
@@ -51,12 +100,14 @@ async def run_worker() -> None:
     settings = get_settings()
     configure_logging(settings.service_name, settings.log_level)
 
+    if settings.database_url:
+        _init_db()
+
     logger.info("connecting to rabbitmq", extra={"fields": {"url": settings.rabbitmq_url}})
     connection = await aio_pika.connect_robust(settings.rabbitmq_url)
 
     async with connection:
         channel = await connection.channel()
-        # prefetch=1: xử lý một message một lúc, tránh overload khi message nặng.
         await channel.set_qos(prefetch_count=1)
 
         queue = await channel.declare_queue(settings.notifications_queue, durable=True)
