@@ -92,6 +92,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
+    command: python -m app.workers.outbox_relay
+    environment:
+      SERVICE_NAME: outbox-relay
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://booking_user:${BOOKING_DB_PASSWORD}@postgres:5432/booking_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      OUTBOX_RELAY_INTERVAL_SECONDS: ${OUTBOX_RELAY_INTERVAL_SECONDS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:4.0-management-alpine
     environment:
