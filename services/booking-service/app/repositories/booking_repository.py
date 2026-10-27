@@ -95,6 +95,22 @@ class BookingRepository:
         count = self._db.execute(stmt).scalar_one()
         return count > 0
 
+    def find_overdue_confirmed(self, cutoff: datetime) -> list[Booking]:
+        """Trả về các booking CONFIRMED mà start_at + 15min < cutoff (quá hạn check-in)."""
+        from datetime import timedelta
+
+        window = timedelta(minutes=15)
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.status == BookingStatus.CONFIRMED,
+                Booking.start_at + window < cutoff,
+                Booking.deleted_at.is_(None),
+            )
+            .options(selectinload(Booking.attendees))
+        )
+        return list(self._db.execute(stmt).scalars().all())
+
     def update(self, booking: Booking) -> Booking:
         booking.updated_at = datetime.now(UTC)
         self._db.flush()

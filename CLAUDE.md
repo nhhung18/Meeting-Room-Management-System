@@ -227,7 +227,7 @@ Mỗi khi hoàn thành một rule dưới đây, agent **phải** tuân theo mà
 
 - Khi hoàn thành một task, **cập nhật trạng thái** trong `docs/progress.md` (đổi ⏳ → 🔄 hoặc ✅, thêm ghi chú ngắn).
 - Khi hoàn thành task, **chạy `./scripts/check.sh`** và báo kết quả thật trước khi báo xong.
-- Liệt kê các file đã thêm / sửa / xóa ở cuối mỗi task.
+- Liệt kê các file đã thêm / sửa / xóa ở cuối mỗi task, kèm **tóm tắt mục đích** của task vừa hoàn thành (task này giải quyết vấn đề gì, đóng góp gì vào dự án).
 - **Trước khi thực hiện task có plan:** copy nội dung plan vào file `.task` ở thư mục gốc repo,
   sau đó **đánh dấu `x`** vào từng subtask / substep ngay khi hoàn thành nó.
   Format: `- [x] subtask đã xong` thay cho `- [ ] subtask chưa làm`.

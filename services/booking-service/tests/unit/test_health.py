@@ -6,11 +6,11 @@ def test_health_ok_when_database_up(client, db_up, path):
     response = client.get(path)
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "service": "booking-service",
-        "database": "ok",
-    }
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["service"] == "booking-service"
+    assert body["database"] == "ok"
+    assert "hostname" in body  # identifies which instance handled the request
 
 
 def test_health_returns_503_when_database_down(client, db_down):

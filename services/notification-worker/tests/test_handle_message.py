@@ -4,10 +4,18 @@ Dùng mock để giả lập IncomingMessage của aio_pika.
 """
 
 import json
-from contextlib import asynccontextmanager
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+
+def _make_session_mock():
+    """Tạo mock SessionLocal trả về context manager giả."""
+    session = MagicMock()
+    session.__enter__ = MagicMock(return_value=session)
+    session.__exit__ = MagicMock(return_value=False)
+    session.get = MagicMock(return_value=None)
+    return MagicMock(return_value=session)
 
 
 def _make_message(body: dict | str, headers: dict | None = None) -> MagicMock:
@@ -20,13 +28,8 @@ def _make_message(body: dict | str, headers: dict | None = None) -> MagicMock:
     msg = MagicMock()
     msg.body = raw
     msg.headers = headers or {}
-
-    # process() là async context manager
-    @asynccontextmanager
-    async def _process():
-        yield
-
-    msg.process = _process
+    msg.ack = AsyncMock()
+    msg.reject = AsyncMock()
     return msg
 
 
@@ -37,10 +40,16 @@ async def test_valid_message_logged(caplog):
 
     from app.worker import handle_message
 
-    msg = _make_message({"event_type": "booking.confirmed", "booking_id": "abc-123"})
+    msg = _make_message({
+        "event_id": "evt-test-001",
+        "event_type": "booking.created",
+        "payload": {"booking_id": "abc-123", "attendees": []},
+    })
 
-    with caplog.at_level(logging.INFO, logger="worker"):
-        await handle_message(msg)
+    with patch("app.worker.SessionLocal", _make_session_mock()), \
+         patch("app.worker.get_email_sender", return_value=MagicMock()):
+        with caplog.at_level(logging.INFO, logger="worker"):
+            await handle_message(msg)
 
     assert any("notification received" in r.message for r in caplog.records)
 
@@ -55,7 +64,11 @@ async def test_request_id_propagated(caplog):
 
     test_rid = "test-request-id-001"
     msg = _make_message(
-        {"event_type": "booking.cancelled"},
+        {
+            "event_id": "evt-test-002",
+            "event_type": "booking.cancelled",
+            "payload": {},
+        },
         headers={"X-Request-ID": test_rid},
     )
 
@@ -67,8 +80,10 @@ async def test_request_id_propagated(caplog):
         captured_ids.append(request_id_ctx.get(""))
         return original_info(msg_text, *args, **kwargs)
 
-    with patch.object(logging.getLogger("worker"), "info", side_effect=capturing_info):
-        await handle_message(msg)
+    with patch("app.worker.SessionLocal", _make_session_mock()), \
+         patch("app.worker.get_email_sender", return_value=MagicMock()):
+        with patch.object(logging.getLogger("worker"), "info", side_effect=capturing_info):
+            await handle_message(msg)
 
     assert test_rid in captured_ids
 

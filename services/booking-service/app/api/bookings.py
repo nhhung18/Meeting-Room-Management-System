@@ -13,6 +13,8 @@ Exception → HTTP mapping:
   IntegrityError       → 409  (EXCLUDE constraint race between instances)
 """
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -20,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
+from app.models.outbox_event import OutboxEvent
 from app.repositories.booking_repository import BookingRepository
 from app.repositories.room_snapshot_repository import RoomSnapshotRepository
 from app.schemas.booking import (
@@ -60,6 +63,8 @@ def _domain_to_http(exc: BookingService.DomainError) -> HTTPException:
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, (BookingService.CapacityExceededError, BookingService.PastBookingError)):
         return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, BookingService.CheckInWindowError):
+        return HTTPException(status_code=400, detail=str(exc))
     return HTTPException(status_code=500, detail=str(exc))
 
 
@@ -91,6 +96,19 @@ def create_booking(
 ) -> BookingResponse:
     try:
         result = service.create_booking(body, user_id=user.sub)
+        db.add(OutboxEvent(
+            event_type="booking.created",
+            payload=json.dumps({
+                "booking_id": result.id,
+                "room_id": result.room_id,
+                "user_id": result.user_id,
+                "start_at": result.start_at.isoformat(),
+                "end_at": result.end_at.isoformat(),
+                "attendees": [
+                    {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                ],
+            }),
+        ))
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -184,6 +202,44 @@ def cancel_booking(
 
     try:
         result = service.cancel_booking(booking_id)
+        db.add(OutboxEvent(
+            event_type="booking.cancelled",
+            payload=json.dumps({
+                "booking_id": result.id,
+                "room_id": result.room_id,
+                "user_id": result.user_id,
+            }),
+        ))
+        db.commit()
+        return result
+    except BookingService.DomainError as exc:
+        raise _domain_to_http(exc) from exc
+
+
+@router.post("/{booking_id}/check-in", response_model=BookingResponse)
+def check_in_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    user: TokenPayload = Depends(current_user),
+    service: BookingService = Depends(_get_booking_service),
+) -> BookingResponse:
+    try:
+        existing = service.get_booking(booking_id)
+    except BookingService.DomainError as exc:
+        raise _domain_to_http(exc) from exc
+    _check_ownership(existing, user)
+
+    try:
+        result = service.check_in_booking(booking_id)
+        db.add(OutboxEvent(
+            event_type="booking.checked_in",
+            payload=json.dumps({
+                "booking_id": result.id,
+                "room_id": result.room_id,
+                "user_id": result.user_id,
+                "checked_in_at": result.checked_in_at.isoformat() if result.checked_in_at else None,
+            }),
+        ))
         db.commit()
         return result
     except BookingService.DomainError as exc:

@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-21
+> Cập nhật lần cuối: 2026-10-27
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -34,19 +34,19 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 19 | Check-in API (cửa sổ 15 phút trước start) | ⏳ | |
-| 20 | Auto-cancel worker (hủy sau 15 phút nếu chưa check-in) | ⏳ | Process riêng của booking-service |
-| 21 | Notification: gửi thông báo khi đặt/hủy/sắp đến giờ | ⏳ | RabbitMQ → notification-worker |
-| 22 | Retry + DLQ + idempotency cho messages | ⏳ | |
-| 23 | Transactional outbox pattern | ⏳ | |
+| 19 | Check-in API (cửa sổ 15 phút trước start) | ✅ Done | `POST /{id}/check-in`; cửa sổ ±15 phút |
+| 20 | Auto-cancel worker (hủy sau 15 phút nếu chưa check-in) | ✅ Done | `python -m app.workers.auto_cancel`; loop 60s |
+| 21 | Notification: gửi thông báo khi đặt/hủy/sắp đến giờ | ✅ Done | EmailSender 4 event types; idempotency via `processed_events` |
+| 22 | Retry + DLQ + idempotency cho messages | ✅ Done | x-death header; max 3 retries; `notifications.dlq` |
+| 23 | Transactional outbox pattern | ✅ Done | `outbox_events` table; relay worker; outbox writes in router + auto_cancel |
 
 ## Tuần 6: Scaling & Bảo vệ
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 24 | Chạy 2× instance booking-service đằng sau Nginx | ⏳ | Chứng minh stateless |
-| 25 | Rate limiting trong Nginx (`limit_req`) | ⏳ | Per-IP |
-| 26 | Load test cơ bản | ⏳ | |
+| 24 | Chạy 2× instance booking-service đằng sau Nginx | ✅ Done | `--scale booking-service=2`; resolver valid=1s; health trả hostname |
+| 25 | Rate limiting trong Nginx (`limit_req`) | ✅ Done | 20r/s per-IP, burst=40, 429 khi vượt |
+| 26 | Load test cơ bản | ✅ Done | `scripts/load-test.py`: concurrent + rate-limit test |
 
 ## Tuần 7: Test scenarios & Frontend
 
