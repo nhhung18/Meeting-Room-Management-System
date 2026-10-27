@@ -1,7 +1,7 @@
 """Unit tests cho BookingRepository — mocked Session, không cần DB thật."""
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.orm import Session
