@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-27
+> Cập nhật lần cuối: 2026-10-29
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -52,7 +52,7 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 27 | Test scenarios bắt buộc (theo đề bài) | ⏳ | |
+| 27 | Test scenarios bắt buộc (theo đề bài) | ✅ Done | 41 new tests; all 7 scenarios S1–S7 covered; `docs/test-report.md` |
 | 28 | Frontend React + TypeScript: trang đặt phòng | ⏳ | |
 | 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
