@@ -53,7 +53,7 @@
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
 | 27 | Test scenarios bắt buộc (theo đề bài) | ✅ Done | 41 new tests; all 7 scenarios S1–S7 covered; `docs/test-report.md` |
-| 28 | Frontend React + TypeScript: trang đặt phòng | ⏳ | |
+| 28 | Frontend API layer: HTTP client + mappers + rooms/bookings API + error handling | ✅ Done | 6 modules, 48 unit tests; rooms/bookings call backend qua Vite proxy → Nginx; ApiErrorState covers 0/403/404/409/5xx; nhánh `feat/frontend-api-integration` |
 | 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
 
