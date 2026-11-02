@@ -53,8 +53,9 @@
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
 | 27 | Test scenarios bắt buộc (theo đề bài) | ✅ Done | 41 new tests; all 7 scenarios S1–S7 covered; `docs/test-report.md` |
-| 28 | Frontend API layer: HTTP client + mappers + rooms/bookings API + error handling | ✅ Done | 6 modules, 48 unit tests; rooms/bookings call backend qua Vite proxy → Nginx; ApiErrorState covers 0/403/404/409/5xx; nhánh `feat/frontend-api-integration` |
-| 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
+| 28 | Frontend API layer: HTTP client + mappers + rooms/bookings API + error handling | ✅ Done | 6 modules, 51 unit tests; rooms/bookings call backend qua Vite proxy → Nginx; ApiErrorState covers 0/403/404/409/5xx; nhánh `feat/frontend-api-integration` |
+| 28b | Frontend missing UI: edit booking flow + ApiErrorState wired | ✅ Done | BookingFormPage edit mode (PATCH), edit button on MyBookingsPage, ApiErrorState + empty state wired vào 4 pages; 51 tests pass |
+| 29 | Frontend: trang quản lý phòng (admin) | ✅ Done | RoomManagementPage committed (CRUD + error state) |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
 
 ## Functional Requirements (FR)
