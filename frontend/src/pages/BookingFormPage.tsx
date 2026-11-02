@@ -25,11 +25,13 @@ import {
   MinusCircleOutlined,
   ArrowLeftOutlined,
   CheckCircleOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Room } from '../types';
-import { getRooms, createBooking } from '../api/client';
+import { Room, BookingPolicyConfig } from '../types';
+import { getRooms, createBooking, getBookingById, updateBooking, getBookingPolicies } from '../api/client';
+import { ApiErrorState } from '../components/ApiErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -54,7 +56,8 @@ interface BookingFormValues {
 }
 
 export const BookingFormPage: React.FC = () => {
-  const { id } = useParams<{ id?: string }>();
+  const { id, bookingId } = useParams<{ id?: string; bookingId?: string }>();
+  const isEditMode = Boolean(bookingId);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -65,17 +68,61 @@ export const BookingFormPage: React.FC = () => {
   const [form] = Form.useForm<BookingFormValues>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<{ status: number; detail: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [capacityWarning, setCapacityWarning] = useState<string | null>(null);
+  const [policies, setPolicies] = useState<BookingPolicyConfig | null>(null);
 
   // Watch fields for live summary
   const watchedValues = Form.useWatch([], form);
 
-  useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        setLoading(true);
+  const fetchFormData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load organization policies
+      const policyData = await getBookingPolicies();
+      setPolicies(policyData);
+
+      if (isEditMode) {
+        // Fetch room catalog and current booking
+        const [roomsRes, existing] = await Promise.all([
+          getRooms(),
+          getBookingById(Number(bookingId)),
+        ]);
+        setRooms(roomsRes.items);
+
+        // Constraint check: only CONFIRMED bookings can be edited
+        if (existing.status !== 'CONFIRMED') {
+          setError({
+            status: 409,
+            detail: t.errCannotEditStatus,
+          });
+          return;
+        }
+
+        const roomMatch = roomsRes.items.find((r) => r.id === existing.room_id) || null;
+        setSelectedRoom(roomMatch);
+
+        const startD = dayjs(existing.start_at);
+        const endD = dayjs(existing.end_at);
+
+        form.setFieldsValue({
+          room_id: existing.room_id,
+          date: startD,
+          start_time: startD.format('HH:mm'),
+          end_time: endD.format('HH:mm'),
+          num_attendees: existing.num_attendees,
+          purpose: existing.purpose || '',
+          attendees: existing.attendees?.map((att) => ({
+            name: att.name,
+            attendee_email: att.attendee_email,
+          })) || [],
+        });
+      } else {
+        // Create mode: fetch AVAILABLE rooms
         const res = await getRooms({ status: 'AVAILABLE' });
         setRooms(res.items);
 
@@ -113,7 +160,6 @@ export const BookingFormPage: React.FC = () => {
             end_time: nextSlot,
           });
         } else {
-          // Default: 17:00 - 18:00 or 09:00 - 10:00
           form.setFieldsValue({
             start_time: '17:00',
             end_time: '17:30',
@@ -130,15 +176,20 @@ export const BookingFormPage: React.FC = () => {
             },
           ],
         });
-      } catch (err: any) {
-        message.error(err.message || 'Không thể tải danh sách phòng họp');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err: any) {
+      setError({
+        status: err.status ?? 0,
+        detail: err.detail || err.message || (isEditMode ? 'Không thể tải thông tin đặt phòng' : 'Không thể tải danh sách phòng họp'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchRooms();
-  }, [id, searchParams, form, user]);
+  useEffect(() => {
+    fetchFormData();
+  }, [id, bookingId, isEditMode, searchParams, form, user]);
 
   const handleRoomChange = (roomId: number) => {
     const r = rooms.find((item) => item.id === roomId);
@@ -170,7 +221,12 @@ export const BookingFormPage: React.FC = () => {
   };
 
   const disabledDate = (current: Dayjs) => {
-    return current && current < dayjs().startOf('day');
+    if (!current) return false;
+    if (current < dayjs().startOf('day')) return true;
+    if (policies?.max_advance_days && current > dayjs().add(policies.max_advance_days, 'day').endOf('day')) {
+      return true;
+    }
+    return false;
   };
 
   const onFinish = async (values: BookingFormValues) => {
@@ -198,22 +254,52 @@ export const BookingFormPage: React.FC = () => {
         return;
       }
 
-      await createBooking({
-        room_id: values.room_id,
-        start_at: startAt,
-        end_at: endAt,
-        num_attendees: values.num_attendees,
-        attendees: (values.attendees || []).map((att) => ({
-          name: att.name,
-          attendee_email: att.attendee_email,
-        })),
-      });
+      // Check policy max meeting duration
+      const durationMinutes = endDayjs.diff(startDayjs, 'minute');
+      if (policies?.max_duration_minutes && durationMinutes > policies.max_duration_minutes) {
+        form.setFields([
+          {
+            name: 'end_time',
+            errors: [
+              t.policyMaxDurationExceeded.replace('{max}', String(policies.max_duration_minutes)),
+            ],
+          },
+        ]);
+        setSubmitting(false);
+        return;
+      }
 
-      message.success(t.bookingSuccess);
-      navigate('/my-bookings');
+      if (isEditMode) {
+        // Global constraint: do NOT send purpose in updateBooking schema
+        await updateBooking(Number(bookingId), {
+          room_id: values.room_id,
+          start_at: startAt,
+          end_at: endAt,
+          num_attendees: values.num_attendees,
+          attendees: (values.attendees || []).map((att) => ({
+            name: att.name,
+            attendee_email: att.attendee_email,
+          })),
+        });
+        message.success(t.editBookingSuccess);
+        navigate('/my-bookings');
+      } else {
+        await createBooking({
+          room_id: values.room_id,
+          start_at: startAt,
+          end_at: endAt,
+          num_attendees: values.num_attendees,
+          attendees: (values.attendees || []).map((att) => ({
+            name: att.name,
+            attendee_email: att.attendee_email,
+          })),
+        });
+        message.success(t.bookingSuccess);
+        navigate('/my-bookings');
+      }
     } catch (err: any) {
-      if (err.status === 409 || err.message?.includes('trùng lịch')) {
-        message.error(t.errBookingConflict);
+      if (err.status === 409 || err.message?.includes('409') || err.message?.includes('trùng lịch') || err.message?.includes('đã đặt')) {
+        message.error(err.message || t.errBookingConflict);
       } else {
         message.error(err.message || t.errBookingFailed);
       }
@@ -230,6 +316,24 @@ export const BookingFormPage: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/my-bookings')}
+            className={`p-0 mb-2 font-medium ${isDark ? 'text-zinc-400 hover:text-[#0a84ff]' : 'text-slate-500 hover:text-[#1e40af]'}`}
+          >
+            {t.myBookings}
+          </Button>
+        </div>
+        <ApiErrorState error={error} onRetry={fetchFormData} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-4 overflow-x-hidden">
       {/* Top Navigation Back */}
@@ -237,17 +341,21 @@ export const BookingFormPage: React.FC = () => {
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
-          onClick={() => (id ? navigate(`/rooms/${id}`) : navigate('/rooms'))}
+          onClick={() => {
+            if (isEditMode) navigate('/my-bookings');
+            else if (id) navigate(`/rooms/${id}`);
+            else navigate('/rooms');
+          }}
           className={`p-0 mb-2 font-medium ${isDark ? 'text-zinc-400 hover:text-[#0a84ff]' : 'text-slate-500 hover:text-[#1e40af]'}`}
         >
-          {id ? t.backToRoomDetails : t.backToRoomList}
+          {isEditMode ? t.myBookings : id ? t.backToRoomDetails : t.backToRoomList}
         </Button>
 
         <Title level={3} style={{ margin: 0, fontWeight: 700, color: isDark ? '#ffffff' : '#141b54' }}>
-          {t.bookingFormTitle}
+          {isEditMode ? t.editBookingTitle : t.bookingFormTitle}
         </Title>
         <Text type="secondary" style={{ fontSize: 13, color: isDark ? '#8e8e93' : undefined }}>
-          {t.bookingFormSubtitle}
+          {isEditMode ? t.editBookingSubtitle : t.bookingFormSubtitle}
         </Text>
       </div>
 
@@ -264,6 +372,18 @@ export const BookingFormPage: React.FC = () => {
             num_attendees: 4,
           }}
         >
+          {policies && (
+            <div className="mb-4 p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+              <InfoCircleOutlined className="text-blue-600 dark:text-blue-400 text-sm shrink-0" />
+              <span>
+                <strong>{t.policyNoticeBanner}</strong> {language === 'vi' ? 'Đặt trước tối đa' : 'Max advance'} {policies.max_advance_days} {language === 'vi' ? 'ngày' : 'days'} · {language === 'vi' ? 'Thời lượng tối đa' : 'Max length'} {policies.max_duration_minutes} {language === 'vi' ? 'phút' : 'mins'}
+                {policies.enable_auto_release_no_show && (
+                  <span> · {language === 'vi' ? `Tự hủy nếu không check-in sau ${policies.auto_release_grace_minutes} phút` : `Auto-cancel if no check-in after ${policies.auto_release_grace_minutes}m`}</span>
+                )}
+              </span>
+            </div>
+          )}
+
           {capacityWarning && (
             <Alert
               type="warning"
@@ -510,7 +630,11 @@ export const BookingFormPage: React.FC = () => {
               size="large"
               block
               className="sm:w-auto"
-              onClick={() => (id ? navigate(`/rooms/${id}`) : navigate('/rooms'))}
+              onClick={() => {
+                if (isEditMode) navigate('/my-bookings');
+                else if (id) navigate(`/rooms/${id}`);
+                else navigate('/rooms');
+              }}
               style={{ borderRadius: 8 }}
             >
               {t.cancelBtn}
@@ -531,7 +655,7 @@ export const BookingFormPage: React.FC = () => {
                 borderRadius: 8,
               }}
             >
-              {t.confirmBookingBtn}
+              {isEditMode ? t.editBookingBtn : t.confirmBookingBtn}
             </Button>
           </div>
         </Form>
