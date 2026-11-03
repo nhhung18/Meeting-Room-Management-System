@@ -9,6 +9,8 @@ const t = {
   errNotFoundTitle: 'Không tìm thấy dữ liệu',
   errRetryBtn: 'Thử lại',
   errGenericTitle: 'Đã xảy ra lỗi',
+  errUnauthorizedTitle: 'Phiên đăng nhập hết hạn',
+  errUnauthorizedHint: 'Token xác thực hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại.',
 } as unknown as Translations;
 
 describe('getErrorConfig', () => {
@@ -62,5 +64,18 @@ describe('getErrorConfig', () => {
     const cfg = getErrorConfig(500, '', t);
     expect(cfg.title).toBe(t.errGenericTitle);
     expect(cfg.showRetry).toBe(true);
+  });
+
+  test('status 401 returns unauthorized title and no retry', () => {
+    const cfg = getErrorConfig(401, undefined, t);
+    expect(cfg.title).toBe(t.errUnauthorizedTitle);
+    expect(cfg.showRetry).toBe(false);
+  });
+
+  test('status 401 with detail still returns unauthorized title (not detail)', () => {
+    const cfg = getErrorConfig(401, 'Token expired', t);
+    expect(cfg.title).toBe(t.errUnauthorizedTitle);
+    expect(cfg.description).toBe(t.errUnauthorizedHint);
+    expect(cfg.showRetry).toBe(false);
   });
 });
