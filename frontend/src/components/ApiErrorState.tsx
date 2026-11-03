@@ -35,6 +35,15 @@ export const getErrorConfig = (
     };
   }
 
+  if (code === 401) {
+    return {
+      title: t.errUnauthorizedTitle,
+      description: t.errUnauthorizedHint,
+      showRetry: false,
+      statusType: '403',
+    };
+  }
+
   if (code === 403) {
     return {
       title: t.errForbiddenTitle,
@@ -81,6 +90,9 @@ export const ApiErrorState: React.FC<ApiErrorStateProps> = ({ error, onRetry }) 
   const getCustomIcon = () => {
     if (status === 0) {
       return <DisconnectOutlined style={{ color: '#ff453a', fontSize: 48 }} />;
+    }
+    if (status === 401) {
+      return <LockOutlined style={{ color: '#ff453a', fontSize: 48 }} />;
     }
     if (status === 403) {
       return <LockOutlined style={{ color: '#ff9f0a', fontSize: 48 }} />;

@@ -350,6 +350,8 @@ export interface Translations {
   errNotFoundTitle: string;
   errRetryBtn: string;
   errGenericTitle: string;
+  errUnauthorizedTitle: string;
+  errUnauthorizedHint: string;
   emptyRooms: string;
   emptyBookings: string;
 
@@ -793,6 +795,8 @@ const translations: Record<Language, Translations> = {
     errNotFoundTitle: 'Không tìm thấy dữ liệu',
     errRetryBtn: 'Thử lại',
     errGenericTitle: 'Đã xảy ra lỗi',
+    errUnauthorizedTitle: 'Phiên đăng nhập hết hạn',
+    errUnauthorizedHint: 'Token xác thực hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại.',
     emptyRooms: 'Chưa có phòng họp nào phù hợp',
     emptyBookings: 'Chưa có lịch họp nào',
 
@@ -1234,6 +1238,8 @@ const translations: Record<Language, Translations> = {
     errNotFoundTitle: 'Not found',
     errRetryBtn: 'Retry',
     errGenericTitle: 'An error occurred',
+    errUnauthorizedTitle: 'Session expired',
+    errUnauthorizedHint: 'Your authentication token has expired or you are not logged in. Please log in again.',
     emptyRooms: 'No meeting rooms found',
     emptyBookings: 'No bookings found',
 
