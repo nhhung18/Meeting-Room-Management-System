@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { createTokenProvider, isAuth0Mode } from './AuthContext';
+import { createTokenProvider, isAuth0Mode } from './authContextDef';
 
 describe('createTokenProvider', () => {
   test('returns null in mock mode (no real JWT)', async () => {

@@ -8,7 +8,8 @@ import {
   TeamOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { useAuth, isAuth0Mode } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { isAuth0Mode } from '../context/authContextDef';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserRole } from '../types';

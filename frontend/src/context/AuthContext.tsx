@@ -1,35 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { INITIAL_USERS } from '../api/mockData';
-import { setTokenProvider, TokenProvider } from '../api/http';
+import { setTokenProvider } from '../api/http';
+import {
+  AuthContext,
+  AuthContextType,
+  createTokenProvider,
+  isAuth0Mode,
+} from './authContextDef';
 import { Auth0AuthProvider } from './Auth0AuthProvider';
 
-export interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  loginWithAuth0: (role?: UserRole) => void;
-  loginWithRedirect?: (opts?: { appState?: { returnTo?: string } }) => Promise<void>;
-  logout: () => void;
-  switchRole: (role: UserRole) => void;
-  hasRole: (roles: UserRole[]) => boolean;
-  updateProfile: (data: Partial<User>) => void;
-  getToken: () => Promise<string | null>;
-}
-
-export function isAuth0Mode(domain?: string, clientId?: string, audience?: string): boolean {
-  return Boolean(domain && clientId && audience);
-}
-
-/**
- * Creates the token provider function for http.ts.
- * In mock mode returns null (no real JWT).
- * When Auth0 is wired, Auth0AuthProvider replaces this via setTokenProvider.
- */
-export function createTokenProvider(): TokenProvider {
-  return async (_opts?: { force?: boolean }) => null;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export { AuthContext, AuthContextType, createTokenProvider, isAuth0Mode };
 
 const AUTH_STORAGE_KEY = 'mrms_current_user_v1';
 
@@ -38,7 +19,6 @@ const cleanUserName = (name: string): string => {
 };
 
 const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Default: Auto-login as Administrator for dev mode as per requirement
   const [user, setUser] = useState<User | null>(() => {
     try {
       const stored = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -50,7 +30,6 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     } catch (e) {
       console.error(e);
     }
-    // Default admin user
     const defaultUser = { ...INITIAL_USERS[0], name: cleanUserName(INITIAL_USERS[0].name) };
     return defaultUser;
   });
@@ -75,9 +54,7 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     setUser({ ...matched, name: cleanUserName(matched.name) });
   };
 
-  const logout = () => {
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
   const switchRole = (role: UserRole) => {
     const matched = INITIAL_USERS.find((u) => u.role === role);
@@ -96,12 +73,7 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   const updateProfile = (data: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null;
-      const updated = {
-        ...prev,
-        ...data,
-        name: data.name ? cleanUserName(data.name) : prev.name,
-      };
-      return updated;
+      return { ...prev, ...data, name: data.name ? cleanUserName(data.name) : prev.name };
     });
   };
 
@@ -109,16 +81,7 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        loginWithAuth0,
-        logout,
-        switchRole,
-        hasRole,
-        updateProfile,
-        getToken,
-      }}
+      value={{ user, isAuthenticated: !!user, loginWithAuth0, logout, switchRole, hasRole, updateProfile, getToken }}
     >
       {children}
     </AuthContext.Provider>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { User, UserRole } from '../types';
 import { setTokenProvider, TokenProvider } from '../api/http';
-import { AuthContext } from './AuthContext';
+import { AuthContext } from './authContextDef';
 import { mapAuth0Role } from './roleMapper';
 
 export function createAuth0TokenProvider(
