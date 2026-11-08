@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
+import { Auth0Provider, useAuth0, GetTokenSilentlyOptions } from '@auth0/auth0-react';
 import { User, UserRole } from '../types';
 import { setTokenProvider, TokenProvider } from '../api/http';
 import { AuthContext } from './authContextDef';
 import { mapAuth0Role } from './roleMapper';
 
-export function createAuth0TokenProvider(
-  getAccessTokenSilently: (opts?: { cacheMode?: string }) => Promise<string>
-): TokenProvider {
+type GetTokenFn = (opts?: GetTokenSilentlyOptions) => Promise<string | undefined>;
+
+export function createAuth0TokenProvider(getToken: GetTokenFn): TokenProvider {
   return async (opts?: { force?: boolean }) => {
     try {
-      return await getAccessTokenSilently({
-        cacheMode: opts?.force ? 'off' : 'cache-first',
-      });
+      const token = await getToken(
+        opts?.force ? { cacheMode: 'off' } : undefined,
+      );
+      return token ?? null;
     } catch {
       return null;
     }
@@ -25,8 +26,14 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   audience,
   children,
 }) => {
-  const { user: auth0User, isAuthenticated, getAccessTokenSilently, loginWithRedirect, logout: auth0Logout } = useAuth0();
+  const { user: auth0User, isAuthenticated, error, getAccessTokenSilently, loginWithRedirect, logout: auth0Logout } = useAuth0();
   const [appUser, setAppUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      console.error('[Auth0] Error:', error.message, error);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (isAuthenticated && auth0User) {
@@ -79,7 +86,8 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
 
   const getToken = async (): Promise<string | null> => {
     try {
-      return await getAccessTokenSilently({ cacheMode: 'cache-first' } as Parameters<typeof getAccessTokenSilently>[0]);
+      const token = await getAccessTokenSilently();
+      return token ?? null;
     } catch {
       return null;
     }

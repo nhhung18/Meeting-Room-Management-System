@@ -2,15 +2,15 @@ import { describe, test, expect, vi } from 'vitest';
 import { createAuth0TokenProvider } from './Auth0AuthProvider';
 
 describe('createAuth0TokenProvider', () => {
-  test('calls getAccessTokenSilently with cache-first by default', async () => {
+  test('calls getAccessTokenSilently without options by default', async () => {
     const mockGetToken = vi.fn().mockResolvedValue('test-jwt-token');
     const provider = createAuth0TokenProvider(mockGetToken);
     const token = await provider();
-    expect(mockGetToken).toHaveBeenCalledWith({ cacheMode: 'cache-first' });
+    expect(mockGetToken).toHaveBeenCalledWith(undefined);
     expect(token).toBe('test-jwt-token');
   });
 
-  test('calls getAccessTokenSilently with cache off when force=true', async () => {
+  test('calls getAccessTokenSilently with cacheMode off when force=true', async () => {
     const mockGetToken = vi.fn().mockResolvedValue('fresh-jwt-token');
     const provider = createAuth0TokenProvider(mockGetToken);
     const token = await provider({ force: true });
