@@ -10,7 +10,8 @@ import {
 } from './authContextDef';
 import { Auth0AuthProvider } from './Auth0AuthProvider';
 
-export { AuthContext, AuthContextType, createTokenProvider, isAuth0Mode };
+export type { AuthContextType };
+export { AuthContext, createTokenProvider, isAuth0Mode };
 
 const AUTH_STORAGE_KEY = 'mrms_current_user_v1';
 
