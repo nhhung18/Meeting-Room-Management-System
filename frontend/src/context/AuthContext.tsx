@@ -2,11 +2,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { INITIAL_USERS } from '../api/mockData';
 import { setTokenProvider, TokenProvider } from '../api/http';
+import { Auth0AuthProvider } from './Auth0AuthProvider';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loginWithAuth0: (role?: UserRole) => void;
+  loginWithRedirect?: (opts?: { appState?: { returnTo?: string } }) => Promise<void>;
   logout: () => void;
   switchRole: (role: UserRole) => void;
   hasRole: (roles: UserRole[]) => boolean;
@@ -14,16 +16,20 @@ interface AuthContextType {
   getToken: () => Promise<string | null>;
 }
 
+export function isAuth0Mode(domain?: string, clientId?: string, audience?: string): boolean {
+  return Boolean(domain && clientId && audience);
+}
+
 /**
  * Creates the token provider function for http.ts.
  * In mock mode returns null (no real JWT).
- * When Auth0 is wired (task #11), replace body with auth0GetTokenSilently().
+ * When Auth0 is wired, Auth0AuthProvider replaces this via setTokenProvider.
  */
 export function createTokenProvider(): TokenProvider {
   return async (_opts?: { force?: boolean }) => null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'mrms_current_user_v1';
 
@@ -31,7 +37,7 @@ const cleanUserName = (name: string): string => {
   return name.replace(/\s*\((Admin|Manager|Nhân viên|Administrator)\)/gi, '').trim();
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Default: Auto-login as Administrator for dev mode as per requirement
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -117,6 +123,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const domain = import.meta.env.VITE_AUTH0_DOMAIN as string | undefined;
+  const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID as string | undefined;
+  const audience = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined;
+
+  if (isAuth0Mode(domain, clientId, audience)) {
+    return (
+      <Auth0AuthProvider domain={domain!} clientId={clientId!} audience={audience!}>
+        {children}
+      </Auth0AuthProvider>
+    );
+  }
+
+  return <MockAuthProvider>{children}</MockAuthProvider>;
 };
 
 export const useAuth = (): AuthContextType => {

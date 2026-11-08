@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps test lint format reset-db migrate test-integration test-common test-worker test-room migrate-room test-room-integration seed token
+.PHONY: help setup up down dev logs ps test lint format reset-db migrate test-integration test-common test-worker test-room migrate-room test-room-integration seed token
 
 BOOKING := services/booking-service
 COMMON := libs/common
@@ -14,6 +14,10 @@ setup: ## Tạo .env từ mẫu (nếu chưa có) và cài pre-commit hook
 
 up: ## Build và chạy toàn bộ hệ thống
 	docker compose up --build -d --wait
+
+dev: ## Chạy backend (Docker) + frontend dev server cùng lúc
+	docker compose up --build -d --wait
+	cd frontend && npm run dev
 
 down: ## Dừng hệ thống (giữ dữ liệu)
 	docker compose down
