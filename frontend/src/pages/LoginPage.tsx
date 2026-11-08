@@ -8,7 +8,7 @@ import {
   TeamOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isAuth0Mode } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserRole } from '../types';
@@ -18,13 +18,19 @@ import { LanguageToggle } from '../components/LanguageToggle';
 const { Title, Text, Paragraph } = Typography;
 
 export const LoginPage: React.FC = () => {
-  const { loginWithAuth0, isAuthenticated } = useAuth();
+  const { loginWithAuth0, loginWithRedirect, isAuthenticated } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { t, language } = useLanguage();
   const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
+
+  const auth0Mode = isAuth0Mode(
+    import.meta.env.VITE_AUTH0_DOMAIN,
+    import.meta.env.VITE_AUTH0_CLIENT_ID,
+    import.meta.env.VITE_AUTH0_AUDIENCE
+  );
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -34,10 +40,17 @@ export const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate, location]);
 
-  const handleAuth0Login = (role: UserRole = 'ADMINISTRATOR') => {
+  const handleAuth0Login = async (role: UserRole = 'ADMINISTRATOR') => {
+    if (auth0Mode && loginWithRedirect) {
+      setLoading(true);
+      message.loading({ content: t.loginConnecting, key: 'login_msg' });
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      await loginWithRedirect({ appState: { returnTo: from } });
+      return;
+    }
+    // Mock mode
     setLoading(true);
     message.loading({ content: t.loginConnecting, key: 'login_msg' });
-
     setTimeout(() => {
       loginWithAuth0(role);
       message.success({ content: t.loginSuccess, key: 'login_msg' });

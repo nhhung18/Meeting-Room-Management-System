@@ -175,6 +175,9 @@ const AppContent: React.FC = () => {
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
 
+              {/* Auth0 callback — Auth0Provider handles token extraction; just navigate home */}
+              <Route path="/callback" element={<Navigate to="/dashboard" replace />} />
+
               {/* Protected App Routes */}
               <Route
                 path="/"

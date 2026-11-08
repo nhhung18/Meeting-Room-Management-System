@@ -3,6 +3,7 @@ import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { User, UserRole } from '../types';
 import { setTokenProvider, TokenProvider } from '../api/http';
 import { AuthContext } from './AuthContext';
+import { mapAuth0Role } from './roleMapper';
 
 export function createAuth0TokenProvider(
   getAccessTokenSilently: (opts?: { cacheMode?: string }) => Promise<string>
@@ -19,18 +20,6 @@ export function createAuth0TokenProvider(
 }
 
 const ROLES_CLAIM = 'https://mrms.api/roles';
-
-function mapAuth0Role(roles: string[]): UserRole {
-  const priority: [string, UserRole][] = [
-    ['Administrator', 'ADMINISTRATOR'],
-    ['Room Manager', 'ROOM_MANAGER'],
-    ['Employee', 'EMPLOYEE'],
-  ];
-  for (const [auth0Name, appRole] of priority) {
-    if (roles.includes(auth0Name)) return appRole;
-  }
-  return 'EMPLOYEE';
-}
 
 const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   audience,
