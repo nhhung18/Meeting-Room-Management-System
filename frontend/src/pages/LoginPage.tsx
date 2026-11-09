@@ -100,25 +100,14 @@ export const LoginPage: React.FC = () => {
         styles={{ body: { padding: '36px 28px' } }}
       >
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-3">
+          <div className="flex justify-center mb-4">
             <img
-              src="/assets/aistudio/apple-touch-icon_64d93247.png"
-              alt="BlueOC Tech Logo"
-              className="w-16 h-16 object-contain drop-shadow-md hover:scale-105 transition-transform"
+              src="/assets/aistudio/H_Logo.png"
+              alt="MRMS Logo"
+              className="w-20 h-20 object-contain drop-shadow-md hover:scale-105 transition-transform"
             />
           </div>
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            <span className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
-              BlueOC
-            </span>
-            <span className="text-2xl font-black tracking-tight text-[#00c2e8]">
-              TECH
-            </span>
-            <Tag color="cyan" style={{ margin: 0, borderRadius: 6, fontWeight: 600, marginLeft: 4 }}>
-              MRMS
-            </Tag>
-          </div>
-          <Title level={4} style={{ marginTop: 2, marginBottom: 4, fontWeight: 700, color: isDark ? '#ffffff' : '#141b54' }}>
+          <Title level={3} style={{ marginTop: 0, marginBottom: 4, fontWeight: 800, color: isDark ? '#ffffff' : '#141b54' }}>
             {t.loginAppTitle}
           </Title>
           <Text type="secondary" style={{ fontSize: 13, color: isDark ? '#8e8e93' : undefined }}>
