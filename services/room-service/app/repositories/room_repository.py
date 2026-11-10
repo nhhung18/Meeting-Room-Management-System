@@ -10,7 +10,8 @@ updated_at set thủ công vì server_default chỉ áp dụng khi INSERT, khôn
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import cast, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from app.models.room import Room
@@ -37,6 +38,9 @@ class RoomRepository:
         *,
         status: str | None = None,
         q: str | None = None,
+        min_capacity: int | None = None,
+        equipment: list[str] | None = None,
+        floor: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[Room], int]:
@@ -46,6 +50,17 @@ class RoomRepository:
             base = base.where(Room.status == status)
         if q:
             base = base.where(Room.name.ilike(f"%{q}%"))
+        if min_capacity is not None:
+            base = base.where(Room.capacity >= min_capacity)
+        if floor:
+            base = base.where(Room.floor == floor)
+        if equipment:
+            # Mỗi item trong list phải tồn tại trong JSONB array equipment của phòng.
+            # PostgreSQL: equipment @> '["projector","whiteboard"]'::jsonb
+            import json
+            base = base.where(
+                Room.equipment.op("@>")(cast(json.dumps(equipment), JSONB))
+            )
 
         total = self._db.scalar(select(func.count()).select_from(base.subquery()))
         rooms = list(self._db.scalars(base.order_by(Room.id).limit(limit).offset(offset)).all())

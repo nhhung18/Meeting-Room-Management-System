@@ -47,12 +47,23 @@ def create_room(
 def list_rooms(
     status_filter: str | None = Query(None, alias="status"),
     q: str | None = Query(None, max_length=100),
+    min_capacity: int | None = Query(None, ge=1, description="Lọc phòng có sức chứa >= giá trị này"),
+    equipment: list[str] | None = Query(None, description="Lọc phòng có đủ thiết bị (multi-value)"),
+    floor: str | None = Query(None, max_length=100, description="Lọc theo tầng"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     _user: TokenPayload = Depends(current_user),
     service: RoomService = Depends(_get_service),
 ):
-    return service.list_rooms(status=status_filter, q=q, limit=limit, offset=offset)
+    return service.list_rooms(
+        status=status_filter,
+        q=q,
+        min_capacity=min_capacity,
+        equipment=equipment,
+        floor=floor,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{room_id}", response_model=RoomResponse)

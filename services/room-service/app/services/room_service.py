@@ -57,10 +57,21 @@ class RoomService:
         *,
         status: str | None = None,
         q: str | None = None,
+        min_capacity: int | None = None,
+        equipment: list[str] | None = None,
+        floor: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> RoomListResponse:
-        rooms, total = self._repo.list_rooms(status=status, q=q, limit=limit, offset=offset)
+        rooms, total = self._repo.list_rooms(
+            status=status,
+            q=q,
+            min_capacity=min_capacity,
+            equipment=equipment,
+            floor=floor,
+            limit=limit,
+            offset=offset,
+        )
         return RoomListResponse(
             items=[RoomResponse.model_validate(r) for r in rooms],
             total=total,

@@ -114,7 +114,30 @@ class TestListRooms:
 
         service.list_rooms(status="AVAILABLE", q="P1", limit=10, offset=5)
 
-        mock_repo.list_rooms.assert_called_once_with(status="AVAILABLE", q="P1", limit=10, offset=5)
+        mock_repo.list_rooms.assert_called_once_with(
+            status="AVAILABLE",
+            q="P1",
+            min_capacity=None,
+            equipment=None,
+            floor=None,
+            limit=10,
+            offset=5,
+        )
+
+    def test_list_rooms_passes_new_filters(self, service, mock_repo):
+        mock_repo.list_rooms.return_value = ([], 0)
+
+        service.list_rooms(min_capacity=10, equipment=["projector"], floor="Tầng 2")
+
+        mock_repo.list_rooms.assert_called_once_with(
+            status=None,
+            q=None,
+            min_capacity=10,
+            equipment=["projector"],
+            floor="Tầng 2",
+            limit=20,
+            offset=0,
+        )
 
 
 class TestUpdateRoom:
