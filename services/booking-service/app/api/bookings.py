@@ -15,14 +15,17 @@ Exception → HTTP mapping:
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.request_id import request_id_ctx
 from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
+from app.models.audit_log import AuditAction, AuditLog
 from app.models.outbox_event import OutboxEvent
+from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.booking_repository import BookingRepository
 from app.repositories.room_snapshot_repository import RoomSnapshotRepository
 from app.schemas.booking import (
@@ -48,6 +51,30 @@ def _get_booking_service(db: Session = Depends(get_db)) -> BookingService:
 
 def _get_sync_service(db: Session = Depends(get_db)) -> RoomSnapshotSync:
     return RoomSnapshotSync(RoomSnapshotRepository(db), get_settings().room_service_url)
+
+
+def _write_audit(
+    db: Session,
+    *,
+    actor: TokenPayload,
+    action: AuditAction,
+    booking: BookingResponse,
+    before: BookingResponse | None = None,
+) -> None:
+    """Ghi một dòng audit log vào DB (flush, không commit)."""
+    repo = AuditLogRepository(db)
+    repo.create(
+        AuditLog(
+            actor_id=actor.sub,
+            actor_roles=list(actor.roles),
+            action=action.value,
+            resource_type="booking",
+            resource_id=booking.id,
+            before_snapshot=before.model_dump(mode="json") if before else None,
+            after_snapshot=booking.model_dump(mode="json"),
+            request_id=request_id_ctx.get(None),
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +136,7 @@ def create_booking(
                 ],
             }),
         ))
+        _write_audit(db, actor=user, action=AuditAction.CREATE, booking=result)
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -175,6 +203,7 @@ def update_booking(
 
     try:
         result = service.update_booking(booking_id, body, user_id=user.sub)
+        _write_audit(db, actor=user, action=AuditAction.UPDATE, booking=result, before=existing)
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -210,6 +239,7 @@ def cancel_booking(
                 "user_id": result.user_id,
             }),
         ))
+        _write_audit(db, actor=user, action=AuditAction.CANCEL, booking=result, before=existing)
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -240,6 +270,7 @@ def check_in_booking(
                 "checked_in_at": result.checked_in_at.isoformat() if result.checked_in_at else None,
             }),
         ))
+        _write_audit(db, actor=user, action=AuditAction.CHECK_IN, booking=result, before=existing)
         db.commit()
         return result
     except BookingService.DomainError as exc:
