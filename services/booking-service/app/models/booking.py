@@ -55,9 +55,7 @@ class Booking(Base):
         nullable=False,
         server_default=sa.text("now()"),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        sa.TIMESTAMP(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=True)
 
     # selectin: load attendees cùng lúc với booking, không cần thêm query riêng.
     attendees: Mapped[list["BookingAttendee"]] = relationship(

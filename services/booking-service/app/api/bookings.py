@@ -58,8 +58,14 @@ def _get_sync_service(db: Session = Depends(get_db)) -> RoomSnapshotSync:
 def _domain_to_http(exc: BookingService.DomainError) -> HTTPException:
     if isinstance(exc, BookingService.NotFoundError):
         return HTTPException(status_code=404, detail=str(exc))
-    if isinstance(exc, (BookingService.RoomNotAvailableError, BookingService.OverlapError,
-                        BookingService.InvalidStateError)):
+    if isinstance(
+        exc,
+        (
+            BookingService.RoomNotAvailableError,
+            BookingService.OverlapError,
+            BookingService.InvalidStateError,
+        ),
+    ):
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, (BookingService.CapacityExceededError, BookingService.PastBookingError)):
         return HTTPException(status_code=422, detail=str(exc))
@@ -96,19 +102,23 @@ def create_booking(
 ) -> BookingResponse:
     try:
         result = service.create_booking(body, user_id=user.sub)
-        db.add(OutboxEvent(
-            event_type="booking.created",
-            payload=json.dumps({
-                "booking_id": result.id,
-                "room_id": result.room_id,
-                "user_id": result.user_id,
-                "start_at": result.start_at.isoformat(),
-                "end_at": result.end_at.isoformat(),
-                "attendees": [
-                    {"email": a.attendee_email, "name": a.name} for a in result.attendees
-                ],
-            }),
-        ))
+        db.add(
+            OutboxEvent(
+                event_type="booking.created",
+                payload=json.dumps(
+                    {
+                        "booking_id": result.id,
+                        "room_id": result.room_id,
+                        "user_id": result.user_id,
+                        "start_at": result.start_at.isoformat(),
+                        "end_at": result.end_at.isoformat(),
+                        "attendees": [
+                            {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                        ],
+                    }
+                ),
+            )
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -202,14 +212,18 @@ def cancel_booking(
 
     try:
         result = service.cancel_booking(booking_id)
-        db.add(OutboxEvent(
-            event_type="booking.cancelled",
-            payload=json.dumps({
-                "booking_id": result.id,
-                "room_id": result.room_id,
-                "user_id": result.user_id,
-            }),
-        ))
+        db.add(
+            OutboxEvent(
+                event_type="booking.cancelled",
+                payload=json.dumps(
+                    {
+                        "booking_id": result.id,
+                        "room_id": result.room_id,
+                        "user_id": result.user_id,
+                    }
+                ),
+            )
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -231,15 +245,21 @@ def check_in_booking(
 
     try:
         result = service.check_in_booking(booking_id)
-        db.add(OutboxEvent(
-            event_type="booking.checked_in",
-            payload=json.dumps({
-                "booking_id": result.id,
-                "room_id": result.room_id,
-                "user_id": result.user_id,
-                "checked_in_at": result.checked_in_at.isoformat() if result.checked_in_at else None,
-            }),
-        ))
+        db.add(
+            OutboxEvent(
+                event_type="booking.checked_in",
+                payload=json.dumps(
+                    {
+                        "booking_id": result.id,
+                        "room_id": result.room_id,
+                        "user_id": result.user_id,
+                        "checked_in_at": result.checked_in_at.isoformat()
+                        if result.checked_in_at
+                        else None,
+                    }
+                ),
+            )
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:

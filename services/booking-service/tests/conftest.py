@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.core.security import TokenPayload, current_user  # noqa: E402
 from app.db.session import database_is_healthy, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services import policy_service as policy_service_module  # noqa: E402
 from app.services.booking_service import BookingService  # noqa: E402
 
 
@@ -37,9 +38,7 @@ def db_down():
 
 @pytest.fixture
 def employee_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(
-        sub="emp1", roles=["Employee"]
-    )
+    app.dependency_overrides[current_user] = lambda: TokenPayload(sub="emp1", roles=["Employee"])
     yield
     app.dependency_overrides.pop(current_user, None)
 
@@ -71,6 +70,27 @@ def mock_db():
     app.dependency_overrides[get_db] = lambda: db
     yield db
     app.dependency_overrides.pop(get_db, None)
+
+
+# --- Policy service mock (autouse) ---
+# Unit tests không cần DB → policy service singleton phải trả giá trị mặc định
+# mà không query DB thật. Autouse đảm bảo áp dụng cho mọi test.
+
+
+@pytest.fixture(autouse=True)
+def _mock_policy_service(monkeypatch):
+    fake = MagicMock()
+    fake.get_check_in_window_minutes.return_value = 15
+    fake.get.return_value = 15
+    monkeypatch.setattr(policy_service_module, "get_policy_service", lambda: fake)
+    # Service module cũng import tên này; patch cả hai để đảm bảo nhất quán.
+    from app.services import booking_service as booking_service_module
+
+    monkeypatch.setattr(booking_service_module, "get_policy_service", lambda: fake)
+    from app.workers import auto_cancel as auto_cancel_module
+
+    monkeypatch.setattr(auto_cancel_module, "get_policy_service", lambda: fake)
+    yield fake
 
 
 # --- BookingService mock fixture ---
