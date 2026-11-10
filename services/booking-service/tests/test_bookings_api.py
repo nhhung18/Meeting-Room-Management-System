@@ -25,6 +25,10 @@ def _booking_response(**kwargs) -> BookingResponse:
         start_at=_NOW + timedelta(hours=1),
         end_at=_NOW + timedelta(hours=2),
         num_attendees=5,
+        purpose="Team standup",
+        description=None,
+        meeting_type="OFFLINE",
+        meeting_link=None,
         status="CONFIRMED",
         checked_in_at=None,
         auto_cancelled_at=None,
@@ -43,6 +47,7 @@ def _valid_body(**kwargs):
         start_at=(_NOW + timedelta(hours=1)).isoformat(),
         end_at=(_NOW + timedelta(hours=2)).isoformat(),
         num_attendees=5,
+        purpose="Team standup",
     )
     body.update(kwargs)
     return body

@@ -101,6 +101,10 @@ class BookingService:
             start_at=dto.start_at,
             end_at=dto.end_at,
             num_attendees=dto.num_attendees,
+            purpose=dto.purpose,
+            description=dto.description,
+            meeting_type=dto.meeting_type.value,
+            meeting_link=dto.meeting_link,
             status=BookingStatus.CONFIRMED,
         )
         booking.attendees = [
@@ -203,9 +207,14 @@ class BookingService:
         time_changed = "start_at" in changes or "end_at" in changes
 
         # Apply scalar field changes first
-        for field in ("num_attendees", "start_at", "end_at", "room_id"):
+        for field in ("num_attendees", "start_at", "end_at", "room_id", "purpose", "description", "meeting_link"):
             if field in changes:
                 setattr(booking, field, changes[field])
+
+        # Apply meeting_type enum separately (needs .value extraction)
+        if "meeting_type" in changes and changes["meeting_type"] is not None:
+            mt = changes["meeting_type"]
+            booking.meeting_type = mt.value if hasattr(mt, "value") else mt
 
         # If time changed, re-validate past + overlap
         if time_changed:
@@ -252,6 +261,10 @@ class BookingService:
             start_at=booking.start_at,
             end_at=booking.end_at,
             num_attendees=booking.num_attendees,
+            purpose=booking.purpose,
+            description=booking.description,
+            meeting_type=booking.meeting_type,
+            meeting_link=booking.meeting_link,
             status=booking.status,
             checked_in_at=booking.checked_in_at,
             auto_cancelled_at=booking.auto_cancelled_at,

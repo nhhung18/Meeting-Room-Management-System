@@ -5,6 +5,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.models.booking import MeetingType
+
 
 class AttendeeInput(BaseModel):
     email: EmailStr
@@ -24,7 +26,19 @@ class BookingCreate(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int = Field(gt=0)
+    purpose: Annotated[str, Field(min_length=1, max_length=255)]
+    description: str | None = None
+    meeting_type: MeetingType = MeetingType.OFFLINE
+    meeting_link: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] = Field(default_factory=list)
+
+    @field_validator("purpose", mode="before")
+    @classmethod
+    def strip_purpose(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("purpose must not be blank")
+        return stripped
 
     @field_validator("start_at", "end_at", mode="after")
     @classmethod
@@ -40,12 +54,23 @@ class BookingCreate(BaseModel):
                 raise ValueError("end_at must be after start_at")
         return self
 
+    @model_validator(mode="after")
+    def meeting_link_required_for_online(self) -> "BookingCreate":
+        if self.meeting_type in (MeetingType.ONLINE, MeetingType.HYBRID):
+            if not self.meeting_link:
+                raise ValueError("meeting_link is required for ONLINE and HYBRID meetings")
+        return self
+
 
 class BookingUpdate(BaseModel):
     room_id: int | None = Field(default=None, gt=0)
     start_at: datetime | None = None
     end_at: datetime | None = None
     num_attendees: int | None = Field(default=None, gt=0)
+    purpose: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    meeting_type: MeetingType | None = None
+    meeting_link: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] | None = None
 
     @field_validator("start_at", "end_at", mode="after")
@@ -80,6 +105,10 @@ class BookingResponse(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int
+    purpose: str
+    description: str | None = None
+    meeting_type: str = "OFFLINE"
+    meeting_link: str | None = None
     status: str
     checked_in_at: datetime | None = None
     auto_cancelled_at: datetime | None = None

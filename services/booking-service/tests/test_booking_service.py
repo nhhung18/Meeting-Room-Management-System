@@ -42,6 +42,10 @@ def _make_booking(
     start_at: datetime | None = None,
     end_at: datetime | None = None,
     num_attendees: int = 5,
+    purpose: str = "Team standup",
+    description: str | None = None,
+    meeting_type: str = "OFFLINE",
+    meeting_link: str | None = None,
     attendees: list | None = None,
 ) -> MagicMock:
     now = datetime.now(UTC)
@@ -53,6 +57,10 @@ def _make_booking(
     booking.start_at = start_at or (now + timedelta(hours=1))
     booking.end_at = end_at or (now + timedelta(hours=2))
     booking.num_attendees = num_attendees
+    booking.purpose = purpose
+    booking.description = description
+    booking.meeting_type = meeting_type
+    booking.meeting_link = meeting_link
     booking.attendees = attendees if attendees is not None else []
     booking.checked_in_at = None
     booking.auto_cancelled_at = None
@@ -68,6 +76,7 @@ def _future_dto(**kwargs) -> BookingCreate:
         start_at=now + timedelta(hours=1),
         end_at=now + timedelta(hours=2),
         num_attendees=5,
+        purpose="Team standup",
     )
     defaults.update(kwargs)
     return BookingCreate(**defaults)
@@ -134,6 +143,7 @@ class TestCreateBooking:
             start_at=now - timedelta(hours=1),
             end_at=now + timedelta(hours=1),
             num_attendees=5,
+            purpose="Past meeting",
         )
 
         with pytest.raises(BookingService.PastBookingError):
@@ -148,6 +158,7 @@ class TestCreateBooking:
             start_at=now,
             end_at=now + timedelta(hours=1),
             num_attendees=5,
+            purpose="Now meeting",
         )
 
         with pytest.raises(BookingService.PastBookingError):

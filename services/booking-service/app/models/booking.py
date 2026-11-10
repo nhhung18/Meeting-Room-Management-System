@@ -25,6 +25,14 @@ class BookingStatus(enum.StrEnum):
     CANCELLED = "CANCELLED"
 
 
+class MeetingType(enum.StrEnum):
+    """Loại hình cuộc họp."""
+
+    OFFLINE = "OFFLINE"
+    ONLINE = "ONLINE"
+    HYBRID = "HYBRID"
+
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -39,6 +47,14 @@ class Booking(Base):
         nullable=False,
         server_default="CONFIRMED",
     )
+    purpose: Mapped[str] = mapped_column(sa.VARCHAR(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    meeting_type: Mapped[str] = mapped_column(
+        sa.VARCHAR(20),
+        nullable=False,
+        server_default="OFFLINE",
+    )
+    meeting_link: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
     checked_in_at: Mapped[datetime | None] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=True
     )
