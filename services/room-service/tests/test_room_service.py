@@ -18,6 +18,9 @@ def _make_room(**kwargs) -> Room:
         "status": "AVAILABLE",
         "equipment": [],
         "owner_id": None,
+        "floor": None,
+        "description": None,
+        "image_url": None,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
         "deleted_at": None,
@@ -177,3 +180,45 @@ class TestDeleteRoom:
 
         with pytest.raises(RoomService.NotFoundError):
             service.delete_room(999)
+
+
+class TestRoomNewFields:
+    def test_create_room_with_floor_and_description(self, service, mock_repo):
+        mock_repo.name_exists.return_value = False
+        mock_repo.create.return_value = _make_room(floor="Tầng 2", description="Phòng họp vừa")
+        dto = RoomCreate(name="P201", capacity=10, floor="Tầng 2", description="Phòng họp vừa")
+
+        result = service.create_room(dto)
+
+        assert result.floor == "Tầng 2"
+        assert result.description == "Phòng họp vừa"
+
+    def test_create_room_with_image_url(self, service, mock_repo):
+        mock_repo.name_exists.return_value = False
+        mock_repo.create.return_value = _make_room(image_url="https://example.com/room.jpg")
+        dto = RoomCreate(name="P201", capacity=10, image_url="https://example.com/room.jpg")
+
+        result = service.create_room(dto)
+
+        assert result.image_url == "https://example.com/room.jpg"
+
+    def test_create_room_new_fields_default_none(self, service, mock_repo):
+        mock_repo.name_exists.return_value = False
+        mock_repo.create.return_value = _make_room()
+        dto = RoomCreate(name="P201", capacity=10)
+
+        result = service.create_room(dto)
+
+        assert result.floor is None
+        assert result.description is None
+        assert result.image_url is None
+
+    def test_update_room_floor(self, service, mock_repo):
+        room = _make_room()
+        mock_repo.get_by_id.return_value = room
+        mock_repo.update.return_value = _make_room(floor="Tầng 3")
+        dto = RoomUpdate(floor="Tầng 3")
+
+        result = service.update_room(1, dto)
+
+        assert result.floor == "Tầng 3"

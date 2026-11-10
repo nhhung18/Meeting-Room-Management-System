@@ -11,15 +11,17 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
+from app.core.security import get_jwt_validator  # noqa: E402
 from app.db.session import database_is_healthy, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
 @pytest.fixture
 def client():
-    # Override get_db để unit tests không cần psycopg cài sẵn.
+    # Override get_db và get_jwt_validator để unit tests không cần DB hay JWT thật.
     mock_db = MagicMock()
     app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_jwt_validator] = lambda: None  # disables auth
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

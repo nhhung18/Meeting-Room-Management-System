@@ -36,6 +36,9 @@ class RoomService:
             capacity=dto.capacity,
             equipment=dto.equipment,
             owner_id=dto.owner_id,
+            floor=dto.floor,
+            description=dto.description,
+            image_url=dto.image_url,
         )
         if dto.status is not None:
             room.status = dto.status.value

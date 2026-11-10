@@ -16,11 +16,20 @@ def test_room_has_expected_columns():
         "status",
         "equipment",
         "owner_id",
+        "floor",
+        "description",
+        "image_url",
         "created_at",
         "updated_at",
         "deleted_at",
     }
     assert expected == col_names
+
+
+def test_room_new_fields_are_nullable():
+    for col_name in ("floor", "description", "image_url"):
+        col = Room.__table__.c[col_name]
+        assert col.nullable is True, f"{col_name} should be nullable"
 
 
 def test_room_status_server_default():
