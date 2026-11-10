@@ -96,7 +96,10 @@ class TestUpsert:
 
     def test_insert_does_not_commit(self, repo, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        repo.upsert(room_id=2, name="B", capacity=5, status="AVAILABLE", equipment=[], owner_id=None, version=1)
+        repo.upsert(
+            room_id=2, name="B", capacity=5, status="AVAILABLE",
+            equipment=[], owner_id=None, version=1,
+        )
         mock_db.commit.assert_not_called()
 
 

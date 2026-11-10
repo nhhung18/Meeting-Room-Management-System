@@ -210,7 +210,11 @@ class BookingService:
         time_changed = "start_at" in changes or "end_at" in changes
 
         # Apply scalar field changes first
-        for field in ("num_attendees", "start_at", "end_at", "room_id", "purpose", "description", "meeting_link"):
+        _scalar_fields = (
+            "num_attendees", "start_at", "end_at", "room_id",
+            "purpose", "description", "meeting_link",
+        )
+        for field in _scalar_fields:
             if field in changes:
                 setattr(booking, field, changes[field])
 

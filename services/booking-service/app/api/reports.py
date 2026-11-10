@@ -21,8 +21,8 @@ def _get_booking_service(db: Session = Depends(get_db)) -> BookingService:
 
 @router.get("/summary", response_model=ReportSummaryResponse)
 def get_report_summary(
-    period_start: datetime | None = Query(None, description="Bắt đầu kỳ báo cáo (ISO 8601, có timezone)"),
-    period_end: datetime | None = Query(None, description="Kết thúc kỳ báo cáo (ISO 8601, có timezone)"),
+    period_start: datetime | None = Query(None, description="Bắt đầu kỳ báo cáo (ISO 8601)"),
+    period_end: datetime | None = Query(None, description="Kết thúc kỳ báo cáo (ISO 8601)"),
     top_n: int = Query(5, ge=1, le=20, description="Số phòng top N trong most_booked_rooms"),
     _user: TokenPayload = Depends(require_admin),
     service: BookingService = Depends(_get_booking_service),

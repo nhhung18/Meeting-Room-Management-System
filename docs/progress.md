@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-27
+> Cập nhật lần cuối: 2026-11-11
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -24,11 +24,13 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 14 | Booking CRUD API (create, read, update, cancel) | ⏳ | |
-| 15 | Tích hợp room_snapshots (Booking lấy Room data qua events) | ⏳ | ADR-0003 |
+| 14 | Booking CRUD API (create, read, update, cancel) | ✅ Done | FR-04: thêm purpose, description, meeting_type, meeting_link |
+| 15 | Tích hợp room_snapshots (Booking lấy Room data qua events) | ✅ Done | ADR-0003 |
 | 16 | Concurrency test: N request song song → 1×201, (N-1)×409 | ⏳ | EXCLUDE constraint |
-| 17 | Booking validation (kiểm tra dung tích, thời gian, trùng lịch) | ⏳ | |
+| 17 | Booking validation (kiểm tra dung tích, thời gian, trùng lịch) | ✅ Done | |
 | 18 | Phân quyền booking (Employee đặt/hủy của mình, Manager quản lý phòng mình, Admin toàn quyền) | ⏳ | Chờ task 12 |
+| FR-03 | Room search filters (min_capacity, equipment JSONB, floor) | ✅ Done | `@>` containment; available_from/to defer đến cross-service |
+| FR-07 | Reporting API (thống kê bookings, top rooms, giờ cao điểm) | ✅ Done | Admin only; `GET /api/bookings/reports/summary` |
 
 ## Tuần 5: Check-in, Hủy tự động & Thông báo
 
@@ -61,7 +63,7 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 31 | Nhật ký kiểm toán (audit log — FR-08) | ⏳ | Chưa quyết định nơi lưu |
+| 31 | Nhật ký kiểm toán (audit log — FR-08) | ✅ Done | `audit_logs` table; ghi khi CREATE/UPDATE/CANCEL/CHECK_IN; GET API (admin only) |
 | 32 | API docs hoàn chỉnh (Swagger) | ⏳ | |
 | 33 | README hướng dẫn chạy + kiến trúc | ⏳ | |
 | 34 | Demo video | ⏳ | |

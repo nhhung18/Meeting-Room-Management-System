@@ -7,8 +7,6 @@ import pytest
 
 from app.main import app
 from app.models.audit_log import AuditLog
-from app.schemas.audit_log import AuditLogListResponse, AuditLogResponse
-
 
 _NOW = datetime.now(UTC)
 
@@ -21,7 +19,7 @@ def _make_log(**kwargs) -> AuditLog:
     log.action = kwargs.get("action", "CREATE")
     log.resource_type = kwargs.get("resource_type", "booking")
     log.resource_id = kwargs.get("resource_id", 42)
-    log.before_snapshot = kwargs.get("before_snapshot", None)
+    log.before_snapshot = kwargs.get("before_snapshot")
     log.after_snapshot = kwargs.get("after_snapshot", {"id": 42, "status": "CONFIRMED"})
     log.request_id = kwargs.get("request_id", "req-123")
     log.created_at = kwargs.get("created_at", _NOW)

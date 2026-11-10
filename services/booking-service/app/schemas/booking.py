@@ -49,16 +49,14 @@ class BookingCreate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingCreate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
     @model_validator(mode="after")
     def meeting_link_required_for_online(self) -> "BookingCreate":
-        if self.meeting_type in (MeetingType.ONLINE, MeetingType.HYBRID):
-            if not self.meeting_link:
-                raise ValueError("meeting_link is required for ONLINE and HYBRID meetings")
+        if self.meeting_type in (MeetingType.ONLINE, MeetingType.HYBRID) and not self.meeting_link:
+            raise ValueError("meeting_link is required for ONLINE and HYBRID meetings")
         return self
 
 
@@ -82,9 +80,8 @@ class BookingUpdate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingUpdate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
 

@@ -1,12 +1,9 @@
 """Unit tests cho Reports API — service mocked, no DB."""
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from app.main import app
 from app.schemas.booking import HourlyCount, ReportSummaryResponse, RoomBookingCount
-from app.services.booking_service import BookingService
 
 
 def _mock_report(**kwargs) -> ReportSummaryResponse:
