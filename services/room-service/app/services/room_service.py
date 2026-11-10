@@ -10,6 +10,9 @@ Transaction: service gọi repo.flush(), commit do router quyết định.
 
 import logging
 
+import cloudinary
+import cloudinary.uploader
+
 from app.models.room import Room
 from app.repositories.room_repository import RoomRepository
 from app.schemas.room import RoomCreate, RoomListResponse, RoomResponse, RoomUpdate
@@ -27,6 +30,9 @@ class RoomService:
     def __init__(self, repo: RoomRepository) -> None:
         self._repo = repo
 
+    class CloudinaryError(Exception):
+        """Lỗi khi upload ảnh lên Cloudinary."""
+
     def create_room(self, dto: RoomCreate) -> RoomResponse:
         if self._repo.name_exists(dto.name):
             raise self.DuplicateNameError(f"Room name '{dto.name}' already exists")
@@ -36,6 +42,9 @@ class RoomService:
             capacity=dto.capacity,
             equipment=dto.equipment,
             owner_id=dto.owner_id,
+            floor=dto.floor,
+            description=dto.description,
+            image_url=dto.image_url,
         )
         if dto.status is not None:
             room.status = dto.status.value
@@ -92,3 +101,24 @@ class RoomService:
         if room is None:
             raise self.NotFoundError(f"Room {room_id} not found")
         self._repo.soft_delete(room)
+
+    def upload_image(self, room_id: int, file_bytes: bytes, filename: str) -> RoomResponse:
+        """Upload ảnh lên Cloudinary và lưu secure_url vào room.image_url."""
+        room = self._repo.get_by_id(room_id)
+        if room is None:
+            raise self.NotFoundError(f"Room {room_id} not found")
+
+        try:
+            result = cloudinary.uploader.upload(
+                file_bytes,
+                public_id=f"rooms/{room_id}",
+                overwrite=True,
+                resource_type="image",
+            )
+        except Exception as e:
+            logger.error("cloudinary upload failed for room %s: %s", room_id, e)
+            raise self.CloudinaryError(f"Failed to upload image: {e}") from e
+
+        room.image_url = result["secure_url"]
+        room = self._repo.update(room)
+        return RoomResponse.model_validate(room)

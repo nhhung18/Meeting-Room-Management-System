@@ -8,3 +8,5 @@ alembic==1.16.5
 PyJWT==2.10.1
 cryptography==44.0.3
 httpx==0.28.1
+cloudinary==1.42.1
+python-multipart==0.0.20
