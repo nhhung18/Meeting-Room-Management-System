@@ -16,6 +16,9 @@ from app.schemas.booking import (
     BookingListResponse,
     BookingResponse,
     BookingUpdate,
+    HourlyCount,
+    ReportSummaryResponse,
+    RoomBookingCount,
 )
 
 CHECK_IN_WINDOW = timedelta(minutes=15)
@@ -240,6 +243,45 @@ class BookingService:
 
         snapshot = self._snapshot_repo.get_by_room_id(booking.room_id)
         return self._to_response(booking, snapshot.name if snapshot else None)
+
+    def get_report(
+        self,
+        *,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        top_n: int = 5,
+    ) -> ReportSummaryResponse:
+        data = self._booking_repo.get_report_summary(
+            period_start=period_start,
+            period_end=period_end,
+            top_n=top_n,
+        )
+        counts = data["counts_by_status"]
+        total = sum(counts.values())
+
+        most_booked = []
+        for room_id, count in data["most_booked"]:
+            snapshot = self._snapshot_repo.get_by_room_id(room_id)
+            most_booked.append(
+                RoomBookingCount(
+                    room_id=room_id,
+                    room_name=snapshot.name if snapshot else None,
+                    count=count,
+                )
+            )
+
+        busiest = [HourlyCount(hour=h, count=c) for h, c in data["busiest_hours"]]
+
+        return ReportSummaryResponse(
+            period_start=period_start,
+            period_end=period_end,
+            total_bookings=total,
+            confirmed_bookings=counts.get("CONFIRMED", 0),
+            cancelled_bookings=counts.get("CANCELLED", 0),
+            checked_in_bookings=counts.get("CHECKED_IN", 0),
+            most_booked_rooms=most_booked,
+            busiest_hours=busiest,
+        )
 
     # ------------------------------------------------------------------
     # Private helpers

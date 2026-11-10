@@ -6,7 +6,7 @@ Mọi read đều lọc deleted_at IS NULL (soft delete).
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.booking import Booking, BookingStatus
@@ -110,6 +110,57 @@ class BookingRepository:
             .options(selectinload(Booking.attendees))
         )
         return list(self._db.execute(stmt).scalars().all())
+
+    def get_report_summary(
+        self,
+        *,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        top_n: int = 5,
+    ) -> dict:
+        """Trả về dict với các stats cho ReportSummaryResponse."""
+        base_filter = [Booking.deleted_at.is_(None)]
+        if period_start:
+            base_filter.append(Booking.start_at >= period_start)
+        if period_end:
+            base_filter.append(Booking.start_at < period_end)
+
+        # Counts theo status
+        counts_stmt = select(
+            Booking.status,
+            func.count().label("cnt"),
+        ).where(*base_filter).group_by(Booking.status)
+        rows = self._db.execute(counts_stmt).all()
+        counts_by_status = {row.status: row.cnt for row in rows}
+
+        # Most booked rooms
+        room_stmt = (
+            select(Booking.room_id, func.count().label("cnt"))
+            .where(*base_filter, Booking.status != BookingStatus.CANCELLED)
+            .group_by(Booking.room_id)
+            .order_by(func.count().desc())
+            .limit(top_n)
+        )
+        most_booked = self._db.execute(room_stmt).all()
+
+        # Busiest hours (extract hour from start_at in UTC)
+        hour_stmt = (
+            select(
+                extract("hour", Booking.start_at).label("hour"),
+                func.count().label("cnt"),
+            )
+            .where(*base_filter, Booking.status != BookingStatus.CANCELLED)
+            .group_by(extract("hour", Booking.start_at))
+            .order_by(func.count().desc())
+            .limit(10)
+        )
+        busiest_hours = self._db.execute(hour_stmt).all()
+
+        return {
+            "counts_by_status": counts_by_status,
+            "most_booked": [(row.room_id, row.cnt) for row in most_booked],
+            "busiest_hours": [(int(row.hour), row.cnt) for row in busiest_hours],
+        }
 
     def update(self, booking: Booking) -> Booking:
         booking.updated_at = datetime.now(UTC)

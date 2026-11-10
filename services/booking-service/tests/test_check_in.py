@@ -34,6 +34,8 @@ def _make_booking(status=BookingStatus.CONFIRMED, start_offset_minutes=5):
         start_at=start,
         end_at=start + timedelta(hours=1),
         num_attendees=2,
+        purpose="Team standup",
+        meeting_type="OFFLINE",
         status=status,
         created_at=now,
         updated_at=now,

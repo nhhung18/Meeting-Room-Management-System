@@ -123,3 +123,25 @@ class BookingListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class RoomBookingCount(BaseModel):
+    room_id: int
+    room_name: str | None
+    count: int
+
+
+class HourlyCount(BaseModel):
+    hour: int
+    count: int
+
+
+class ReportSummaryResponse(BaseModel):
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+    total_bookings: int
+    confirmed_bookings: int
+    cancelled_bookings: int
+    checked_in_bookings: int
+    most_booked_rooms: list[RoomBookingCount]
+    busiest_hours: list[HourlyCount]
