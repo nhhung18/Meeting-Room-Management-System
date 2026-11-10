@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-27
+> Cập nhật lần cuối: 2026-11-11
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -56,6 +56,19 @@
 | 28 | Frontend React + TypeScript: trang đặt phòng | ⏳ | |
 | 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
+
+## Functional Requirements (FR)
+
+| FR | Mô tả | Trạng thái | Ghi chú |
+|---|---|---|---|
+| FR-01 | Auth0 JWT + RBAC 3 roles | 🔄 Partial | libs/common wired; Auth0 tenant chưa config (task 11) |
+| FR-02 | Room CRUD + trạng thái + ảnh | ✅ Done | AVAILABLE/MAINTENANCE/DISABLED; Cloudinary upload; PR #18 |
+| FR-03 | Availability search + room-service snapshots | ⏳ | Phương án C: room-service giữ booking intervals qua events |
+| FR-04 | Booking CRUD + check-in | ✅ Done | Concurrency EXCLUDE constraint; check-in ±window |
+| FR-05 | Admin cấu hình runtime policy (check-in window) | ✅ Done | system_policies table; PolicyService cache 60s; PATCH /api/bookings/policies/{key} |
+| FR-06 | Thông báo async (booking.created, cancelled, reminders) | 🔄 Partial | outbox pattern; DLQ; reminder worker cần thêm |
+| FR-07 | Báo cáo quản trị viên | ⏳ | Chưa làm |
+| FR-08 | Nhật ký kiểm toán | ⏳ | Chưa quyết định nơi lưu |
 
 ## Tuần 8: Hoàn thiện & Demo
 
