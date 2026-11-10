@@ -1,6 +1,6 @@
 from scripts.seed import SEED_ROOMS
 
-VALID_STATUSES = {"AVAILABLE", "MAINTENANCE", "ARCHIVED"}
+VALID_STATUSES = {"AVAILABLE", "MAINTENANCE", "DISABLED"}
 
 
 def test_seed_rooms_not_empty():

@@ -1,9 +1,10 @@
 import logging
 import time
 
+import cloudinary
 from fastapi import FastAPI, Request
 
-from app.api import health, rooms
+from app.api import health, room_image, rooms
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_request_id
@@ -11,6 +12,12 @@ from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_reque
 settings = get_settings()
 configure_logging(settings.service_name, settings.log_level)
 logger = logging.getLogger("app.access")
+
+if settings.cloudinary_url:
+    cloudinary.config(cloudinary_url=settings.cloudinary_url)
+    logger.info("Cloudinary configured from CLOUDINARY_URL")
+else:
+    logger.warning("CLOUDINARY_URL not set — image upload will fail at runtime")
 
 app = FastAPI(
     title="Room Service",
@@ -52,3 +59,6 @@ app.include_router(health.router, prefix=settings.api_prefix, include_in_schema=
 
 # Room CRUD — chỉ mount với prefix để Swagger hiển thị đúng path.
 app.include_router(rooms.router, prefix=settings.api_prefix)
+
+# Room image upload — Cloudinary (FR-02-6)
+app.include_router(room_image.router, prefix=settings.api_prefix)

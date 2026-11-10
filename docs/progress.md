@@ -66,3 +66,10 @@
 | 33 | README hướng dẫn chạy + kiến trúc | ⏳ | |
 | 34 | Demo video | ⏳ | |
 | 35 | Slides thuyết trình | ⏳ | |
+
+## FR requirements
+
+| FR | Item | Trạng thái | Ghi chú |
+|---|---|---|---|
+| FR-02 | 02-4: ARCHIVED → DISABLED | ✅ Done | room-service migration 0002; booking migration 0005; RoomStatus.DISABLED |
+| FR-02 | 02-6: Cloudinary image upload | ✅ Done | `POST /api/rooms/{id}/image`; multipart; validate type/size; migration 0003 adds floor/desc/image_url |
