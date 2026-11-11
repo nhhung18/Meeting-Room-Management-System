@@ -66,6 +66,13 @@ class RoomSnapshotRepository:
         self._db.flush()
         return existing
 
+    def delete_by_room_id(self, room_id: int) -> None:
+        stmt = select(RoomSnapshot).where(RoomSnapshot.room_id == room_id)
+        snap = self._db.execute(stmt).scalar_one_or_none()
+        if snap is not None:
+            self._db.delete(snap)
+            self._db.flush()
+
     def list_available(self, *, min_capacity: int = 0) -> list[RoomSnapshot]:
         stmt = select(RoomSnapshot).where(RoomSnapshot.status == "AVAILABLE")
         if min_capacity > 0:

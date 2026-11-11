@@ -33,6 +33,15 @@ class EventPublisher:
             self._channel = None
             return False
 
+    # Room lifecycle events are routed to room_events queue for booking-service consumer
+    _ROOM_EVENTS_QUEUE = "room_events"
+    _ROOM_LIFECYCLE_EVENTS = {"room.created", "room.updated", "room.deleted"}
+
+    def _get_queue_for_event(self, event_type: str) -> str:
+        if event_type in self._ROOM_LIFECYCLE_EVENTS:
+            return self._ROOM_EVENTS_QUEUE
+        return self._queue
+
     def publish(self, event_type: str, payload: dict, request_id: str | None = None) -> None:
         if not self._ensure_channel():
             return
@@ -53,10 +62,17 @@ class EventPublisher:
             headers=headers,
         )
 
+        routing_key = self._get_queue_for_event(event_type)
+        # Ensure the target queue exists
+        try:
+            self._channel.queue_declare(queue=routing_key, durable=True)
+        except Exception:
+            pass
+
         try:
             self._channel.basic_publish(
                 exchange="",
-                routing_key=self._queue,
+                routing_key=routing_key,
                 body=json.dumps(message),
                 properties=props,
             )

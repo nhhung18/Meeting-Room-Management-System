@@ -132,6 +132,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  room-event-consumer:
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
+    command: python -m app.workers.room_event_consumer
+    environment:
+      SERVICE_NAME: room-event-consumer
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://booking_user:${BOOKING_DB_PASSWORD}@postgres:5432/booking_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   room-outbox-relay:
     build:
       context: .

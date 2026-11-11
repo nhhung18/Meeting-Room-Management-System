@@ -39,6 +39,23 @@ def create_room(
 ):
     try:
         result = service.create_room(body)
+        db.add(
+            OutboxEvent(
+                event_type="room.created",
+                payload=json.dumps(
+                    {
+                        "room_id": result.id,
+                        "name": result.name,
+                        "capacity": result.capacity,
+                        "status": result.status,
+                        "floor": result.floor,
+                        "equipment": result.equipment,
+                        "owner_id": result.owner_id,
+                        "version": result.id,
+                    }
+                ),
+            )
+        )
         db.commit()
         return result
     except RoomService.DuplicateNameError as e:
@@ -81,7 +98,25 @@ def update_room(
 ):
     try:
         result, previous_status = service.update_room(room_id, body)
-        # Ghi outbox event khi phòng chuyển sang MAINTENANCE
+        # Publish room.updated event (booking-service listens to sync snapshots)
+        db.add(
+            OutboxEvent(
+                event_type="room.updated",
+                payload=json.dumps(
+                    {
+                        "room_id": result.id,
+                        "name": result.name,
+                        "capacity": result.capacity,
+                        "status": result.status,
+                        "floor": result.floor,
+                        "equipment": result.equipment,
+                        "owner_id": result.owner_id,
+                        "version": result.id,
+                    }
+                ),
+            )
+        )
+        # Maintenance notification (additional event for notification-worker)
         if result.status == "MAINTENANCE" and previous_status != "MAINTENANCE":
             db.add(
                 OutboxEvent(
@@ -114,6 +149,12 @@ def delete_room(
 ):
     try:
         service.delete_room(room_id)
+        db.add(
+            OutboxEvent(
+                event_type="room.deleted",
+                payload=json.dumps({"room_id": room_id}),
+            )
+        )
         db.commit()
     except RoomService.NotFoundError:
         raise HTTPException(
