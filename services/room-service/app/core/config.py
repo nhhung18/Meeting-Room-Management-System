@@ -7,6 +7,7 @@ class Settings(ServiceSettings):
     service_name: str = "room-service"
     api_prefix: str = "/api/rooms"
     database_url: str
+    cloudinary_url: str | None = None  # cloudinary://key:secret@cloud_name
 
     rabbitmq_url: str = "amqp://guest:guest@rabbitmq:5672/"
     notifications_queue: str = "notifications"

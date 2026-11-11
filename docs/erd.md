@@ -176,7 +176,7 @@ ON booking_attendees(attendee_email);
 | `room_id` | `INTEGER` | PRIMARY KEY | Tham chiếu room từ room_db, **KHÔNG FK** |
 | `name` | `VARCHAR(255)` | NOT NULL | Tên phòng (copy) |
 | `capacity` | `INTEGER` | NOT NULL, CHECK > 0 | Dung tích (copy) |
-| `status` | `VARCHAR(50)` | DEFAULT 'AVAILABLE', CHECK IN (...) | AVAILABLE, MAINTENANCE, ARCHIVED |
+| `status` | `VARCHAR(50)` | DEFAULT 'AVAILABLE', CHECK IN (...) | AVAILABLE, MAINTENANCE, DISABLED |
 | `equipment` | `JSON` | DEFAULT '[]' | Danh sách trang thiết bị: ["projector", "whiteboard", ...] |
 | `version` | `INTEGER` | NOT NULL | Event version → idempotency (Assumption ADR-0003) |
 | `last_synced` | `TIMESTAMP WITH TIME ZONE` | DEFAULT now() | Khi lần cuối sync từ event |
@@ -216,7 +216,7 @@ WHERE status = 'AVAILABLE';
 | `id` | `SERIAL` | PRIMARY KEY | |
 | `name` | `VARCHAR(255)` | NOT NULL, UNIQUE | Tên phòng (P101, P102, ...) |
 | `capacity` | `INTEGER` | NOT NULL, CHECK > 0 | Dung tích (người) |
-| `status` | `VARCHAR(50)` | DEFAULT 'AVAILABLE', CHECK IN (...) | AVAILABLE, MAINTENANCE, ARCHIVED |
+| `status` | `VARCHAR(50)` | DEFAULT 'AVAILABLE', CHECK IN (...) | AVAILABLE, MAINTENANCE, DISABLED |
 | `equipment` | `JSON` | DEFAULT '[]' | ["projector", "whiteboard", "video_conference"] |
 | `owner_id` | `VARCHAR(255)` | NULL | Auth0 sub của chủ phòng (Room Manager) |
 | `created_at` | `TIMESTAMP WITH TIME ZONE` | DEFAULT now() | |
@@ -514,7 +514,7 @@ CREATE TABLE room_snapshots (
     name VARCHAR(255) NOT NULL,
     capacity INTEGER NOT NULL CHECK (capacity > 0),
     status VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE'
-        CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'ARCHIVED')),
+        CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'DISABLED')),
     equipment JSONB DEFAULT '[]',
     version INTEGER NOT NULL DEFAULT 0,
     last_synced TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')

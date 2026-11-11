@@ -120,7 +120,7 @@ Ví dụ:
 CREATE TABLE rooms (
     id SERIAL PRIMARY KEY,
     status VARCHAR(50) DEFAULT 'AVAILABLE'
-        CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'ARCHIVED')),
+        CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'DISABLED')),
     -- ...
 );
 ```

@@ -43,7 +43,7 @@ def test_capacity_must_be_positive(db_conn):
 
 
 def test_status_must_be_valid(db_conn):
-    """CHECK constraint ck_rooms_status: status IN (AVAILABLE, MAINTENANCE, ARCHIVED)."""
+    """CHECK constraint ck_rooms_status: status IN (AVAILABLE, MAINTENANCE, DISABLED)."""
     with pytest.raises(IntegrityError):
         db_conn.execute(
             __import__("sqlalchemy").text(INSERT_ROOM_FULL),
@@ -56,6 +56,41 @@ def test_status_must_be_valid(db_conn):
                 "deleted_at": None,
             },
         )
+
+
+def test_archived_status_rejected(db_conn):
+    """ARCHIVED đã bị đổi thành DISABLED — INSERT với ARCHIVED phải fail constraint."""
+    with pytest.raises(IntegrityError):
+        db_conn.execute(
+            __import__("sqlalchemy").text(INSERT_ROOM_FULL),
+            {
+                "name": "P_archived",
+                "capacity": 10,
+                "status": "ARCHIVED",
+                "equipment": "[]",
+                "owner_id": None,
+                "deleted_at": None,
+            },
+        )
+
+
+def test_disabled_status_accepted(db_conn):
+    """DISABLED là trạng thái hợp lệ thay thế ARCHIVED."""
+    from sqlalchemy import text
+
+    db_conn.execute(
+        text(INSERT_ROOM_FULL),
+        {
+            "name": "P_disabled",
+            "capacity": 10,
+            "status": "DISABLED",
+            "equipment": "[]",
+            "owner_id": None,
+            "deleted_at": None,
+        },
+    )
+    row = db_conn.execute(text(SELECT_ROOM), {"name": "P_disabled"}).mappings().one()
+    assert row["status"] == "DISABLED"
 
 
 def test_duplicate_name_rejected_for_active_rooms(db_conn):

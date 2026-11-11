@@ -21,7 +21,9 @@ class RoomCreate(BaseModel):
     floor: str | None = None
     equipment: list[str] = Field(default_factory=list)
     owner_id: str | None = None
-    owner_email: str | None = None
+    floor: str | None = Field(None, max_length=100)
+    description: str | None = None
+    image_url: str | None = Field(None, max_length=500)
 
     @field_validator("name")
     @classmethod
@@ -44,7 +46,9 @@ class RoomUpdate(BaseModel):
     floor: str | None = None
     equipment: list[str] | None = None
     owner_id: str | None = None
-    owner_email: str | None = None
+    floor: str | None = Field(None, max_length=100)
+    description: str | None = None
+    image_url: str | None = Field(None, max_length=500)
 
     @field_validator("name")
     @classmethod
@@ -74,7 +78,9 @@ class RoomResponse(BaseModel):
     floor: str | None = None
     equipment: list[str]
     owner_id: str | None
-    owner_email: str | None = None
+    floor: str | None = None
+    description: str | None = None
+    image_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
