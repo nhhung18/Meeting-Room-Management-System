@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Auth0Provider, useAuth0, GetTokenSilentlyOptions } from '@auth0/auth0-react';
 import { User, UserRole } from '../types';
 import { setTokenProvider, TokenProvider } from '../api/http';
@@ -26,30 +27,36 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   audience,
   children,
 }) => {
-  const { user: auth0User, isAuthenticated, error, getAccessTokenSilently, loginWithRedirect, logout: auth0Logout } = useAuth0();
-  const [appUser, setAppUser] = useState<User | null>(null);
+  const {
+    user: auth0User,
+    isAuthenticated,
+    isLoading: auth0Loading,
+    error: auth0Error,
+    getAccessTokenSilently,
+    loginWithRedirect,
+    logout: auth0Logout,
+  } = useAuth0();
+  const [profileOverride, setProfileOverride] = useState<Partial<User> | null>(null);
 
   useEffect(() => {
-    if (error) {
-      console.error('[Auth0] Error:', error.message, error);
+    if (auth0Error) {
+      console.error('[Auth0] Error:', auth0Error.message, auth0Error);
     }
-  }, [error]);
+  }, [auth0Error]);
 
-  useEffect(() => {
-    if (isAuthenticated && auth0User) {
-      const roles: string[] = auth0User[ROLES_CLAIM] ?? [];
-      setAppUser({
-        id: auth0User.sub ?? '',
-        name: auth0User.name ?? '',
-        email: auth0User.email ?? '',
-        role: mapAuth0Role(roles),
-        department: '',
-        avatar: auth0User.picture ?? '',
-      });
-    } else {
-      setAppUser(null);
-    }
-  }, [isAuthenticated, auth0User]);
+  const appUser = useMemo<User | null>(() => {
+    if (!isAuthenticated || !auth0User) return null;
+    const roles: string[] = auth0User[ROLES_CLAIM] ?? [];
+    const base: User = {
+      id: auth0User.sub ?? '',
+      name: auth0User.name ?? '',
+      email: auth0User.email ?? '',
+      role: mapAuth0Role(roles),
+      department: '',
+      avatar: auth0User.picture ?? '',
+    };
+    return profileOverride ? { ...base, ...profileOverride } : base;
+  }, [isAuthenticated, auth0User, profileOverride]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -68,6 +75,7 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    setProfileOverride(null);
     auth0Logout({ logoutParams: { returnTo: window.location.origin + '/login' } });
   };
 
@@ -81,7 +89,7 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   };
 
   const updateProfile = (data: Partial<User>) => {
-    setAppUser((prev) => (prev ? { ...prev, ...data } : null));
+    setProfileOverride((prev) => ({ ...(prev || {}), ...data }));
   };
 
   const getToken = async (): Promise<string | null> => {
@@ -98,6 +106,8 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
       value={{
         user: appUser,
         isAuthenticated: !!appUser,
+        isLoading: auth0Loading,
+        error: auth0Error ?? null,
         loginWithAuth0: () => {},
         loginWithRedirect: loginWithRedirectWrapped,
         logout,
@@ -118,6 +128,8 @@ export const Auth0AuthProvider: React.FC<{
   audience: string;
   children: React.ReactNode;
 }> = ({ domain, clientId, audience, children }) => {
+  const navigate = useNavigate();
+
   return (
     <Auth0Provider
       domain={domain}
@@ -132,6 +144,7 @@ export const Auth0AuthProvider: React.FC<{
           document.title,
           appState?.returnTo ?? window.location.pathname
         );
+        navigate(appState?.returnTo ?? '/dashboard', { replace: true });
       }}
     >
       <Auth0Inner audience={audience}>{children}</Auth0Inner>

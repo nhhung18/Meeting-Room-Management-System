@@ -19,7 +19,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 const { Title, Text, Paragraph } = Typography;
 
 export const LoginPage: React.FC = () => {
-  const { loginWithAuth0, loginWithRedirect, isAuthenticated } = useAuth();
+  const { loginWithAuth0, loginWithRedirect, isAuthenticated, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { t, language } = useLanguage();
   const { message } = App.useApp();
@@ -35,18 +35,20 @@ export const LoginPage: React.FC = () => {
 
   // If already logged in, redirect
   React.useEffect(() => {
-    if (isAuthenticated) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+    if (!isLoading && isAuthenticated) {
+      const from = (location.state as any)?.from?.pathname;
+      const target = from && from !== '/login' && from !== '/callback' ? from : '/dashboard';
+      navigate(target, { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, isLoading, navigate, location]);
 
   const handleAuth0Login = async (role: UserRole = 'ADMINISTRATOR') => {
     if (auth0Mode && loginWithRedirect) {
       setLoading(true);
       message.loading({ content: t.loginConnecting, key: 'login_msg' });
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      await loginWithRedirect({ appState: { returnTo: from } });
+      const from = (location.state as any)?.from?.pathname;
+      const target = from && from !== '/login' && from !== '/callback' ? from : '/dashboard';
+      await loginWithRedirect({ appState: { returnTo: target } });
       return;
     }
     // Mock mode
@@ -102,9 +104,9 @@ export const LoginPage: React.FC = () => {
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
             <img
-              src="/assets/aistudio/H_Logo.png"
+              src="/assets/aistudio/Logo.png"
               alt="MRMS Logo"
-              className="w-20 h-20 object-contain drop-shadow-md hover:scale-105 transition-transform"
+              className="w-28 h-28 object-contain drop-shadow-md hover:scale-105 transition-transform"
             />
           </div>
           <Title level={3} style={{ marginTop: 0, marginBottom: 4, fontWeight: 800, color: isDark ? '#ffffff' : '#141b54' }}>

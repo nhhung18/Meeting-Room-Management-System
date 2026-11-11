@@ -318,7 +318,7 @@ export const BookingFormPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto space-y-4">
+      <div className="space-y-4">
         <div>
           <Button
             type="text"
@@ -335,7 +335,7 @@ export const BookingFormPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 overflow-x-hidden">
+    <div className="space-y-4 pb-4">
       {/* Top Navigation Back */}
       <div>
         <Button

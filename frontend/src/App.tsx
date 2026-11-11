@@ -4,8 +4,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme, App as AntApp } from 'antd';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { ConfigProvider, theme, App as AntApp, Spin, Alert, Button } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import enUS from 'antd/locale/en_US';
 import dayjs from 'dayjs';
@@ -14,7 +14,7 @@ import 'dayjs/locale/en';
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 
@@ -31,6 +31,40 @@ import { EquipmentManagementPage } from './pages/EquipmentManagementPage';
 import { UserManagementPage } from './pages/UserManagementPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { PolicySettingsPage } from './pages/PolicySettingsPage';
+
+const CallbackPage: React.FC = () => {
+  const { isAuthenticated, isLoading, error } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-6">
+        <Alert
+          type="error"
+          message="Đăng nhập không thành công"
+          description={error.message}
+          showIcon
+        />
+        <Button type="primary" onClick={() => navigate('/login', { replace: true })}>
+          Quay lại Đăng nhập
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+      <Spin size="large" />
+      <span className="text-slate-500 font-medium">Đang hoàn tất đăng nhập...</span>
+    </div>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { isDark } = useTheme();
@@ -169,14 +203,14 @@ const AppContent: React.FC = () => {
       }}
     >
       <AntApp>
-        <AuthProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
             <Routes>
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
 
-              {/* Auth0 callback — Auth0Provider handles token extraction; just navigate home */}
-              <Route path="/callback" element={<Navigate to="/dashboard" replace />} />
+              {/* Auth0 callback — handled by Auth0Provider; renders loading state while exchanging code */}
+              <Route path="/callback" element={<CallbackPage />} />
 
               {/* Protected App Routes */}
               <Route
@@ -257,8 +291,8 @@ const AppContent: React.FC = () => {
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </AntApp>
     </ConfigProvider>
   );

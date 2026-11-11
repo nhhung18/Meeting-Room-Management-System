@@ -82,7 +82,18 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, loginWithAuth0, logout, switchRole, hasRole, updateProfile, getToken }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading: false,
+        error: null,
+        loginWithAuth0,
+        logout,
+        switchRole,
+        hasRole,
+        updateProfile,
+        getToken,
+      }}
     >
       {children}
     </AuthContext.Provider>

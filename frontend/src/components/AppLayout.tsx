@@ -307,25 +307,21 @@ export const AppLayout: React.FC = () => {
             {collapsed ? (
               <div className="w-full flex justify-center">
                 <img
-                  src="/assets/aistudio/apple-touch-icon_64d93247.png"
-                  alt="BlueOC"
-                  className="w-8 h-8 object-contain shrink-0"
+                  src="/assets/aistudio/Logo.png"
+                  alt="Logo"
+                  className="w-10 h-10 object-contain shrink-0"
                 />
               </div>
             ) : (
               <div className="flex items-center gap-2.5">
                 <img
-                  src="/assets/aistudio/apple-touch-icon_64d93247.png"
-                  alt="BlueOC"
-                  className="w-8 h-8 object-contain shrink-0"
+                  src="/assets/aistudio/Logo.png"
+                  alt="Logo"
+                  className="w-10 h-10 object-contain shrink-0"
                 />
                 <div className="overflow-hidden whitespace-nowrap">
-                  <div className="font-extrabold text-base leading-tight tracking-tight flex items-center gap-1">
-                    <span className={isDark ? 'text-white' : 'text-[#141b54]'}>BlueOC</span>
-                    <span className="text-[#00c2e8]">TECH</span>
-                  </div>
-                  <div className={`text-[10px] font-medium tracking-wide uppercase ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                    Meeting Room System
+                  <div className={`font-extrabold text-[13px] tracking-wide uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
+                    MEETING ROOM SYSTEM
                   </div>
                 </div>
               </div>
@@ -391,13 +387,12 @@ export const AppLayout: React.FC = () => {
                 }}
               >
                 <img
-                  src="/assets/aistudio/apple-touch-icon_64d93247.png"
-                  alt="BlueOC"
-                  className="w-7 h-7 object-contain shrink-0"
+                  src="/assets/aistudio/Logo.png"
+                  alt="Logo"
+                  className="w-9 h-9 object-contain shrink-0"
                 />
-                <div className="font-extrabold text-sm leading-none flex items-center gap-0.5">
-                  <span className={isDark ? 'text-white' : 'text-[#141b54]'}>BlueOC</span>
-                  <span className="text-[#00c2e8]">TECH</span>
+                <div className={`font-extrabold text-xs tracking-tight uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
+                  MEETING ROOM SYSTEM
                 </div>
               </div>
             ) : (
@@ -543,16 +538,12 @@ export const AppLayout: React.FC = () => {
             tabIndex={0}
           >
             <img
-              src="/assets/aistudio/apple-touch-icon_64d93247.png"
-              alt="BlueOC"
-              className="w-7 h-7 object-contain shrink-0"
+              src="/assets/aistudio/Logo.png"
+              alt="Logo"
+              className="w-9 h-9 object-contain shrink-0"
             />
-            <div>
-              <div className="font-extrabold text-sm flex items-center gap-0.5">
-                <span className={isDark ? 'text-white' : 'text-[#141b54]'}>BlueOC</span>
-                <span className="text-[#00c2e8]">TECH</span>
-              </div>
-              <div className="text-[11px] text-slate-400">Meeting Room System</div>
+            <div className={`font-extrabold text-[13px] tracking-wide uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
+              MEETING ROOM SYSTEM
             </div>
           </div>
         }

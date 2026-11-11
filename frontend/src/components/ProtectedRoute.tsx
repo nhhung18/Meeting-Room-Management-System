@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Result, Button } from 'antd';
+import { Result, Button, Spin } from 'antd';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 
@@ -13,9 +13,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowedRoles,
 }) => {
-  const { isAuthenticated, user, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, user, hasRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
