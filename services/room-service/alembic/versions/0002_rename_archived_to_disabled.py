@@ -1,7 +1,7 @@
 """rename ARCHIVED status to DISABLED
 
-Revision ID: 0002
-Revises: 0001
+Revision ID: 0003b
+Revises: 0003
 Create Date: 2026-11-11
 
 Requirement ghi trạng thái là "Disabled" (FR-02-4).
@@ -15,8 +15,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0002"
-down_revision: str | Sequence[str] | None = "0001"
+revision: str = "0003b"
+down_revision: str | Sequence[str] | None = "0003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
