@@ -17,8 +17,7 @@ from app.schemas.booking import (
     BookingResponse,
     BookingUpdate,
 )
-
-CHECK_IN_WINDOW = timedelta(minutes=15)
+from app.services.policy_service import get_policy_service
 
 
 class BookingService:
@@ -172,8 +171,9 @@ class BookingService:
             )
 
         now = datetime.now(UTC)
-        window_open = booking.start_at - CHECK_IN_WINDOW
-        window_close = booking.start_at + CHECK_IN_WINDOW
+        window = timedelta(minutes=get_policy_service().get_check_in_window_minutes())
+        window_open = booking.start_at - window
+        window_close = booking.start_at + window
         if now < window_open or now > window_close:
             raise BookingService.CheckInWindowError(
                 f"Check-in window is [{window_open.isoformat()}, {window_close.isoformat()}]"
@@ -186,9 +186,7 @@ class BookingService:
         snapshot = self._snapshot_repo.get_by_room_id(booking.room_id)
         return self._to_response(booking, snapshot.name if snapshot else None)
 
-    def update_booking(
-        self, booking_id: int, dto: BookingUpdate, user_id: str
-    ) -> BookingResponse:
+    def update_booking(self, booking_id: int, dto: BookingUpdate, user_id: str) -> BookingResponse:
         booking = self._booking_repo.get_by_id(booking_id)
         if booking is None:
             raise BookingService.NotFoundError(f"Booking {booking_id} not found")
@@ -216,15 +214,12 @@ class BookingService:
             if self._booking_repo.has_overlap(
                 booking.room_id, booking.start_at, booking.end_at, exclude_id=booking_id
             ):
-                raise BookingService.OverlapError(
-                    "Updated time slot overlaps an existing booking"
-                )
+                raise BookingService.OverlapError("Updated time slot overlaps an existing booking")
 
         # Replace attendees list if provided
         if "attendees" in changes and changes["attendees"] is not None:
             booking.attendees = [
-                BookingAttendee(attendee_email=a.email, name=a.name)
-                for a in dto.attendees
+                BookingAttendee(attendee_email=a.email, name=a.name) for a in dto.attendees
             ]
 
         self._booking_repo.update(booking)

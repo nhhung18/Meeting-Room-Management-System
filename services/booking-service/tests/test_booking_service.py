@@ -192,9 +192,7 @@ class TestCreateBooking:
         attendee_mock.name = "Alice"
         mock_booking_repo.create.return_value = _make_booking(attendees=[attendee_mock])
 
-        dto = _future_dto(
-            attendees=[AttendeeInput(email="a@example.com", name="Alice")]
-        )
+        dto = _future_dto(attendees=[AttendeeInput(email="a@example.com", name="Alice")])
         service.create_booking(dto, user_id="user-1")
 
         call_args = mock_booking_repo.create.call_args[0][0]
@@ -292,9 +290,7 @@ class TestCancelBooking:
 
 
 class TestUpdateBooking:
-    def test_update_num_attendees_only(
-        self, service, mock_booking_repo, mock_snapshot_repo
-    ):
+    def test_update_num_attendees_only(self, service, mock_booking_repo, mock_snapshot_repo):
         booking = _make_booking(status=BookingStatus.CONFIRMED, num_attendees=5)
         mock_booking_repo.get_by_id.return_value = booking
         mock_booking_repo.update.return_value = booking
@@ -350,9 +346,7 @@ class TestUpdateBooking:
         call_kwargs = mock_booking_repo.has_overlap.call_args.kwargs
         assert call_kwargs.get("exclude_id") == 1
 
-    def test_update_time_change_past_rejected(
-        self, service, mock_booking_repo, mock_snapshot_repo
-    ):
+    def test_update_time_change_past_rejected(self, service, mock_booking_repo, mock_snapshot_repo):
         now = datetime.now(UTC)
         booking = _make_booking(status=BookingStatus.CONFIRMED)
         mock_booking_repo.get_by_id.return_value = booking

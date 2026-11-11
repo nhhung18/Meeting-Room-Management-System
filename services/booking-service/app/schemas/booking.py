@@ -35,9 +35,8 @@ class BookingCreate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingCreate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
 
@@ -57,9 +56,8 @@ class BookingUpdate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingUpdate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
 

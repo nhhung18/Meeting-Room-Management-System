@@ -53,8 +53,13 @@ class TestUpsert:
     def test_insert_new_snapshot_when_not_exists(self, repo, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
         result = repo.upsert(
-            room_id=1, name="Room A", capacity=10,
-            status="AVAILABLE", equipment=[], owner_id=None, version=1,
+            room_id=1,
+            name="Room A",
+            capacity=10,
+            status="AVAILABLE",
+            equipment=[],
+            owner_id=None,
+            version=1,
         )
         assert result is not None
         mock_db.add.assert_called_once()
@@ -64,8 +69,13 @@ class TestUpsert:
         existing = _make_snapshot(version=3)
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Room A Updated", capacity=20,
-            status="AVAILABLE", equipment=["projector"], owner_id="mgr1", version=5,
+            room_id=1,
+            name="Room A Updated",
+            capacity=20,
+            status="AVAILABLE",
+            equipment=["projector"],
+            owner_id="mgr1",
+            version=5,
         )
         assert result is not None
         assert existing.name == "Room A Updated"
@@ -77,8 +87,13 @@ class TestUpsert:
         existing = _make_snapshot(version=5, name="Room A")
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Stale Name", capacity=5,
-            status="MAINTENANCE", equipment=[], owner_id=None, version=3,
+            room_id=1,
+            name="Stale Name",
+            capacity=5,
+            status="MAINTENANCE",
+            equipment=[],
+            owner_id=None,
+            version=3,
         )
         assert result is None
         assert existing.name == "Room A"  # không thay đổi
@@ -88,15 +103,28 @@ class TestUpsert:
         existing = _make_snapshot(version=5, name="Room A")
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Same Version", capacity=5,
-            status="MAINTENANCE", equipment=[], owner_id=None, version=5,
+            room_id=1,
+            name="Same Version",
+            capacity=5,
+            status="MAINTENANCE",
+            equipment=[],
+            owner_id=None,
+            version=5,
         )
         assert result is None
         mock_db.flush.assert_not_called()
 
     def test_insert_does_not_commit(self, repo, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        repo.upsert(room_id=2, name="B", capacity=5, status="AVAILABLE", equipment=[], owner_id=None, version=1)
+        repo.upsert(
+            room_id=2,
+            name="B",
+            capacity=5,
+            status="AVAILABLE",
+            equipment=[],
+            owner_id=None,
+            version=1,
+        )
         mock_db.commit.assert_not_called()
 
 

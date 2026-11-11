@@ -8,8 +8,9 @@ processed_events: theo dõi event_id đã xử lý để tránh gửi email 2 l�
 khi notification-worker nhận duplicate message từ RabbitMQ.
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0003"
 down_revision = "0002"
