@@ -63,11 +63,9 @@ class EventPublisher:
         )
 
         routing_key = self._get_queue_for_event(event_type)
-        # Ensure the target queue exists
-        try:
+        # Ensure the target queue exists (best-effort: already declared is fine)
+        with contextlib.suppress(Exception):
             self._channel.queue_declare(queue=routing_key, durable=True)
-        except Exception:
-            pass
 
         try:
             self._channel.basic_publish(

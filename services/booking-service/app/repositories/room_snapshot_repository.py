@@ -88,7 +88,7 @@ class RoomSnapshotRepository:
         floor: str | None = None,
         equipment: list[str] | None = None,
     ) -> list[RoomSnapshot]:
-        """Return AVAILABLE snapshots whose room_id has no overlapping CONFIRMED/CHECKED_IN booking."""
+        """AVAILABLE snapshots whose room_id has no overlapping CONFIRMED/CHECKED_IN booking."""
         from app.models.booking import Booking, BookingStatus
 
         booked_subq = (
@@ -114,7 +114,8 @@ class RoomSnapshotRepository:
             # JSONB containment: snapshot.equipment @> requested_equipment
             import json
 
-            from sqlalchemy import cast as sa_cast, literal
+            from sqlalchemy import cast as sa_cast
+            from sqlalchemy import literal
 
             stmt = stmt.where(
                 RoomSnapshot.equipment.op("@>")(sa_cast(literal(json.dumps(equipment)), JSONB))

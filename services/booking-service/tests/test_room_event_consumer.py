@@ -1,6 +1,6 @@
 """Unit tests for room event consumer worker."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

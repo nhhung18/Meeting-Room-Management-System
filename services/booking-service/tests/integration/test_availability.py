@@ -18,13 +18,14 @@ client = TestClient(app)
 def _snap_insert(conn, room_id, name, capacity, status="AVAILABLE", floor=None, equipment=None):
     import json
 
+    sql = (
+        "INSERT INTO room_snapshots (room_id, name, capacity, status, floor, equipment, version)"
+        " VALUES (:id, :name, :cap, :status, :floor, cast(:equip as jsonb), 1)"
+        " ON CONFLICT (room_id) DO UPDATE SET name=EXCLUDED.name, capacity=EXCLUDED.capacity,"
+        "  status=EXCLUDED.status, floor=EXCLUDED.floor, equipment=EXCLUDED.equipment"
+    )
     conn.execute(
-        text(
-            "INSERT INTO room_snapshots (room_id, name, capacity, status, floor, equipment, version)"
-            " VALUES (:id, :name, :cap, :status, :floor, cast(:equip as jsonb), 1)"
-            " ON CONFLICT (room_id) DO UPDATE SET name=EXCLUDED.name, capacity=EXCLUDED.capacity,"
-            "  status=EXCLUDED.status, floor=EXCLUDED.floor, equipment=EXCLUDED.equipment"
-        ),
+        text(sql),
         {
             "id": room_id,
             "name": name,
