@@ -114,8 +114,10 @@ class RoomSnapshotRepository:
             # JSONB containment: snapshot.equipment @> requested_equipment
             import json
 
+            from sqlalchemy import cast as sa_cast, literal
+
             stmt = stmt.where(
-                RoomSnapshot.equipment.cast(JSONB).contains(json.dumps(equipment))
+                RoomSnapshot.equipment.op("@>")(sa_cast(literal(json.dumps(equipment)), JSONB))
             )
 
         return list(self._db.execute(stmt).scalars().all())

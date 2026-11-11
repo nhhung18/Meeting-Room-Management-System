@@ -14,6 +14,7 @@ Exception → HTTP mapping:
 """
 
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
@@ -25,6 +26,7 @@ from app.db.session import get_db
 from app.models.outbox_event import OutboxEvent
 from app.repositories.booking_repository import BookingRepository
 from app.repositories.room_snapshot_repository import RoomSnapshotRepository
+from app.schemas.availability import AvailabilitySearchResponse, AvailableRoomResponse
 from app.schemas.booking import (
     BookingCreate,
     BookingListResponse,
@@ -48,6 +50,10 @@ def _get_booking_service(db: Session = Depends(get_db)) -> BookingService:
 
 def _get_sync_service(db: Session = Depends(get_db)) -> RoomSnapshotSync:
     return RoomSnapshotSync(RoomSnapshotRepository(db), get_settings().room_service_url)
+
+
+def _get_availability_repo(db: Session = Depends(get_db)) -> RoomSnapshotRepository:
+    return RoomSnapshotRepository(db)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +97,32 @@ def _check_ownership(booking: BookingResponse, user: TokenPayload) -> None:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+@router.get("/rooms/available", response_model=AvailabilitySearchResponse)
+def search_available_rooms(
+    start_at: datetime = Query(...),
+    end_at: datetime = Query(...),
+    min_capacity: int | None = Query(None, ge=1),
+    floor: str | None = Query(None),
+    equipment: list[str] | None = Query(None),
+    _user: TokenPayload = Depends(current_user),
+    repo: RoomSnapshotRepository = Depends(_get_availability_repo),
+) -> AvailabilitySearchResponse:
+    if start_at.tzinfo is None or end_at.tzinfo is None:
+        raise HTTPException(status_code=422, detail="start_at and end_at must be timezone-aware")
+    if end_at <= start_at:
+        raise HTTPException(status_code=422, detail="end_at must be after start_at")
+
+    rooms = repo.find_available(
+        start_at=start_at,
+        end_at=end_at,
+        min_capacity=min_capacity or 0,
+        floor=floor,
+        equipment=equipment,
+    )
+    items = [AvailableRoomResponse.model_validate(r) for r in rooms]
+    return AvailabilitySearchResponse(items=items, total=len(items))
 
 
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
