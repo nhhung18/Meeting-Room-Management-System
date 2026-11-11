@@ -16,11 +16,20 @@ def test_room_has_expected_columns():
         "status",
         "equipment",
         "owner_id",
+        "floor",
+        "description",
+        "image_url",
         "created_at",
         "updated_at",
         "deleted_at",
     }
     assert expected == col_names
+
+
+def test_room_extended_fields_are_nullable():
+    for col_name in ("floor", "description", "image_url"):
+        col = Room.__table__.c[col_name]
+        assert col.nullable is True, f"{col_name} should be nullable"
 
 
 def test_room_status_server_default():
@@ -31,7 +40,7 @@ def test_room_status_server_default():
 def test_room_status_enum_values():
     assert RoomStatus.AVAILABLE == "AVAILABLE"
     assert RoomStatus.MAINTENANCE == "MAINTENANCE"
-    assert RoomStatus.ARCHIVED == "ARCHIVED"
+    assert RoomStatus.DISABLED == "DISABLED"
 
 
 def test_room_deleted_at_is_nullable():

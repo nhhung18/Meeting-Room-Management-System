@@ -19,11 +19,13 @@ class RoomStatus(enum.StrEnum):
 
     StrEnum (Python 3.11+) kế thừa str — Pydantic serialize/deserialize tự nhiên.
     Dùng trong schemas để validate; cột DB giữ nguyên VARCHAR + CHECK constraint.
+
+    DISABLED (trước là ARCHIVED): phòng ngừng hoạt động, không nhận đặt mới.
     """
 
     AVAILABLE = "AVAILABLE"
     MAINTENANCE = "MAINTENANCE"
-    ARCHIVED = "ARCHIVED"
+    DISABLED = "DISABLED"
 
 
 class Room(Base):
@@ -43,6 +45,9 @@ class Room(Base):
         server_default=sa.text("'[]'::jsonb"),
     )
     owner_id: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
+    floor: Mapped[str | None] = mapped_column(sa.VARCHAR(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
     created_at: Mapped[sa.DateTime] = mapped_column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,
