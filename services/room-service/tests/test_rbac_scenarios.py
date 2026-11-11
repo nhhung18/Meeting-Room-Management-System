@@ -113,7 +113,7 @@ class TestManagerCanManageRooms:
 
     def test_manager_can_update_room(self, client, mock_service):
         _set_manager("mgr1", ["Room Manager"])
-        mock_service.update_room.return_value = _room_response(name="Y")
+        mock_service.update_room.return_value = (_room_response(name="Y"), "AVAILABLE")
         resp = client.patch("/api/rooms/1", json={"name": "Y"})
         assert resp.status_code == 200
 

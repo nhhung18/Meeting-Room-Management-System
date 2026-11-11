@@ -1,7 +1,7 @@
 """rename ARCHIVED status to DISABLED in room_snapshots
 
-Revision ID: 0005
-Revises: 0004
+Revision ID: 0005b
+Revises: 0005
 Create Date: 2026-11-11
 
 Đồng bộ với room-service migration 0002: đổi trạng thái ARCHIVED → DISABLED
@@ -10,12 +10,10 @@ trong bảng room_snapshots (bản sao của Room data trong booking_db).
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
-
 from alembic import op
 
-revision: str = "0005"
-down_revision: str | Sequence[str] | None = "0004"
+revision: str = "0005b"
+down_revision: str | Sequence[str] | None = "0005"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,6 +1,5 @@
 """Unit tests for security module — anonymous dev mode and require_admin."""
 
-import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
