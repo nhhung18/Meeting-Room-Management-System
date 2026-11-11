@@ -15,6 +15,7 @@ def test_room_has_expected_columns():
         "capacity",
         "status",
         "equipment",
+        "floor",
         "owner_id",
         "owner_email",
         "created_at",

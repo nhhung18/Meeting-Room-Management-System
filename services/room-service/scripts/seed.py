@@ -8,66 +8,77 @@ SEED_ROOMS: list[dict] = [
         "name": "P101 - Phòng họp nhỏ A",
         "capacity": 4,
         "status": "AVAILABLE",
+        "floor": "Tầng 1",
         "equipment": ["whiteboard"],
     },
     {
         "name": "P102 - Phòng họp nhỏ B",
         "capacity": 6,
         "status": "AVAILABLE",
+        "floor": "Tầng 1",
         "equipment": ["whiteboard", "tv"],
     },
     {
         "name": "P201 - Phòng họp vừa A",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": "Tầng 2",
         "equipment": ["projector", "whiteboard", "webcam"],
     },
     {
         "name": "P202 - Phòng họp vừa B",
         "capacity": 12,
         "status": "AVAILABLE",
+        "floor": "Tầng 2",
         "equipment": ["projector", "whiteboard", "webcam", "speaker"],
     },
     {
         "name": "P301 - Phòng họp lớn",
         "capacity": 20,
         "status": "AVAILABLE",
+        "floor": "Tầng 3",
         "equipment": ["projector", "whiteboard", "webcam", "speaker", "microphone"],
     },
     {
         "name": "P302 - Phòng đào tạo",
         "capacity": 30,
         "status": "AVAILABLE",
+        "floor": "Tầng 3",
         "equipment": ["projector", "whiteboard", "webcam", "speaker", "microphone"],
     },
     {
         "name": "P401 - Boardroom",
         "capacity": 16,
         "status": "AVAILABLE",
+        "floor": "Tầng 4",
         "equipment": ["projector", "webcam", "speaker", "microphone", "tv"],
     },
     {
         "name": "P402 - Phòng phỏng vấn",
         "capacity": 4,
         "status": "AVAILABLE",
+        "floor": "Tầng 4",
         "equipment": ["webcam"],
     },
     {
         "name": "P501 - Hội trường",
         "capacity": 50,
         "status": "AVAILABLE",
+        "floor": "Tầng 5",
         "equipment": ["projector", "speaker", "microphone"],
     },
     {
         "name": "P103 - Phòng brainstorm",
         "capacity": 8,
         "status": "AVAILABLE",
+        "floor": "Tầng 1",
         "equipment": ["whiteboard", "tv"],
     },
     {
         "name": "P203 - Phòng bảo trì",
         "capacity": 10,
         "status": "MAINTENANCE",
+        "floor": "Tầng 2",
         "equipment": ["projector"],
     },
 ]
@@ -80,11 +91,17 @@ def seed(conn) -> int:  # conn: psycopg.Connection
         for room in SEED_ROOMS:
             cur.execute(
                 """
-                INSERT INTO rooms (name, capacity, status, equipment)
-                VALUES (%s, %s, %s, %s::jsonb)
+                INSERT INTO rooms (name, capacity, status, floor, equipment)
+                VALUES (%s, %s, %s, %s, %s::jsonb)
                 ON CONFLICT (name) WHERE deleted_at IS NULL DO NOTHING
                 """,
-                (room["name"], room["capacity"], room["status"], json.dumps(room["equipment"])),
+                (
+                    room["name"],
+                    room["capacity"],
+                    room["status"],
+                    room.get("floor"),
+                    json.dumps(room["equipment"]),
+                ),
             )
             inserted += cur.rowcount
     conn.commit()

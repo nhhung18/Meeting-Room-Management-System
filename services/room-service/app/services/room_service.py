@@ -34,6 +34,7 @@ class RoomService:
         room = Room(
             name=dto.name,
             capacity=dto.capacity,
+            floor=dto.floor,
             equipment=dto.equipment,
             owner_id=dto.owner_id,
             owner_email=dto.owner_email,

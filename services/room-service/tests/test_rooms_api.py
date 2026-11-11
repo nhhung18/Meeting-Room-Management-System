@@ -23,8 +23,10 @@ def _room_response(**overrides) -> RoomResponse:
         "name": "P101",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": None,
         "equipment": [],
         "owner_id": None,
+        "owner_email": None,
         "created_at": datetime(2026, 1, 1, tzinfo=UTC),
         "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
     }
