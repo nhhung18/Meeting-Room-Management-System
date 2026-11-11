@@ -23,8 +23,10 @@ def _room_response(**overrides) -> RoomResponse:
         "name": "P101",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": None,
         "equipment": [],
         "owner_id": None,
+        "owner_email": None,
         "created_at": datetime(2026, 1, 1, tzinfo=UTC),
         "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
     }
@@ -134,6 +136,15 @@ class TestPatchRoom:
     def test_update_room_invalid_capacity_422(self, client, manager_user):
         resp = client.patch("/api/rooms/1", json={"capacity": -1})
         assert resp.status_code == 422
+
+    def test_update_room_to_maintenance_200(self, client, mock_service):
+        mock_service.update_room.return_value = (
+            _room_response(status="MAINTENANCE"),
+            "AVAILABLE",
+        )
+        resp = client.patch("/api/rooms/1", json={"status": "MAINTENANCE"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "MAINTENANCE"
 
 
 class TestDeleteRoom:

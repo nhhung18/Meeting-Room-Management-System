@@ -44,6 +44,7 @@ class Room(Base):
         nullable=False,
         server_default=sa.text("'[]'::jsonb"),
     )
+    floor: Mapped[str | None] = mapped_column(sa.VARCHAR(100), nullable=True)
     owner_id: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     floor: Mapped[str | None] = mapped_column(sa.VARCHAR(100), nullable=True)
     description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)

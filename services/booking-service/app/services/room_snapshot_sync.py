@@ -44,6 +44,7 @@ class RoomSnapshotSync:
                 equipment=room.get("equipment", []),
                 owner_id=room.get("owner_id"),
                 version=room["version"],
+                floor=room.get("floor"),
             )
             if result is not None:
                 count += 1

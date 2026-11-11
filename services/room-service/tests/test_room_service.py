@@ -16,8 +16,10 @@ def _make_room(**kwargs) -> Room:
         "name": "P101",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": None,
         "equipment": [],
         "owner_id": None,
+        "owner_email": None,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
         "deleted_at": None,
@@ -122,10 +124,21 @@ class TestUpdateRoom:
         mock_repo.update.return_value = _make_room(capacity=20)
         dto = RoomUpdate(capacity=20)
 
-        result = service.update_room(1, dto)
+        result, prev_status = service.update_room(1, dto)
 
         mock_repo.update.assert_called_once_with(room)
         assert result.capacity == 20
+        assert prev_status == "AVAILABLE"
+
+    def test_update_room_returns_previous_status(self, service, mock_repo):
+        room = _make_room(status="AVAILABLE")
+        mock_repo.get_by_id.return_value = room
+        mock_repo.update.return_value = _make_room(status="MAINTENANCE")
+        dto = RoomUpdate(status="MAINTENANCE")
+
+        _, prev_status = service.update_room(1, dto)
+
+        assert prev_status == "AVAILABLE"
 
     def test_update_room_no_fields_is_noop(self, service, mock_repo):
         room = _make_room()

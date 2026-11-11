@@ -115,6 +115,24 @@ class BookingRepository:
         )
         return list(self._db.execute(stmt).scalars().all())
 
+    def find_needing_reminder(self, now: datetime, lead_minutes: int = 15) -> list[Booking]:
+        """CONFIRMED bookings starting within lead_minutes that haven't been reminded yet."""
+        from datetime import timedelta
+
+        window_end = now + timedelta(minutes=lead_minutes)
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.status == BookingStatus.CONFIRMED,
+                Booking.start_at > now,
+                Booking.start_at <= window_end,
+                Booking.reminder_sent_at.is_(None),
+                Booking.deleted_at.is_(None),
+            )
+            .options(selectinload(Booking.attendees))
+        )
+        return list(self._db.execute(stmt).scalars().all())
+
     def update(self, booking: Booking) -> Booking:
         booking.updated_at = datetime.now(UTC)
         self._db.flush()

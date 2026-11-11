@@ -25,6 +25,7 @@ def _make_snapshot(**overrides):
         "name": "Room A",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": None,
         "equipment": [],
         "owner_id": None,
         "version": 1,
@@ -57,6 +58,7 @@ class TestUpsert:
             name="Room A",
             capacity=10,
             status="AVAILABLE",
+            floor="Tầng 1",
             equipment=[],
             owner_id=None,
             version=1,
@@ -73,6 +75,7 @@ class TestUpsert:
             name="Room A Updated",
             capacity=20,
             status="AVAILABLE",
+            floor="Tầng 2",
             equipment=["projector"],
             owner_id="mgr1",
             version=5,
@@ -80,6 +83,7 @@ class TestUpsert:
         assert result is not None
         assert existing.name == "Room A Updated"
         assert existing.capacity == 20
+        assert existing.floor == "Tầng 2"
         assert existing.version == 5
         mock_db.flush.assert_called_once()
 
@@ -91,6 +95,7 @@ class TestUpsert:
             name="Stale Name",
             capacity=5,
             status="MAINTENANCE",
+            floor=None,
             equipment=[],
             owner_id=None,
             version=3,
@@ -107,6 +112,7 @@ class TestUpsert:
             name="Same Version",
             capacity=5,
             status="MAINTENANCE",
+            floor=None,
             equipment=[],
             owner_id=None,
             version=5,
@@ -121,6 +127,7 @@ class TestUpsert:
             name="B",
             capacity=5,
             status="AVAILABLE",
+            floor=None,
             equipment=[],
             owner_id=None,
             version=1,
@@ -143,4 +150,50 @@ class TestListAvailable:
     def test_filters_by_min_capacity(self, repo, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
         result = repo.list_available(min_capacity=50)
+        assert result == []
+
+
+class TestFindAvailable:
+    def test_find_available_returns_rooms(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        rooms = [_make_snapshot(room_id=1), _make_snapshot(room_id=2)]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = rooms
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+        )
+        assert len(result) == 2
+
+    def test_find_available_filters_by_floor(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            floor="Tầng 1",
+        )
+        assert result == []
+
+    def test_find_available_filters_by_min_capacity(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            min_capacity=20,
+        )
+        assert result == []
+
+    def test_find_available_filters_by_equipment(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            equipment=["projector"],
+        )
         assert result == []

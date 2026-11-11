@@ -65,7 +65,9 @@ class BookingService:
     # Public methods
     # ------------------------------------------------------------------
 
-    def create_booking(self, dto: BookingCreate, user_id: str) -> BookingResponse:
+    def create_booking(
+        self, dto: BookingCreate, user_id: str, booker_email: str | None = None
+    ) -> BookingResponse:
         # 1. Room exists
         snapshot = self._snapshot_repo.get_by_room_id(dto.room_id)
         if snapshot is None:
@@ -97,6 +99,7 @@ class BookingService:
         booking = Booking(
             room_id=dto.room_id,
             user_id=user_id,
+            booker_email=booker_email,
             start_at=dto.start_at,
             end_at=dto.end_at,
             num_attendees=dto.num_attendees,
@@ -244,6 +247,7 @@ class BookingService:
             id=booking.id,
             room_id=booking.room_id,
             user_id=booking.user_id,
+            booker_email=booking.booker_email,
             start_at=booking.start_at,
             end_at=booking.end_at,
             num_attendees=booking.num_attendees,

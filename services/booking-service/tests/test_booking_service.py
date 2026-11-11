@@ -38,6 +38,7 @@ def _make_booking(
     id: int = 1,
     room_id: int = 1,
     user_id: str = "user-1",
+    booker_email: str | None = None,
     status: str = BookingStatus.CONFIRMED,
     start_at: datetime | None = None,
     end_at: datetime | None = None,
@@ -49,6 +50,7 @@ def _make_booking(
     booking.id = id
     booking.room_id = room_id
     booking.user_id = user_id
+    booking.booker_email = booker_email
     booking.status = status
     booking.start_at = start_at or (now + timedelta(hours=1))
     booking.end_at = end_at or (now + timedelta(hours=2))
@@ -56,6 +58,7 @@ def _make_booking(
     booking.attendees = attendees if attendees is not None else []
     booking.checked_in_at = None
     booking.auto_cancelled_at = None
+    booking.reminder_sent_at = None
     booking.created_at = now
     booking.updated_at = now
     return booking

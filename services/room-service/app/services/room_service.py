@@ -40,6 +40,7 @@ class RoomService:
         room = Room(
             name=dto.name,
             capacity=dto.capacity,
+            floor=dto.floor,
             equipment=dto.equipment,
             owner_id=dto.owner_id,
             floor=dto.floor,
@@ -74,11 +75,13 @@ class RoomService:
             offset=offset,
         )
 
-    def update_room(self, room_id: int, dto: RoomUpdate) -> RoomResponse:
+    def update_room(self, room_id: int, dto: RoomUpdate) -> tuple[RoomResponse, str]:
+        """Returns (updated room, previous_status)."""
         room = self._repo.get_by_id(room_id)
         if room is None:
             raise self.NotFoundError(f"Room {room_id} not found")
 
+        previous_status = room.status
         update_data = dto.model_dump(exclude_unset=True)
 
         if (
@@ -94,7 +97,7 @@ class RoomService:
             setattr(room, field, value)
 
         room = self._repo.update(room)
-        return RoomResponse.model_validate(room)
+        return RoomResponse.model_validate(room), previous_status
 
     def delete_room(self, room_id: int) -> None:
         room = self._repo.get_by_id(room_id)

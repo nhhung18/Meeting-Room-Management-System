@@ -33,6 +33,7 @@ class RoomSnapshot(Base):
         nullable=False,
         server_default=sa.text("'[]'::jsonb"),
     )
+    floor: Mapped[str | None] = mapped_column(sa.VARCHAR(100), nullable=True)
     owner_id: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     version: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="0")
     last_synced: Mapped[datetime] = mapped_column(

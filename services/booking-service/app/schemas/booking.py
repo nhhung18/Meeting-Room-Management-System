@@ -75,6 +75,7 @@ class BookingResponse(BaseModel):
     id: int
     room_id: int
     user_id: str
+    booker_email: str | None = None
     start_at: datetime
     end_at: datetime
     num_attendees: int
