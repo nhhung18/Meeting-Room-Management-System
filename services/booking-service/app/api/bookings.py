@@ -101,7 +101,7 @@ def create_booking(
     service: BookingService = Depends(_get_booking_service),
 ) -> BookingResponse:
     try:
-        result = service.create_booking(body, user_id=user.sub)
+        result = service.create_booking(body, user_id=user.sub, booker_email=user.email)
         db.add(
             OutboxEvent(
                 event_type="booking.created",
@@ -110,6 +110,7 @@ def create_booking(
                         "booking_id": result.id,
                         "room_id": result.room_id,
                         "user_id": result.user_id,
+                        "booker_email": result.booker_email,
                         "start_at": result.start_at.isoformat(),
                         "end_at": result.end_at.isoformat(),
                         "attendees": [
@@ -185,6 +186,24 @@ def update_booking(
 
     try:
         result = service.update_booking(booking_id, body, user_id=user.sub)
+        db.add(
+            OutboxEvent(
+                event_type="booking.updated",
+                payload=json.dumps(
+                    {
+                        "booking_id": result.id,
+                        "room_id": result.room_id,
+                        "user_id": result.user_id,
+                        "booker_email": result.booker_email,
+                        "start_at": result.start_at.isoformat(),
+                        "end_at": result.end_at.isoformat(),
+                        "attendees": [
+                            {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                        ],
+                    }
+                ),
+            )
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -220,6 +239,7 @@ def cancel_booking(
                         "booking_id": result.id,
                         "room_id": result.room_id,
                         "user_id": result.user_id,
+                        "booker_email": result.booker_email,
                     }
                 ),
             )
@@ -253,6 +273,7 @@ def check_in_booking(
                         "booking_id": result.id,
                         "room_id": result.room_id,
                         "user_id": result.user_id,
+                        "booker_email": result.booker_email,
                         "checked_in_at": result.checked_in_at.isoformat()
                         if result.checked_in_at
                         else None,

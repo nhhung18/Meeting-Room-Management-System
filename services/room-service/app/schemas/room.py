@@ -20,6 +20,7 @@ class RoomCreate(BaseModel):
     status: RoomStatus | None = None
     equipment: list[str] = Field(default_factory=list)
     owner_id: str | None = None
+    owner_email: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -41,6 +42,7 @@ class RoomUpdate(BaseModel):
     status: RoomStatus | None = None
     equipment: list[str] | None = None
     owner_id: str | None = None
+    owner_email: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -69,6 +71,7 @@ class RoomResponse(BaseModel):
     status: str
     equipment: list[str]
     owner_id: str | None
+    owner_email: str | None = None
     created_at: datetime
     updated_at: datetime
 

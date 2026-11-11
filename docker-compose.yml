@@ -60,10 +60,13 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://room_user:${ROOM_DB_PASSWORD}@postgres:5432/room_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
       AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
       AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
@@ -102,6 +105,43 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://booking_user:${BOOKING_DB_PASSWORD}@postgres:5432/booking_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      OUTBOX_RELAY_INTERVAL_SECONDS: ${OUTBOX_RELAY_INTERVAL_SECONDS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  booking-reminder:
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
+    command: python -m app.workers.reminder
+    environment:
+      SERVICE_NAME: booking-reminder
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://booking_user:${BOOKING_DB_PASSWORD}@postgres:5432/booking_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  room-outbox-relay:
+    build:
+      context: .
+      dockerfile: services/room-service/Dockerfile
+    command: python -m app.workers.outbox_relay
+    environment:
+      SERVICE_NAME: room-outbox-relay
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://room_user:${ROOM_DB_PASSWORD}@postgres:5432/room_db
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
       OUTBOX_RELAY_INTERVAL_SECONDS: ${OUTBOX_RELAY_INTERVAL_SECONDS:-5}
     depends_on:

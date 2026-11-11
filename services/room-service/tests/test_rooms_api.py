@@ -112,7 +112,7 @@ class TestListRooms:
 
 class TestPatchRoom:
     def test_update_room_200(self, client, mock_service):
-        mock_service.update_room.return_value = _room_response(capacity=20)
+        mock_service.update_room.return_value = (_room_response(capacity=20), "AVAILABLE")
         resp = client.patch("/api/rooms/1", json={"capacity": 20})
         assert resp.status_code == 200
         assert resp.json()["capacity"] == 20
@@ -130,6 +130,15 @@ class TestPatchRoom:
     def test_update_room_invalid_capacity_422(self, client):
         resp = client.patch("/api/rooms/1", json={"capacity": -1})
         assert resp.status_code == 422
+
+    def test_update_room_to_maintenance_200(self, client, mock_service):
+        mock_service.update_room.return_value = (
+            _room_response(status="MAINTENANCE"),
+            "AVAILABLE",
+        )
+        resp = client.patch("/api/rooms/1", json={"status": "MAINTENANCE"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "MAINTENANCE"
 
 
 class TestDeleteRoom:

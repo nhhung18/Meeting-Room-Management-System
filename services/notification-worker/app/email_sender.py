@@ -67,8 +67,7 @@ class EmailSender:
             f"Your booking (ID: {payload.get('booking_id')}) has been cancelled.\n"
             f"Room: {payload.get('room_id')}\n"
         )
-        # Gửi về user_email nếu có, không thì chỉ log
-        to = [payload["user_email"]] if payload.get("user_email") else []
+        to = [payload["booker_email"]] if payload.get("booker_email") else []
         self._send(to, subject, body)
 
     def send_booking_checked_in(self, payload: dict) -> None:
@@ -77,7 +76,7 @@ class EmailSender:
             f"You have successfully checked in (ID: {payload.get('booking_id')}).\n"
             f"Checked in at: {payload.get('checked_in_at')}\n"
         )
-        to = [payload["user_email"]] if payload.get("user_email") else []
+        to = [payload["booker_email"]] if payload.get("booker_email") else []
         self._send(to, subject, body)
 
     def send_booking_auto_cancelled(self, payload: dict) -> None:
@@ -87,5 +86,42 @@ class EmailSender:
             f"because no check-in was recorded within 15 minutes of the start time.\n"
             f"Cancelled at: {payload.get('auto_cancelled_at')}\n"
         )
-        to = [payload["user_email"]] if payload.get("user_email") else []
+        to = [payload["booker_email"]] if payload.get("booker_email") else []
+        self._send(to, subject, body)
+
+    def send_booking_updated(self, payload: dict) -> None:
+        attendees = payload.get("attendees", [])
+        to_set = {a["email"] for a in attendees if a.get("email")}
+        if payload.get("booker_email"):
+            to_set.add(payload["booker_email"])
+        subject = f"Booking Updated — ID {payload.get('booking_id')}"
+        body = (
+            f"Your booking (ID: {payload.get('booking_id')}) has been updated.\n"
+            f"Room: {payload.get('room_id')}\n"
+            f"From: {payload.get('start_at')}\n"
+            f"To:   {payload.get('end_at')}\n"
+        )
+        self._send(list(to_set), subject, body)
+
+    def send_booking_reminder(self, payload: dict) -> None:
+        attendees = payload.get("attendees", [])
+        to_set = {a["email"] for a in attendees if a.get("email")}
+        if payload.get("booker_email"):
+            to_set.add(payload["booker_email"])
+        subject = f"Reminder: Meeting starts soon — Room {payload.get('room_id')}"
+        body = (
+            f"This is a reminder that your meeting (Booking ID: {payload.get('booking_id')})\n"
+            f"starts at: {payload.get('start_at')}\n"
+            f"Room: {payload.get('room_id')}\n"
+        )
+        self._send(list(to_set), subject, body)
+
+    def send_room_maintenance(self, payload: dict) -> None:
+        subject = f"Room {payload.get('room_name', payload.get('room_id'))} — Maintenance Started"
+        body = (
+            f"Room '{payload.get('room_name')}' (ID: {payload.get('room_id')}) "
+            f"has been placed under maintenance.\n"
+            f"New bookings for this room are blocked until it returns to Available.\n"
+        )
+        to = [payload["owner_email"]] if payload.get("owner_email") else []
         self._send(to, subject, body)

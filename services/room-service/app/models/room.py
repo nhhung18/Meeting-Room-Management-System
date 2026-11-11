@@ -43,6 +43,7 @@ class Room(Base):
         server_default=sa.text("'[]'::jsonb"),
     )
     owner_id: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
+    owner_email: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     created_at: Mapped[sa.DateTime] = mapped_column(
         sa.TIMESTAMP(timezone=True),
         nullable=False,

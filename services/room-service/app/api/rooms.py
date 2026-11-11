@@ -6,6 +6,7 @@ Domain exceptions (NotFoundError, DuplicateNameError) → HTTP status codes.
 Transaction: commit do router quyết định sau khi service thành công.
 """
 
+import json
 import logging
 
 from common.auth import TokenPayload
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import current_user, require_room_manager
 from app.db.session import get_db
+from app.models.outbox_event import OutboxEvent
 from app.repositories.room_repository import RoomRepository
 from app.schemas.room import RoomCreate, RoomListResponse, RoomResponse, RoomUpdate
 from app.services.room_service import RoomService
@@ -78,7 +80,21 @@ def update_room(
     db: Session = Depends(get_db),
 ):
     try:
-        result = service.update_room(room_id, body)
+        result, previous_status = service.update_room(room_id, body)
+        # Ghi outbox event khi phòng chuyển sang MAINTENANCE
+        if result.status == "MAINTENANCE" and previous_status != "MAINTENANCE":
+            db.add(
+                OutboxEvent(
+                    event_type="room.maintenance_started",
+                    payload=json.dumps(
+                        {
+                            "room_id": result.id,
+                            "room_name": result.name,
+                            "owner_email": result.owner_email,
+                        }
+                    ),
+                )
+            )
         db.commit()
         return result
     except RoomService.NotFoundError:

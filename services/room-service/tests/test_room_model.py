@@ -16,6 +16,7 @@ def test_room_has_expected_columns():
         "status",
         "equipment",
         "owner_id",
+        "owner_email",
         "created_at",
         "updated_at",
         "deleted_at",

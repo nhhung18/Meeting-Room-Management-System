@@ -39,10 +39,14 @@ class Booking(Base):
         nullable=False,
         server_default="CONFIRMED",
     )
+    booker_email: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     checked_in_at: Mapped[datetime | None] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=True
     )
     auto_cancelled_at: Mapped[datetime | None] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=True
+    )
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(

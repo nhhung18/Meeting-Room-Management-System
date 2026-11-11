@@ -86,9 +86,12 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
         sender = get_email_sender()
         dispatch = {
             "booking.created": sender.send_booking_created,
+            "booking.updated": sender.send_booking_updated,
             "booking.cancelled": sender.send_booking_cancelled,
             "booking.checked_in": sender.send_booking_checked_in,
             "booking.auto_cancelled": sender.send_booking_auto_cancelled,
+            "booking.reminder": sender.send_booking_reminder,
+            "room.maintenance_started": sender.send_room_maintenance,
         }
         handler = dispatch.get(event_type)
         if handler:
