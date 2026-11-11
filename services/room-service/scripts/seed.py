@@ -1,7 +1,10 @@
 """Seed script: inserts demo rooms into room_db. Idempotent — safe to run multiple times."""
 
 import json
-import os
+
+from sqlalchemy import Engine, text
+
+from app.db.session import get_engine
 
 SEED_ROOMS: list[dict] = [
     {
@@ -84,38 +87,38 @@ SEED_ROOMS: list[dict] = [
 ]
 
 
-def seed(conn) -> int:  # conn: psycopg.Connection
+INSERT_ROOM_SQL = text(
+    """
+    INSERT INTO rooms (name, capacity, status, floor, equipment)
+    VALUES (:name, :capacity, :status, :floor, CAST(:equipment AS jsonb))
+    ON CONFLICT (name) WHERE deleted_at IS NULL DO NOTHING
+    """
+)
+
+
+def seed(engine: Engine) -> int:
     """Insert SEED_ROOMS into rooms table. Returns the number of rows actually inserted."""
     inserted = 0
-    with conn.cursor() as cur:
+    with engine.begin() as conn:
         for room in SEED_ROOMS:
-            cur.execute(
-                """
-                INSERT INTO rooms (name, capacity, status, floor, equipment)
-                VALUES (%s, %s, %s, %s, %s::jsonb)
-                ON CONFLICT (name) WHERE deleted_at IS NULL DO NOTHING
-                """,
-                (
-                    room["name"],
-                    room["capacity"],
-                    room["status"],
-                    room.get("floor"),
-                    json.dumps(room["equipment"]),
-                ),
+            result = conn.execute(
+                INSERT_ROOM_SQL,
+                {
+                    "name": room["name"],
+                    "capacity": room["capacity"],
+                    "status": room["status"],
+                    "floor": room.get("floor"),
+                    "equipment": json.dumps(room["equipment"]),
+                },
             )
-            inserted += cur.rowcount
-    conn.commit()
+            inserted += result.rowcount
     return inserted
 
 
 def main() -> None:
-    import psycopg  # noqa: PLC0415 — deferred to keep SEED_ROOMS importable without psycopg installed
-
-    database_url = os.environ["DATABASE_URL"]
-    with psycopg.connect(database_url) as conn:
-        inserted = seed(conn)
-        skipped = len(SEED_ROOMS) - inserted
-        print(f"Seeded {inserted} rooms ({skipped} skipped)")
+    inserted = seed(get_engine())
+    skipped = len(SEED_ROOMS) - inserted
+    print(f"Seeded {inserted} rooms ({skipped} skipped)")
 
 
 if __name__ == "__main__":

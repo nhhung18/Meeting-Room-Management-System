@@ -62,7 +62,7 @@ test-room-integration: ## Chạy integration tests của room-service trong Dock
 	docker compose run --rm room-service sh -c "alembic upgrade head && python -m pytest -m integration -v"
 
 seed: ## Chèn demo rooms vào room_db (idempotent)
-	docker compose run --rm room-service sh -c "alembic upgrade head && python scripts/seed.py"
+	docker compose run --rm room-service sh -c "alembic upgrade head && python -m scripts.seed"
 
 token: ## Lấy Auth0 JWT token (make token ROLE=m2m|employee|manager|admin)
 	scripts/get-token.sh $(or $(ROLE),m2m) | python3 -m json.tool
