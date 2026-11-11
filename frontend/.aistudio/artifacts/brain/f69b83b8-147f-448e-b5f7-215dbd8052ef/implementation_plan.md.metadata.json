@@ -1,0 +1,6 @@
+{
+  "summary":  "Kế hoạch chi tiết bổ sung 4 chức năng cốt lõi cho role Admin: Quản lý người dùng và phân quyền (RBAC), Quản lý toàn bộ phòng họp với quyền Admin override, Báo cáo & Trang Audit Log chuyên biệt, và Cấu hình các quy định đặt phòng (thời gian đặt trước, thời lượng tối đa, tự hủy trễ check-in).",
+  "updatedAt":  "2026-11-02T09:52:27.406821460Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

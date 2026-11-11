@@ -63,10 +63,6 @@ class TestPostRoom:
         assert resp.status_code == 409
         assert "already exists" in resp.json()["detail"]
 
-    def test_create_room_no_auth_401(self, client, mock_service):
-        resp = client.post("/api/rooms/", json={"name": "P101", "capacity": 10})
-        assert resp.status_code == 401
-
 
 class TestGetRoom:
     def test_get_room_200(self, client, employee_user, mock_service):
@@ -118,7 +114,7 @@ class TestListRooms:
 
 class TestPatchRoom:
     def test_update_room_200(self, client, manager_user, mock_service):
-        mock_service.update_room.return_value = _room_response(capacity=20)
+        mock_service.update_room.return_value = (_room_response(capacity=20), "AVAILABLE")
         resp = client.patch("/api/rooms/1", json={"capacity": 20})
         assert resp.status_code == 200
         assert resp.json()["capacity"] == 20

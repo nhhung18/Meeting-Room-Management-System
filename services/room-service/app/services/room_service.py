@@ -43,7 +43,6 @@ class RoomService:
             floor=dto.floor,
             equipment=dto.equipment,
             owner_id=dto.owner_id,
-            floor=dto.floor,
             description=dto.description,
             image_url=dto.image_url,
         )

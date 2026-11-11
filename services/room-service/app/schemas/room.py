@@ -18,10 +18,9 @@ class RoomCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     capacity: int = Field(..., gt=0)
     status: RoomStatus | None = None
-    floor: str | None = None
+    floor: str | None = Field(None, max_length=100)
     equipment: list[str] = Field(default_factory=list)
     owner_id: str | None = None
-    floor: str | None = Field(None, max_length=100)
     description: str | None = None
     image_url: str | None = Field(None, max_length=500)
 
@@ -43,10 +42,9 @@ class RoomUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
     capacity: int | None = Field(None, gt=0)
     status: RoomStatus | None = None
-    floor: str | None = None
+    floor: str | None = Field(None, max_length=100)
     equipment: list[str] | None = None
     owner_id: str | None = None
-    floor: str | None = Field(None, max_length=100)
     description: str | None = None
     image_url: str | None = Field(None, max_length=500)
 
@@ -78,7 +76,7 @@ class RoomResponse(BaseModel):
     floor: str | None = None
     equipment: list[str]
     owner_id: str | None
-    floor: str | None = None
+    owner_email: str | None = None
     description: str | None = None
     image_url: str | None = None
     created_at: datetime

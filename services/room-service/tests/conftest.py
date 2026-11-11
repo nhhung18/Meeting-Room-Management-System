@@ -7,7 +7,6 @@ os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:
 
 from unittest.mock import MagicMock  # noqa: E402
 
-from common.auth import TokenPayload  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
@@ -19,7 +18,9 @@ from app.main import app  # noqa: E402
 
 @pytest.fixture
 def employee_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(sub="emp1", roles=["Employee"])
+    app.dependency_overrides[current_user] = lambda: TokenPayload(
+        sub="emp1", roles=["Employee"]
+    )
     yield
     app.dependency_overrides.pop(current_user, None)
 
@@ -50,36 +51,6 @@ def client(manager_user):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.pop(get_db, None)
-
-
-# --- Auth override fixtures (mirror booking-service pattern) ---
-
-
-@pytest.fixture
-def employee_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(
-        sub="emp1", roles=["Employee"]
-    )
-    yield
-    app.dependency_overrides.pop(current_user, None)
-
-
-@pytest.fixture
-def admin_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(
-        sub="admin1", roles=["Administrator"]
-    )
-    yield
-    app.dependency_overrides.pop(current_user, None)
-
-
-@pytest.fixture
-def manager_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(
-        sub="mgr1", roles=["Room Manager"]
-    )
-    yield
-    app.dependency_overrides.pop(current_user, None)
 
 
 @pytest.fixture

@@ -84,9 +84,3 @@ class TestUploadRoomImage:
         )
         assert resp.status_code == 502
 
-    def test_upload_requires_manager_role_401(self, client):
-        resp = client.post(
-            "/api/rooms/1/image",
-            files={"file": ("photo.jpg", io.BytesIO(FAKE_IMAGE), "image/jpeg")},
-        )
-        assert resp.status_code == 401

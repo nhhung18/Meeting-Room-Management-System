@@ -17,7 +17,7 @@
 | 9 | room-service skeleton + Nginx route + CI job | ✅ Done | `/api/rooms/health` → 200 |
 | 10 | Room CRUD + equipment + soft delete + status | ✅ Done | Alembic migration, unit + integration tests, Swagger |
 | 11 | Auth0 tenant: API, 3 roles, test users | ⏳ | Manual setup |
-| 12 | JWT validation + RBAC trong services | ✅ Done | libs/common JWT validator, room-service wired; e2e blocked chờ task 11 |
+| 12 | JWT validation + RBAC trong services | ✅ Done | libs/common JWT validator, room-service + booking-service wired; dual-mode (anon khi không set AUTH0_DOMAIN) |
 | 13 | Seed data (`make seed`) | ✅ Done | 11 demo rooms, idempotent; verify Docker manual |
 
 ## Tuần 3–4: Booking Core & Xử lý song song
@@ -53,8 +53,11 @@
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
 | 27 | Test scenarios bắt buộc (theo đề bài) | ✅ Done | 41 new tests; all 7 scenarios S1–S7 covered; `docs/test-report.md` |
-| 28 | Frontend React + TypeScript: trang đặt phòng | ⏳ | |
-| 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
+| 28 | Frontend API layer: HTTP client + mappers + rooms/bookings API + error handling | ✅ Done | 6 modules, 51 unit tests; rooms/bookings call backend qua Vite proxy → Nginx; ApiErrorState covers 0/403/404/409/5xx; nhánh `feat/frontend-api-integration` |
+| 28b | Frontend missing UI: edit booking flow + ApiErrorState wired | ✅ Done | BookingFormPage edit mode (PATCH), edit button on MyBookingsPage, ApiErrorState + empty state wired vào 4 pages; 51 tests pass |
+| 28c | Frontend auth wiring: AuthContext → setTokenProvider + 401 error state | ✅ Done | createTokenProvider() wired vào http.ts; 401 case trong ApiErrorState với vi/en translations; 55 tests pass |
+| 28d | Auth0 real integration: dual-mode AuthProvider + booking-service JWT | ✅ Done | @auth0/auth0-react installed; Auth0AuthProvider + isAuth0Mode; createAuth0TokenProvider; mapAuth0Role; LoginPage real loginWithRedirect; booking-service real JWTValidator; 66 FE tests pass |
+| 29 | Frontend: trang quản lý phòng (admin) | ✅ Done | RoomManagementPage committed (CRUD + error state) |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
 
 ## Functional Requirements (FR)
