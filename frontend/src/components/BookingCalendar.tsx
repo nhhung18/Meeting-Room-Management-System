@@ -253,14 +253,6 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
         <div className="overflow-x-auto">
           <div className={isWeekView ? 'min-w-[760px]' : 'w-full'}>
             {/* Day Headers */}
-            <div
-              className={`grid ${gridTemplateCols} border-b border-slate-200 dark:border-white/15 bg-white dark:bg-[#1c1c1e] sticky top-0 z-10`}
-            >
-              <div className="p-2.5 text-center flex flex-col items-center justify-center border-r border-slate-200 dark:border-white/15">
-                <span className="text-[10px] font-mono text-slate-400 font-semibold tracking-wider">
-                  GMT+7
-                </span>
-              </div>
             {showDayHeader && (
               <div
                 className={`grid ${gridTemplateCols} border-b border-slate-200 dark:border-white/15 bg-white dark:bg-[#1c1c1e] sticky top-0 z-10`}
