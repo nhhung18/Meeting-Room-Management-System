@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 class EventPublisher:
     """Gửi JSON events tới RabbitMQ queue.
 
-    Connection được tạo lazy khi publish đầu tiên. Nếu connection fail,
-    publish log warning và không raise.
+    Connection được tạo lazy khi publish đầu tiên. Nếu connection fail hoặc
+    basic_publish thất bại, publish raise exception để outbox relay có thể retry.
     """
 
     def __init__(self, rabbitmq_url: str, queue: str = "notifications") -> None:
@@ -37,10 +37,9 @@ class EventPublisher:
                 self._connection = pika.BlockingConnection(params)
             if self._channel is None or self._channel.is_closed:
                 self._channel = self._connection.channel()
-                self._channel.queue_declare(queue=self._queue, durable=True)
             return True
         except Exception:
-            logger.warning("rabbitmq unavailable, skipping event publish", exc_info=True)
+            logger.warning("rabbitmq unavailable", exc_info=True)
             self._connection = None
             self._channel = None
             return False
@@ -51,9 +50,9 @@ class EventPublisher:
         payload: dict,
         request_id: str | None = None,
     ) -> None:
-        """Publish một event tới queue. Best-effort — không raise khi RabbitMQ down."""
+        """Publish một event tới queue. Raise nếu RabbitMQ down để outbox relay có thể retry."""
         if not self._ensure_channel():
-            return
+            raise ConnectionError("rabbitmq unavailable")
 
         message = {
             "event_id": str(uuid.uuid4()),
@@ -79,9 +78,9 @@ class EventPublisher:
                 properties=props,
             )
         except Exception:
-            logger.warning("failed to publish event %s", event_type, exc_info=True)
             self._connection = None
             self._channel = None
+            raise
 
     def close(self) -> None:
         """Đóng connection (dùng khi shutdown)."""
