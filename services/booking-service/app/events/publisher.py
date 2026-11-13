@@ -1,8 +1,8 @@
 """EventPublisher — gửi booking lifecycle events tới RabbitMQ.
 
 Dùng pika (sync) vì booking-service là synchronous FastAPI.
-Publish là best-effort: nếu RabbitMQ down, log warning và tiếp tục.
-Publish chỉ xảy ra SAU db.commit() trong router — không bao giờ trong service layer.
+Publish raises nếu RabbitMQ down để outbox relay có thể retry.
+Publish chỉ xảy ra qua outbox relay, không bao giờ gọi trực tiếp trong service layer.
 """
 
 import contextlib
@@ -39,7 +39,7 @@ class EventPublisher:
                 self._channel = self._connection.channel()
             return True
         except Exception:
-            logger.warning("rabbitmq unavailable", exc_info=True)
+            logger.warning("rabbitmq unavailable")
             self._connection = None
             self._channel = None
             return False

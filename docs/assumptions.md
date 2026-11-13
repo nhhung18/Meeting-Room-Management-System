@@ -2,7 +2,7 @@
 
 Tài liệu này ghi lại các giả định kinh doanh mà hệ thống đưa ra. Mỗi giả định ảnh hưởng tới thiết kế database, logic validation, và behavior của hệ thống.
 
-**Cập nhật lần cuối:** 2026-10-09
+**Cập nhật lần cuối:** 2026-11-13
 
 ---
 
@@ -383,6 +383,36 @@ async def notify_auto_cancelled(message):
 3. **Maintenance duration:** Phòng MAINTENANCE bao lâu? Có ngày / giờ kết thúc? → **Mở.** Có thể thêm `maintenance_until` field nếu cần schedule.
 
 4. **Check-in method:** User check-in bằng API? QR code? Voice? → **Hiện tại:** API. Frontend tuần 7.
+
+---
+
+## 7. Thứ tự khởi động: `notification-worker` trước `outbox-relay`
+
+### Giả định
+
+`notification-worker` phải đang chạy và healthy trước khi `outbox-relay` bắt đầu publish message.
+
+### Lý do
+
+`notification-worker` là service duy nhất khai báo queue `notifications` với tham số dead-letter:
+
+```
+x-dead-letter-exchange: ""
+x-dead-letter-routing-key: notifications.dlq
+```
+
+`outbox-relay` publish tới queue này bằng `basic_publish` với `mandatory=False` (default). Nếu queue chưa tồn tại tại thời điểm publish:
+- RabbitMQ **không trả lỗi** (vì `mandatory=False`)
+- Message bị **drop vĩnh viễn**
+- `outbox-relay` đánh dấu event `sent_at = now()` và không bao giờ retry
+
+### Cách đảm bảo
+
+`docker-compose.yml` đã cấu hình `outbox-relay` với `depends_on: notification-worker: condition: service_healthy`. Khi `docker compose up`, Docker Compose đảm bảo `notification-worker` healthy trước khi `outbox-relay` start.
+
+### Hệ quả nếu giả định bị vi phạm
+
+Message drop âm thầm. Không có lỗi nào xuất hiện trong log. User không nhận được thông báo booking. Không tự recover — event đã bị đánh dấu sent.
 
 ---
 

@@ -112,6 +112,11 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      # notification-worker phải healthy trước khi outbox-relay start: nó khai báo
+      # queue 'notifications' với x-dead-letter-exchange; nếu outbox-relay publish
+      # trước khi queue tồn tại, RabbitMQ drop message vĩnh viễn (mandatory=False).
+      notification-worker:
+        condition: service_healthy
     restart: unless-stopped
 
   booking-reminder:
