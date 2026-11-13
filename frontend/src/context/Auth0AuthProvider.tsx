@@ -137,7 +137,10 @@ export const Auth0AuthProvider: React.FC<{
       authorizationParams={{
         redirect_uri: window.location.origin + '/callback',
         audience,
+        scope: 'openid profile email offline_access',
       }}
+      cacheLocation="localstorage"
+      useRefreshTokens={true}
       onRedirectCallback={(appState) => {
         window.history.replaceState(
           {},
