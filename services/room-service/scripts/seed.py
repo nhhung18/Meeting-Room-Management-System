@@ -92,16 +92,39 @@ INSERT_ROOM_SQL = text(
     INSERT INTO rooms (name, capacity, status, floor, equipment)
     VALUES (:name, :capacity, :status, :floor, CAST(:equipment AS jsonb))
     ON CONFLICT (name) WHERE deleted_at IS NULL DO NOTHING
+    RETURNING id
+    """
+)
+
+INSERT_OUTBOX_SQL = text(
+    """
+    INSERT INTO outbox_events (event_type, payload)
+    VALUES ('room.created', :payload)
     """
 )
 
 
+def room_created_payload(room_id: int, room: dict) -> str:
+    return json.dumps(
+        {
+            "room_id": room_id,
+            "name": room["name"],
+            "capacity": room["capacity"],
+            "status": room["status"],
+            "floor": room.get("floor"),
+            "equipment": room["equipment"],
+            "owner_id": None,
+            "version": room_id,
+        }
+    )
+
+
 def seed(engine: Engine) -> int:
-    """Insert SEED_ROOMS into rooms table. Returns the number of rows actually inserted."""
+    """Insert SEED_ROOMS and their room.created outbox events. Returns rooms actually inserted."""
     inserted = 0
     with engine.begin() as conn:
         for room in SEED_ROOMS:
-            result = conn.execute(
+            new_id = conn.execute(
                 INSERT_ROOM_SQL,
                 {
                     "name": room["name"],
@@ -110,8 +133,11 @@ def seed(engine: Engine) -> int:
                     "floor": room.get("floor"),
                     "equipment": json.dumps(room["equipment"]),
                 },
-            )
-            inserted += result.rowcount
+            ).scalar_one_or_none()
+            if new_id is None:
+                continue
+            conn.execute(INSERT_OUTBOX_SQL, {"payload": room_created_payload(new_id, room)})
+            inserted += 1
     return inserted
 
 

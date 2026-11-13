@@ -25,7 +25,6 @@ class EventPublisher:
                 self._connection = pika.BlockingConnection(params)
             if self._channel is None or self._channel.is_closed:
                 self._channel = self._connection.channel()
-                self._channel.queue_declare(queue=self._queue, durable=True)
             return True
         except Exception:
             logger.warning("rabbitmq unavailable, skipping event publish", exc_info=True)
@@ -44,7 +43,7 @@ class EventPublisher:
 
     def publish(self, event_type: str, payload: dict, request_id: str | None = None) -> None:
         if not self._ensure_channel():
-            return
+            raise ConnectionError("rabbitmq unavailable")
 
         message = {
             "event_id": str(uuid.uuid4()),
@@ -75,9 +74,9 @@ class EventPublisher:
                 properties=props,
             )
         except Exception:
-            logger.warning("failed to publish event %s", event_type, exc_info=True)
             self._connection = None
             self._channel = None
+            raise
 
     def close(self) -> None:
         if self._connection and not self._connection.is_closed:
