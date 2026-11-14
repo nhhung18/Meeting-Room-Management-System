@@ -8,14 +8,28 @@ import { mapAuth0Role } from './roleMapper';
 
 type GetTokenFn = (opts?: GetTokenSilentlyOptions) => Promise<string | undefined>;
 
-export function createAuth0TokenProvider(getToken: GetTokenFn): TokenProvider {
+const AUTH_ERRORS_REQUIRING_LOGIN = new Set([
+  'login_required',
+  'consent_required',
+  'interaction_required',
+  'missing_refresh_token',
+]);
+
+export function createAuth0TokenProvider(
+  getToken: GetTokenFn,
+  onLoginRequired?: () => void,
+): TokenProvider {
   return async (opts?: { force?: boolean }) => {
     try {
       const token = await getToken(
         opts?.force ? { cacheMode: 'off' } : undefined,
       );
       return token ?? null;
-    } catch {
+    } catch (err: unknown) {
+      const code = (err as { error?: string })?.error;
+      if (code && AUTH_ERRORS_REQUIRING_LOGIN.has(code)) {
+        onLoginRequired?.();
+      }
       return null;
     }
   };
@@ -60,12 +74,14 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isAuthenticated) {
-      setTokenProvider(createAuth0TokenProvider(getAccessTokenSilently));
+      const onLoginRequired = () =>
+        loginWithRedirect({ authorizationParams: { audience } });
+      setTokenProvider(createAuth0TokenProvider(getAccessTokenSilently, onLoginRequired));
     } else {
       setTokenProvider(null);
     }
     return () => setTokenProvider(null);
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated, getAccessTokenSilently, loginWithRedirect, audience]);
 
   const loginWithRedirectWrapped = async (opts?: { appState?: { returnTo?: string } }) => {
     await loginWithRedirect({
