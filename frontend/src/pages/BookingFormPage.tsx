@@ -15,6 +15,7 @@ import {
   Divider,
   Spin,
   App,
+  Tooltip,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -29,8 +30,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Room, BookingPolicyConfig } from '../types';
-import { getRooms, createBooking, getBookingById, updateBooking, getBookingPolicies } from '../api/client';
+import { Room, BookingPolicyConfig, Booking } from '../types';
+import { getRooms, createBooking, getBookingById, updateBooking, getBookingPolicies, getBookings } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -78,6 +79,7 @@ export const BookingFormPage: React.FC = () => {
   const [policies, setPolicies] = useState<BookingPolicyConfig | null>(null);
   const [startSearchText, setStartSearchText] = useState('');
   const [endSearchText, setEndSearchText] = useState('');
+  const [myBookings, setMyBookings] = useState<Booking[]>([]);
 
   // Watch fields for live summary
   const watchedValues = Form.useWatch([], form);
@@ -87,9 +89,13 @@ export const BookingFormPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Load organization policies
-      const policyData = await getBookingPolicies();
+      // Load organization policies and user's existing bookings in parallel
+      const [policyData, myBookingsRes] = await Promise.all([
+        getBookingPolicies(),
+        getBookings({ limit: 100 }),
+      ]);
       setPolicies(policyData);
+      setMyBookings(myBookingsRes.items.filter((b) => b.status !== 'CANCELLED'));
 
       if (isEditMode) {
         // Fetch room catalog and current booking
@@ -265,6 +271,39 @@ export const BookingFormPage: React.FC = () => {
       form.setFieldValue(field, formatted);
       clearSearch();
     }
+  };
+
+  const datePickerCellRender = (current: string | number | Dayjs, info: { type: string; originNode: React.ReactElement }) => {
+    if (info.type !== 'date' || typeof current !== 'object') return info.originNode;
+    const dateStr = (current as Dayjs).format('YYYY-MM-DD');
+    const dayBookings = myBookings.filter(
+      (b) => dayjs(b.start_at).format('YYYY-MM-DD') === dateStr
+    );
+    if (dayBookings.length === 0) return info.originNode;
+
+    const tooltipContent = (
+      <div className="min-w-[180px]">
+        <div className="font-semibold text-xs mb-1 text-slate-200">
+          {language === 'vi' ? `Lịch họp ngày ${(current as Dayjs).format('DD/MM')}` : `Meetings on ${(current as Dayjs).format('MM/DD')}`}
+        </div>
+        {dayBookings.map((b) => (
+          <div key={b.id} className="text-[11px] text-slate-300 py-0.5 border-b border-white/10 last:border-0">
+            <span className="font-mono">{dayjs(b.start_at).format('HH:mm')}–{dayjs(b.end_at).format('HH:mm')}</span>
+            {b.room_name ? <span className="ml-1 opacity-70">· {b.room_name}</span> : null}
+            {b.purpose ? <div className="truncate opacity-80">{b.purpose}</div> : null}
+          </div>
+        ))}
+      </div>
+    );
+
+    return (
+      <Tooltip title={tooltipContent} placement="right" overlayStyle={{ maxWidth: 240 }}>
+        <div className="relative inline-flex flex-col items-center w-full">
+          {info.originNode}
+          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-500" />
+        </div>
+      </Tooltip>
+    );
   };
 
   const onFinish = async (values: BookingFormValues) => {
@@ -480,6 +519,7 @@ export const BookingFormPage: React.FC = () => {
                   disabledDate={disabledDate}
                   placeholder={t.fieldDatePlaceholder}
                   prefix={<CalendarOutlined className="text-slate-400" />}
+                  cellRender={datePickerCellRender}
                 />
               </Form.Item>
             </Col>
