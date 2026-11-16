@@ -503,12 +503,11 @@ export const RoomListPage: React.FC = () => {
 
                     {/* Card Footer */}
                     <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex flex-col gap-2 mt-auto">
-                      {/* Employee actions row */}
+                      {/* Original employee actions — unchanged for all roles */}
                       <div className="flex items-center justify-between">
                         <Button
                           type="link"
                           size="small"
-                          icon={isManager ? <EyeOutlined /> : undefined}
                           disabled={isMaintenanceBlocked}
                           onClick={() => {
                             if (!isMaintenanceBlocked) navigate(`/rooms/${room.id}`);
@@ -517,23 +516,34 @@ export const RoomListPage: React.FC = () => {
                             paddingLeft: 0,
                             color: isMaintenanceBlocked ? undefined : (isDark ? '#0a84ff' : '#1e40af'),
                             fontWeight: 500,
-                            fontSize: 12,
                           }}
                         >
                           {t.roomDetailsBtn}
                         </Button>
 
-                        {!isManager ? (
+                        <Button
+                          type="primary"
+                          size="small"
+                          disabled={!isAvailable}
+                          onClick={() => navigate(`/rooms/${room.id}/book`)}
+                          style={isAvailable ? { backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', borderRadius: 6, fontWeight: 500 } : {}}
+                        >
+                          {isAvailable ? t.roomBookNowBtn : t.roomUnderMaintenanceBtn}
+                        </Button>
+                      </div>
+
+                      {/* Management actions — extra row, only for ROOM_MANAGER / ADMINISTRATOR */}
+                      {isManager && (
+                        <div className="pt-2 border-t border-dashed border-slate-100 dark:border-white/5 flex items-center justify-between">
                           <Button
-                            type="primary"
+                            type="link"
                             size="small"
-                            disabled={!isAvailable}
-                            onClick={() => navigate(`/rooms/${room.id}/book`)}
-                            style={isAvailable ? { backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', borderRadius: 6, fontWeight: 500 } : {}}
+                            icon={<EyeOutlined />}
+                            onClick={() => navigate(`/rooms/${room.id}`)}
+                            style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontSize: 12 }}
                           >
-                            {isAvailable ? t.roomBookNowBtn : t.roomUnderMaintenanceBtn}
+                            {t.actionView}
                           </Button>
-                        ) : (
                           <Space size="small">
                             <Button
                               size="small"
@@ -565,8 +575,8 @@ export const RoomListPage: React.FC = () => {
                               </Button>
                             </Popconfirm>
                           </Space>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Admin Override Action Bar */}
                       {isAdmin && (
