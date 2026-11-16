@@ -145,6 +145,7 @@ def create_booking(
                         "booker_email": result.booker_email,
                         "start_at": result.start_at.isoformat(),
                         "end_at": result.end_at.isoformat(),
+                        "purpose": result.purpose,
                         "attendees": [
                             {"email": a.attendee_email, "name": a.name} for a in result.attendees
                         ],
@@ -229,6 +230,7 @@ def update_booking(
                         "booker_email": result.booker_email,
                         "start_at": result.start_at.isoformat(),
                         "end_at": result.end_at.isoformat(),
+                        "purpose": result.purpose,
                         "attendees": [
                             {"email": a.attendee_email, "name": a.name} for a in result.attendees
                         ],

@@ -103,6 +103,7 @@ class BookingService:
             start_at=dto.start_at,
             end_at=dto.end_at,
             num_attendees=dto.num_attendees,
+            purpose=dto.purpose,
             status=BookingStatus.CONFIRMED,
         )
         booking.attendees = [
@@ -204,7 +205,7 @@ class BookingService:
         time_changed = "start_at" in changes or "end_at" in changes
 
         # Apply scalar field changes first
-        for field in ("num_attendees", "start_at", "end_at", "room_id"):
+        for field in ("num_attendees", "start_at", "end_at", "room_id", "purpose"):
             if field in changes:
                 setattr(booking, field, changes[field])
 
@@ -251,6 +252,7 @@ class BookingService:
             start_at=booking.start_at,
             end_at=booking.end_at,
             num_attendees=booking.num_attendees,
+            purpose=booking.purpose,
             status=booking.status,
             checked_in_at=booking.checked_in_at,
             auto_cancelled_at=booking.auto_cancelled_at,

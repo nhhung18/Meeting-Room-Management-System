@@ -34,6 +34,7 @@ class Booking(Base):
     start_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=False)
     end_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=False)
     num_attendees: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    purpose: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
     status: Mapped[str] = mapped_column(
         sa.VARCHAR(20),
         nullable=False,

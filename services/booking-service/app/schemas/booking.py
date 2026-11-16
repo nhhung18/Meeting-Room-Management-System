@@ -24,6 +24,7 @@ class BookingCreate(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int = Field(gt=0)
+    purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] = Field(default_factory=list)
 
     @field_validator("start_at", "end_at", mode="after")
@@ -45,6 +46,7 @@ class BookingUpdate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     num_attendees: int | None = Field(default=None, gt=0)
+    purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] | None = None
 
     @field_validator("start_at", "end_at", mode="after")
@@ -79,6 +81,7 @@ class BookingResponse(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int
+    purpose: str | None = None
     status: str
     checked_in_at: datetime | None = None
     auto_cancelled_at: datetime | None = None

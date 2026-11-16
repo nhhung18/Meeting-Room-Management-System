@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Form,
@@ -35,15 +35,18 @@ import { ApiErrorState } from '../components/ApiErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import {
+  TIME_SLOTS_15MIN,
+  TIME_INPUT_REGEX,
+  isBookingDateDisabled,
+  parseAndFormatCustomTime,
+  mergeCustomTimeOptions,
+} from '../utils/bookingDateTime';
 
 const { Title, Text } = Typography;
 
-export const TIME_SLOTS_30MIN = [
-  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
-  '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00',
-];
+export { TIME_SLOTS_15MIN };
+export const TIME_SLOTS_30MIN = TIME_SLOTS_15MIN;
 
 interface BookingFormValues {
   room_id: number;
@@ -73,6 +76,8 @@ export const BookingFormPage: React.FC = () => {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [capacityWarning, setCapacityWarning] = useState<string | null>(null);
   const [policies, setPolicies] = useState<BookingPolicyConfig | null>(null);
+  const [startSearchText, setStartSearchText] = useState('');
+  const [endSearchText, setEndSearchText] = useState('');
 
   // Watch fields for live summary
   const watchedValues = Form.useWatch([], form);
@@ -152,11 +157,11 @@ export const BookingFormPage: React.FC = () => {
           form.setFieldsValue({ date: dayjs() });
         }
 
-        if (timeParam && TIME_SLOTS_30MIN.includes(timeParam)) {
-          const idx = TIME_SLOTS_30MIN.indexOf(timeParam);
-          const nextSlot = TIME_SLOTS_30MIN[Math.min(idx + 2, TIME_SLOTS_30MIN.length - 1)];
+        const parsedParam = timeParam ? parseAndFormatCustomTime(timeParam) : null;
+        if (parsedParam) {
+          const nextSlot = dayjs(`2000-01-01T${parsedParam}:00`).add(60, 'minute').format('HH:mm');
           form.setFieldsValue({
-            start_time: timeParam,
+            start_time: parsedParam,
             end_time: nextSlot,
           });
         } else {
@@ -220,13 +225,46 @@ export const BookingFormPage: React.FC = () => {
     }
   };
 
-  const disabledDate = (current: Dayjs) => {
-    if (!current) return false;
-    if (current < dayjs().startOf('day')) return true;
-    if (policies?.max_advance_days && current > dayjs().add(policies.max_advance_days, 'day').endOf('day')) {
-      return true;
+  const disabledDate = (current: Dayjs) =>
+    isBookingDateDisabled(current, policies?.max_advance_days);
+
+  const buildTimeOptions = (searchText: string, currentValue?: string) => {
+    const customTag = language === 'vi' ? '(Tùy chỉnh)' : '(Custom)';
+    return mergeCustomTimeOptions(searchText, currentValue).map(({ value, isCustom }) => ({
+      value,
+      label: (
+        <span className="font-mono font-medium flex items-center justify-between">
+          <span>{value}</span>
+          {isCustom && (
+            <span className="text-[10px] text-[#1e40af] dark:text-[#0a84ff] ml-2">
+              {customTag}
+            </span>
+          )}
+        </span>
+      ),
+    }));
+  };
+
+  const startTimeOptions = useMemo(
+    () => buildTimeOptions(startSearchText, watchedValues?.start_time),
+    [startSearchText, watchedValues?.start_time, language]
+  );
+
+  const endTimeOptions = useMemo(
+    () => buildTimeOptions(endSearchText, watchedValues?.end_time),
+    [endSearchText, watchedValues?.end_time, language]
+  );
+
+  const handleTimeBlur = (
+    field: 'start_time' | 'end_time',
+    searchText: string,
+    clearSearch: () => void
+  ) => {
+    const formatted = parseAndFormatCustomTime(searchText);
+    if (formatted) {
+      form.setFieldValue(field, formatted);
+      clearSearch();
     }
-    return false;
   };
 
   const onFinish = async (values: BookingFormValues) => {
@@ -237,11 +275,12 @@ export const BookingFormPage: React.FC = () => {
       const startStr = typeof values.start_time === 'string' ? values.start_time : '17:00';
       const endStr = typeof values.end_time === 'string' ? values.end_time : '17:30';
 
-      const startAt = `${dateStr}T${startStr}:00Z`;
-      const endAt = `${dateStr}T${endStr}:00Z`;
+      // Parse as local time — toTzAwareIso will convert to UTC ISO string
+      const startAt = `${dateStr}T${startStr}:00`;
+      const endAt = `${dateStr}T${endStr}:00`;
 
-      const startDayjs = dayjs(`${dateStr}T${startStr}:00`);
-      const endDayjs = dayjs(`${dateStr}T${endStr}:00`);
+      const startDayjs = dayjs(startAt);
+      const endDayjs = dayjs(endAt);
 
       if (endDayjs.isBefore(startDayjs) || endDayjs.isSame(startDayjs)) {
         form.setFields([
@@ -270,12 +309,12 @@ export const BookingFormPage: React.FC = () => {
       }
 
       if (isEditMode) {
-        // Global constraint: do NOT send purpose in updateBooking schema
         await updateBooking(Number(bookingId), {
           room_id: values.room_id,
           start_at: startAt,
           end_at: endAt,
           num_attendees: values.num_attendees,
+          purpose: values.purpose || undefined,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
             attendee_email: att.attendee_email,
@@ -289,6 +328,7 @@ export const BookingFormPage: React.FC = () => {
           start_at: startAt,
           end_at: endAt,
           num_attendees: values.num_attendees,
+          purpose: values.purpose || undefined,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
             attendee_email: att.attendee_email,
@@ -426,6 +466,12 @@ export const BookingFormPage: React.FC = () => {
                 label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldDate}</span>}
                 name="date"
                 rules={[{ required: true, message: t.errRequiredDate }]}
+                extra={
+                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                    <InfoCircleOutlined />
+                    <span>{t.maxAdvanceDateHint}</span>
+                  </div>
+                }
               >
                 <DatePicker
                   size="large"
@@ -441,48 +487,68 @@ export const BookingFormPage: React.FC = () => {
 
           {/* Khung giờ: Giờ bắt đầu & Giờ kết thúc */}
           <Row gutter={[20, 0]}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldStartTime}</span>}
-                name="start_time"
-                rules={[{ required: true, message: t.errRequiredStartTime }]}
-              >
-                <Select
-                  size="large"
-                  showSearch
-                  popupMatchSelectWidth={false}
-                  styles={{ popup: { root: { minWidth: 200 } } }}
-                  placeholder={t.fieldStartTimePlaceholder}
-                  suffixIcon={<ClockCircleOutlined className="text-slate-400" />}
-                  options={TIME_SLOTS_30MIN.map((slot) => ({
-                    value: slot,
-                    label: <span className="font-mono font-medium">{slot}</span>,
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldEndTime}</span>}
-                name="end_time"
-                rules={[{ required: true, message: t.errRequiredEndTime }]}
-              >
-                <Select
-                  size="large"
-                  showSearch
-                  popupMatchSelectWidth={false}
-                  styles={{ popup: { root: { minWidth: 200 } } }}
-                  placeholder={t.fieldEndTimePlaceholder}
-                  suffixIcon={<ClockCircleOutlined className="text-slate-400" />}
-                  options={TIME_SLOTS_30MIN.map((slot) => ({
-                    value: slot,
-                    label: <span className="font-mono font-medium">{slot}</span>,
-                  }))}
-                />
-              </Form.Item>
-            </Col>
+            {[
+              {
+                name: 'start_time' as const,
+                label: t.fieldStartTime,
+                placeholder: t.fieldStartTimePlaceholder,
+                requiredMsg: t.errRequiredStartTime,
+                searchText: startSearchText,
+                setSearchText: setStartSearchText,
+                options: startTimeOptions,
+              },
+              {
+                name: 'end_time' as const,
+                label: t.fieldEndTime,
+                placeholder: t.fieldEndTimePlaceholder,
+                requiredMsg: t.errRequiredEndTime,
+                searchText: endSearchText,
+                setSearchText: setEndSearchText,
+                options: endTimeOptions,
+              },
+            ].map((fieldCfg) => (
+              <Col xs={24} sm={12} key={fieldCfg.name}>
+                <Form.Item
+                  label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{fieldCfg.label}</span>}
+                  name={fieldCfg.name}
+                  rules={[
+                    { required: true, message: fieldCfg.requiredMsg },
+                    {
+                      pattern: TIME_INPUT_REGEX,
+                      message: language === 'vi' ? 'Định dạng giờ không hợp lệ (HH:mm)' : 'Invalid time format (HH:mm)',
+                    },
+                  ]}
+                >
+                  <Select
+                    size="large"
+                    showSearch
+                    popupMatchSelectWidth={false}
+                    styles={{ popup: { root: { minWidth: 200 } } }}
+                    placeholder={fieldCfg.placeholder}
+                    suffixIcon={<ClockCircleOutlined className="text-slate-400" />}
+                    searchValue={fieldCfg.searchText}
+                    onSearch={(val) => fieldCfg.setSearchText(val)}
+                    onSelect={() => fieldCfg.setSearchText('')}
+                    onBlur={() =>
+                      handleTimeBlur(fieldCfg.name, fieldCfg.searchText, () =>
+                        fieldCfg.setSearchText('')
+                      )
+                    }
+                    filterOption={(input, option) => {
+                      if (!input) return true;
+                      return String(option?.value || '').includes(input.trim());
+                    }}
+                    options={fieldCfg.options}
+                  />
+                </Form.Item>
+              </Col>
+            ))}
           </Row>
+
+          <div className="text-[11px] text-slate-400 -mt-3 mb-4 flex items-center gap-1.5">
+            <InfoCircleOutlined />
+            <span>{t.timePickerHint}</span>
+          </div>
 
           <Row gutter={[20, 0]}>
             {/* Số lượng người tham dự */}
