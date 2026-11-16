@@ -384,8 +384,8 @@ export const RoomListPage: React.FC = () => {
                             : room.image_url
                             ? 'cursor-pointer border-transparent hover:opacity-90'
                             : isDark
-                            ? 'border-dashed bg-[#242426] border-white/15 hover:border-[#0a84ff] cursor-pointer group'
-                            : 'border-dashed bg-slate-50 border-slate-200 hover:border-[#1e40af] cursor-pointer group'
+                            ? 'border-dashed bg-[#242426] border-white/15 cursor-pointer'
+                            : 'border-dashed bg-slate-50 border-slate-200 cursor-pointer'
                         }`}
                       >
                         {room.image_url ? (
@@ -395,16 +395,8 @@ export const RoomListPage: React.FC = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-slate-200/60 dark:bg-white/10 flex items-center justify-center mb-1 text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] transition-colors">
-                              <PictureOutlined className="text-xl" />
-                            </div>
-                            <span className="text-xs text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200 font-medium">
-                              {t.roomPhotoPlaceholder}
-                            </span>
-                            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-                              {t.roomPhotoHint}
-                            </span>
+                          <div className="w-full h-full flex items-center justify-center">
+                            <PictureOutlined className="text-2xl text-slate-300 dark:text-zinc-600" />
                           </div>
                         )}
 
