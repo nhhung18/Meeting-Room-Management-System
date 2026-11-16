@@ -25,7 +25,6 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  ReloadOutlined,
   MenuOutlined,
   PlusCircleOutlined,
   ToolOutlined,
@@ -38,7 +37,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserRole } from '../types';
-import { resetMockDataToDefault } from '../api/client';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { BrightnessIcon, MoonIcon } from './ThemeIcons';
 import { LanguageToggle } from './LanguageToggle';
@@ -188,21 +186,6 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  const handleResetData = () => {
-    modal.confirm({
-      centered: true,
-      wrapClassName: 'ant-modal-centered',
-      title: t.restoreDemoConfirmTitle,
-      content: t.restoreDemoConfirmContent,
-      okText: t.confirm,
-      cancelText: t.cancel,
-      onOk: () => {
-        resetMockDataToDefault();
-        window.location.reload();
-      },
-    });
-  };
-
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'user-info',
@@ -240,12 +223,6 @@ export const AppLayout: React.FC = () => {
       icon: <IdcardOutlined />,
       label: t.myProfile,
       onClick: () => navigate('/profile'),
-    },
-    {
-      key: 'reset-data',
-      icon: <ReloadOutlined />,
-      label: t.restoreDemo,
-      onClick: handleResetData,
     },
     { type: 'divider' },
     {
@@ -602,17 +579,6 @@ export const AppLayout: React.FC = () => {
             }}
           >
             {t.myProfile}
-          </Button>
-
-          <Button
-            block
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              setMobileDrawerOpen(false);
-              handleResetData();
-            }}
-          >
-            {t.restoreDemo}
           </Button>
 
           <Button
