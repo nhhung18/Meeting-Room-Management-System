@@ -128,8 +128,6 @@ const RoomPreviewCard: React.FC<{
   isNew: boolean;
   imageUrl?: string | null;
   hasNewImage?: boolean;
-  imageUploading?: boolean;
-  deletingImage?: boolean;
   isEdit?: boolean;
   existingImageUrl?: string | null;
   onFileSelect?: (file: File) => boolean;
@@ -142,8 +140,6 @@ const RoomPreviewCard: React.FC<{
   isNew,
   imageUrl,
   hasNewImage,
-  imageUploading,
-  deletingImage,
   isEdit,
   existingImageUrl,
   onFileSelect,
@@ -694,8 +690,6 @@ export const RoomFormPage: React.FC = () => {
             isNew={!isEdit}
             imageUrl={imagePreviewUrl || existingImageUrl}
             hasNewImage={!!imagePreviewUrl}
-            imageUploading={imageUploading}
-            deletingImage={deletingImage}
             isEdit={isEdit}
             existingImageUrl={existingImageUrl}
             onFileSelect={handleFileSelect}
