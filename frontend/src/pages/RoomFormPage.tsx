@@ -216,12 +216,9 @@ const RoomPreviewCard: React.FC<{
                   <div className="absolute inset-[6px] rounded-full border border-transparent border-t-white/50 animate-spin" style={{ animationDuration: '0.6s', animationDirection: 'reverse' }} />
                 </div>
                 {/* Label */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="text-white text-xs font-semibold animate-pulse">
-                    {language === 'vi' ? 'Đang tải ảnh lên…' : 'Uploading image…'}
-                  </span>
-                  <span className="text-white/50 text-[10px]">Cloudinary</span>
-                </div>
+                <span className="text-white text-xs font-semibold animate-pulse">
+                  {language === 'vi' ? 'Đang tải ảnh lên…' : 'Uploading image…'}
+                </span>
                 {/* Shimmer bar */}
                 <div className="w-24 h-1 rounded-full bg-white/15 overflow-hidden">
                   <div className="h-full w-1/2 rounded-full bg-white/70" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
