@@ -110,6 +110,14 @@ export interface Translations {
   resetFilterTooltip: string;
   roomPhotoPlaceholder: string;
   roomPhotoHint: string;
+  uploadImageLabel: string;
+  uploadImageHint: string;
+  uploadImageSuccess: string;
+  uploadImageError: string;
+  uploadImageTooLarge: string;
+  uploadImageWrongType: string;
+  deleteImageBtn: string;
+  deleteImageConfirm: string;
   locationLabel: string;
   equipmentCount: string;
   otherEquipmentCount: string;
@@ -135,8 +143,13 @@ export interface Translations {
   calendarNextWeek: string;
   calendarWeekView: string;
   calendarDayView: string;
+  calendarMonthView: string;
+  calendarYearView: string;
   calendarNewBooking: string;
   calendarSlotBookHint: string;
+  calendarReadOnlyHint: string;
+  maxAdvanceDateHint: string;
+  timePickerHint: string;
   calendarContinuedMeeting: string;
   calendarAvailableSlot: string;
   calendarBookThisSlot: string;
@@ -531,8 +544,8 @@ const translations: Record<Language, Translations> = {
     statUtilization: 'Tỷ lệ sử dụng',
     weeklyScheduleTitle: 'Lịch họp trong tuần',
     weeklyScheduleSub: 'Bấm chọn ngày để xem danh sách các phiên hội nghị',
-    noMeetingsOnDate: 'Không có phiên họp nào vào ngày',
-    upcomingMeetingsTitle: 'Booking của bạn sắp tới',
+    noMeetingsOnDate: 'Không có cuộc họp nào vào ngày',
+    upcomingMeetingsTitle: 'Lịch họp của tôi',
     upcomingMeetingsSub: 'Danh sách các cuộc họp sắp bắt đầu, hỗ trợ điểm danh check-in trực tiếp',
     viewAllBookings: 'Xem tất cả booking',
     noUpcomingMeetings: 'Bạn chưa có cuộc họp nào sắp bắt đầu',
@@ -555,6 +568,14 @@ const translations: Record<Language, Translations> = {
     resetFilterTooltip: 'Đặt lại bộ lọc',
     roomPhotoPlaceholder: 'Khu vực thêm ảnh phòng',
     roomPhotoHint: '(Bấm để xem chi tiết & thêm ảnh)',
+    uploadImageLabel: 'Ảnh phòng họp',
+    uploadImageHint: 'Kéo thả hoặc bấm để tải ảnh (JPEG/PNG/WebP, tối đa 5MB)',
+    uploadImageSuccess: 'Tải ảnh thành công',
+    uploadImageError: 'Lỗi khi tải ảnh lên',
+    uploadImageTooLarge: 'Ảnh vượt quá 5MB',
+    uploadImageWrongType: 'Chỉ chấp nhận JPEG, PNG, WebP',
+    deleteImageBtn: 'Xóa ảnh',
+    deleteImageConfirm: 'Xác nhận xóa ảnh phòng này?',
     locationLabel: 'Vị trí:',
     equipmentCount: 'Thiết bị',
     otherEquipmentCount: 'thiết bị',
@@ -578,12 +599,17 @@ const translations: Record<Language, Translations> = {
     calendarToday: 'Hôm nay',
     calendarPrevWeek: 'Tuần trước',
     calendarNextWeek: 'Tuần tiếp theo',
-    calendarWeekView: 'Cả tuần',
+    calendarWeekView: 'Theo tuần',
     calendarDayView: 'Theo ngày',
+    calendarMonthView: 'Theo tháng',
+    calendarYearView: 'Theo năm',
     calendarNewBooking: 'Đặt lịch mới',
-    calendarSlotBookHint: '* Bấm vào khung giờ để đặt phòng ngay',
+    calendarSlotBookHint: '* Lịch chỉ hiển thị xem thông tin (không đặt trực tiếp từ lịch)',
+    calendarReadOnlyHint: '* Lịch chỉ hiển thị thông tin cuộc họp (nhấp vào sự kiện để xem chi tiết)',
+    maxAdvanceDateHint: 'Có thể đặt trước tối đa 1 tháng tính từ hôm nay',
+    timePickerHint: 'Gợi ý: Chọn mốc 15 phút (:00, :15, :30, :45) hoặc gõ trực tiếp số phút tùy ý (HH:mm)',
     calendarContinuedMeeting: '(tiếp tục cuộc họp)',
-    calendarAvailableSlot: 'Khung giờ trống (Bấm để đặt)',
+    calendarAvailableSlot: 'Khung giờ trống',
     calendarBookThisSlot: 'Đặt giờ này',
     previewMeetingTitle: 'Chi tiết phiên họp',
     meetingOrganizer: 'Người đặt:',
@@ -998,6 +1024,14 @@ const translations: Record<Language, Translations> = {
     resetFilterTooltip: 'Reset filters',
     roomPhotoPlaceholder: 'Room Photo Preview Slot',
     roomPhotoHint: '(Click to view details & manage photos)',
+    uploadImageLabel: 'Room Image',
+    uploadImageHint: 'Drag & drop or click to upload (JPEG/PNG/WebP, max 5MB)',
+    uploadImageSuccess: 'Image uploaded successfully',
+    uploadImageError: 'Failed to upload image',
+    uploadImageTooLarge: 'Image exceeds 5MB limit',
+    uploadImageWrongType: 'Only JPEG, PNG, WebP allowed',
+    deleteImageBtn: 'Remove image',
+    deleteImageConfirm: "Remove this room's image?",
     locationLabel: 'Location:',
     equipmentCount: 'Equipment',
     otherEquipmentCount: 'more',
@@ -1021,12 +1055,17 @@ const translations: Record<Language, Translations> = {
     calendarToday: 'Today',
     calendarPrevWeek: 'Previous Week',
     calendarNextWeek: 'Next Week',
-    calendarWeekView: 'Week View',
-    calendarDayView: 'Day View',
+    calendarWeekView: 'By Week',
+    calendarDayView: 'By Day',
+    calendarMonthView: 'By Month',
+    calendarYearView: 'By Year',
     calendarNewBooking: 'New Booking',
-    calendarSlotBookHint: '* Click any time slot to book instantly',
+    calendarSlotBookHint: '* Calendar is view-only (no direct booking from calendar)',
+    calendarReadOnlyHint: '* Calendar is view-only (click an event to view details)',
+    maxAdvanceDateHint: 'You can book up to 1 month in advance from today',
+    timePickerHint: 'Tip: Select 15-min intervals (:00, :15, :30, :45) or type custom minutes freely (HH:mm)',
     calendarContinuedMeeting: '(meeting continues)',
-    calendarAvailableSlot: 'Available Slot (Click to Book)',
+    calendarAvailableSlot: 'Available Slot',
     calendarBookThisSlot: 'Book This Slot',
     previewMeetingTitle: 'Meeting Session Details',
     meetingOrganizer: 'Organizer:',
