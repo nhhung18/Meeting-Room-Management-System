@@ -11,6 +11,10 @@ import {
   Pagination,
   Spin,
   Tooltip,
+  Space,
+  Popconfirm,
+  Modal,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -19,9 +23,14 @@ import {
   EnvironmentOutlined,
   PictureOutlined,
   ToolOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Room, RoomStatus, ROOM_STATUS_CONFIG, STANDARD_EQUIPMENT, getRoomStatusLabel, getEquipmentLabel } from '../types';
-import { getRooms } from '../api/client';
+import { getRooms, deleteRoom, forceReleaseRoom, toggleRoomMaintenance } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { EmptyRoomState } from '../components/EmptyRoomState';
 import { useAuth } from '../context/AuthContext';
@@ -36,6 +45,10 @@ export const RoomListPage: React.FC = () => {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
+  const { message } = App.useApp();
+
+  const isManager = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
+  const isAdmin = user?.role === 'ADMINISTRATOR';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ status: number; detail: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -49,6 +62,17 @@ export const RoomListPage: React.FC = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
+
+  // Management state (visible only to ROOM_MANAGER / ADMINISTRATOR)
+  const [releaseModalOpen, setReleaseModalOpen] = useState(false);
+  const [selectedReleaseRoom, setSelectedReleaseRoom] = useState<Room | null>(null);
+  const [releaseReason, setReleaseReason] = useState('');
+  const [releasing, setReleasing] = useState(false);
+
+  const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+  const [selectedMaintenanceRoom, setSelectedMaintenanceRoom] = useState<Room | null>(null);
+  const [maintenanceReason, setMaintenanceReason] = useState('');
+  const [maintaining, setMaintaining] = useState(false);
 
   const fetchRoomList = async () => {
     try {
@@ -97,6 +121,66 @@ export const RoomListPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleDelete = async (room: Room) => {
+    try {
+      await deleteRoom(room.id);
+      message.success(language === 'vi' ? `Đã xóa phòng ${room.name}` : `Deleted room ${room.name}`);
+      fetchRoomList();
+    } catch (err: any) {
+      message.error(err.message || (language === 'vi' ? 'Lỗi khi xóa phòng' : 'Error deleting room'));
+    }
+  };
+
+  const handleConfirmForceRelease = async () => {
+    if (!selectedReleaseRoom || !user) return;
+    if (!releaseReason.trim()) {
+      message.warning(t.forceReleaseReasonPrompt);
+      return;
+    }
+    try {
+      setReleasing(true);
+      const res = await forceReleaseRoom(selectedReleaseRoom.id, releaseReason.trim(), {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+      });
+      message.success(
+        language === 'vi'
+          ? `Đã cưỡng chế giải phóng phòng ${res.room.name}. Đã hủy ${res.cancelledBookingsCount} lịch liên quan.`
+          : `Force released ${res.room.name}. Cancelled ${res.cancelledBookingsCount} bookings.`
+      );
+      setReleaseModalOpen(false);
+      setReleaseReason('');
+      fetchRoomList();
+    } catch (err: any) {
+      message.error(err.message || 'Error releasing room');
+    } finally {
+      setReleasing(false);
+    }
+  };
+
+  const handleConfirmMaintenanceToggle = async () => {
+    if (!selectedMaintenanceRoom || !user) return;
+    const isCurrentlyMaintenance = selectedMaintenanceRoom.status === 'MAINTENANCE';
+    try {
+      setMaintaining(true);
+      await toggleRoomMaintenance(
+        selectedMaintenanceRoom.id,
+        !isCurrentlyMaintenance,
+        maintenanceReason.trim(),
+        { id: user.id, name: user.name, role: user.role }
+      );
+      message.success(t.maintenanceStatusUpdated);
+      setMaintenanceModalOpen(false);
+      setMaintenanceReason('');
+      fetchRoomList();
+    } catch (err: any) {
+      message.error(err.message || 'Error toggling maintenance');
+    } finally {
+      setMaintaining(false);
+    }
+  };
+
   // Paginated slices for card view
   const paginatedRooms = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -120,6 +204,21 @@ export const RoomListPage: React.FC = () => {
           <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-zinc-200 border border-slate-200 dark:border-white/10">
             {rooms.length} {t.totalRoomsUnit}
           </span>
+          {isManager && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/admin/rooms/new')}
+              style={{
+                backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+                borderColor: isDark ? '#0a84ff' : '#1e40af',
+                borderRadius: 8,
+                fontWeight: 600,
+              }}
+            >
+              {t.addNewRoomBtn}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -403,34 +502,110 @@ export const RoomListPage: React.FC = () => {
                     </div>
 
                     {/* Card Footer */}
-                    <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between mt-auto">
-                      <Button
-                        type="link"
-                        size="small"
-                        disabled={isMaintenanceBlocked}
-                        onClick={() => {
-                          if (!isMaintenanceBlocked) {
-                            navigate(`/rooms/${room.id}`);
-                          }
-                        }}
-                        style={{
-                          paddingLeft: 0,
-                          color: isMaintenanceBlocked ? undefined : (isDark ? '#0a84ff' : '#1e40af'),
-                          fontWeight: 500,
-                        }}
-                      >
-                        {t.roomDetailsBtn}
-                      </Button>
+                    <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex flex-col gap-2 mt-auto">
+                      {/* Employee actions row */}
+                      <div className="flex items-center justify-between">
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={isManager ? <EyeOutlined /> : undefined}
+                          disabled={isMaintenanceBlocked}
+                          onClick={() => {
+                            if (!isMaintenanceBlocked) navigate(`/rooms/${room.id}`);
+                          }}
+                          style={{
+                            paddingLeft: 0,
+                            color: isMaintenanceBlocked ? undefined : (isDark ? '#0a84ff' : '#1e40af'),
+                            fontWeight: 500,
+                            fontSize: 12,
+                          }}
+                        >
+                          {t.roomDetailsBtn}
+                        </Button>
 
-                      <Button
-                        type="primary"
-                        size="small"
-                        disabled={!isAvailable}
-                        onClick={() => navigate(`/rooms/${room.id}/book`)}
-                        style={isAvailable ? { backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', borderRadius: 6, fontWeight: 500 } : {}}
-                      >
-                        {isAvailable ? t.roomBookNowBtn : t.roomUnderMaintenanceBtn}
-                      </Button>
+                        {!isManager ? (
+                          <Button
+                            type="primary"
+                            size="small"
+                            disabled={!isAvailable}
+                            onClick={() => navigate(`/rooms/${room.id}/book`)}
+                            style={isAvailable ? { backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', borderRadius: 6, fontWeight: 500 } : {}}
+                          >
+                            {isAvailable ? t.roomBookNowBtn : t.roomUnderMaintenanceBtn}
+                          </Button>
+                        ) : (
+                          <Space size="small">
+                            <Button
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => navigate(`/admin/rooms/${room.id}/edit`)}
+                              style={{
+                                borderRadius: 6,
+                                borderColor: isDark ? '#0a84ff' : '#1e40af',
+                                color: isDark ? '#0a84ff' : '#1e40af',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {t.actionEdit}
+                            </Button>
+                            <Popconfirm
+                              title={t.deleteRoomConfirmTitle}
+                              description={
+                                language === 'vi'
+                                  ? `Bạn có chắc muốn xóa vĩnh viễn phòng ${room.name}?`
+                                  : `Permanently delete room ${room.name}?`
+                              }
+                              okText={t.actionDelete}
+                              cancelText={t.cancel}
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() => handleDelete(room)}
+                            >
+                              <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }}>
+                                {t.actionDelete}
+                              </Button>
+                            </Popconfirm>
+                          </Space>
+                        )}
+                      </div>
+
+                      {/* Admin Override Action Bar */}
+                      {isAdmin && (
+                        <div className="pt-2 border-t border-dashed border-slate-100 dark:border-white/5 flex items-center justify-between gap-2">
+                          <Tooltip title={t.forceReleaseReasonPrompt}>
+                            <Button
+                              size="small"
+                              danger
+                              icon={<ThunderboltOutlined />}
+                              onClick={() => {
+                                setSelectedReleaseRoom(room);
+                                setReleaseReason(language === 'vi' ? 'Admin giải phóng phòng sớm' : 'Admin forced release');
+                                setReleaseModalOpen(true);
+                              }}
+                              className="text-[11px] font-medium"
+                            >
+                              {language === 'vi' ? 'Cưỡng chế mở' : 'Force Free'}
+                            </Button>
+                          </Tooltip>
+                          <Button
+                            size="small"
+                            icon={<ToolOutlined />}
+                            onClick={() => {
+                              setSelectedMaintenanceRoom(room);
+                              setMaintenanceReason(
+                                room.status === 'MAINTENANCE'
+                                  ? (language === 'vi' ? 'Đã hoàn tất kiểm tra kỹ thuật' : 'Maintenance completed')
+                                  : (language === 'vi' ? 'Bảo trì sửa chữa thiết bị' : 'Scheduled maintenance')
+                              );
+                              setMaintenanceModalOpen(true);
+                            }}
+                            className="text-[11px]"
+                          >
+                            {room.status === 'MAINTENANCE'
+                              ? (language === 'vi' ? 'Mở lại' : 'Reactivate')
+                              : (language === 'vi' ? 'Bảo trì' : 'Maintain')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Col>
@@ -455,6 +630,81 @@ export const RoomListPage: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Admin Override: Force Release Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-rose-600">
+            <ThunderboltOutlined />
+            <span>{t.forceReleaseConfirmTitle}</span>
+          </div>
+        }
+        open={releaseModalOpen}
+        onCancel={() => setReleaseModalOpen(false)}
+        onOk={handleConfirmForceRelease}
+        confirmLoading={releasing}
+        okText={t.confirm}
+        cancelText={t.cancel}
+        okButtonProps={{ danger: true }}
+      >
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {language === 'vi'
+              ? `Bạn đang thực hiện quyền Administrator để giải phóng phòng ${selectedReleaseRoom?.name}. Toàn bộ cuộc họp đang diễn ra hoặc sắp diễn ra hôm nay sẽ bị hủy.`
+              : `You are exercising Administrator override to force-release room ${selectedReleaseRoom?.name}. Any ongoing or upcoming reservations today will be cancelled.`}
+          </p>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              {t.forceReleaseReasonPrompt}
+            </label>
+            <Input.TextArea
+              rows={3}
+              value={releaseReason}
+              onChange={(e) => setReleaseReason(e.target.value)}
+              placeholder={t.forceReleaseReasonPlaceholder}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Admin Override: Toggle Maintenance Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-amber-600">
+            <ToolOutlined />
+            <span>{t.toggleMaintenanceBtn}</span>
+          </div>
+        }
+        open={maintenanceModalOpen}
+        onCancel={() => setMaintenanceModalOpen(false)}
+        onOk={handleConfirmMaintenanceToggle}
+        confirmLoading={maintaining}
+        okText={t.confirm}
+        cancelText={t.cancel}
+      >
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {language === 'vi'
+              ? `Phòng ${selectedMaintenanceRoom?.name} sẽ được chuyển sang trạng thái ${
+                  selectedMaintenanceRoom?.status === 'MAINTENANCE' ? 'ĐANG HOẠT ĐỘNG' : 'ĐANG BẢO TRÌ'
+                }. Hành động sẽ được ghi nhận vào Audit Log.`
+              : `Room ${selectedMaintenanceRoom?.name} will be set to ${
+                  selectedMaintenanceRoom?.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE'
+                }. This action will be logged.`}
+          </p>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              {t.maintenanceReasonPrompt}
+            </label>
+            <Input.TextArea
+              rows={3}
+              value={maintenanceReason}
+              onChange={(e) => setMaintenanceReason(e.target.value)}
+              placeholder={t.maintenanceReasonPlaceholder}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
