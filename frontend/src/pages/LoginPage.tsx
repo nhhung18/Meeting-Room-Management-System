@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, Typography, Space, Divider, Tag, Tooltip, App } from 'antd';
 import {
@@ -27,6 +27,9 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const [dotCount, setDotCount] = useState(0);
+  const redirectCalledRef = useRef(false);
 
   const auth0Mode = isAuth0Mode(
     import.meta.env.VITE_AUTH0_DOMAIN,
@@ -43,14 +46,26 @@ export const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated, isLoading, navigate, location]);
 
-  // Auth0 mode: auto-forward to Auth0 login instead of showing this page
-  React.useEffect(() => {
-    if (!isLoading && !isAuthenticated && auth0Mode && loginWithRedirect) {
+  // Auth0 mode: show animation then auto-forward to Auth0
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && auth0Mode && loginWithRedirect && !redirectCalledRef.current) {
+      redirectCalledRef.current = true;
+      setRedirecting(true);
       const from = (location.state as any)?.from?.pathname;
       const target = from && from !== '/login' && from !== '/callback' ? from : '/dashboard';
-      loginWithRedirect({ appState: { returnTo: target } });
+      const timer = setTimeout(() => {
+        loginWithRedirect({ appState: { returnTo: target } });
+      }, 1800);
+      return () => clearTimeout(timer);
     }
   }, [isLoading, isAuthenticated, auth0Mode, loginWithRedirect, location]);
+
+  // Animated dots for the redirecting screen
+  useEffect(() => {
+    if (!redirecting) return;
+    const interval = setInterval(() => setDotCount((d) => (d + 1) % 4), 400);
+    return () => clearInterval(interval);
+  }, [redirecting]);
 
   const handleAuth0Login = async (role: UserRole = 'ADMINISTRATOR') => {
     if (auth0Mode && loginWithRedirect) {
@@ -71,6 +86,71 @@ export const LoginPage: React.FC = () => {
       navigate('/dashboard');
     }, 600);
   };
+
+  if (redirecting) {
+    return (
+      <div className={`min-h-screen w-full flex flex-col items-center justify-center gap-8 transition-colors duration-200 ${
+        isDark ? 'bg-[#000000]' : 'bg-[#f8fafc]'
+      }`}>
+        {/* Glow blobs */}
+        <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-30 animate-pulse ${
+          isDark ? 'bg-[#0a84ff]/20' : 'bg-blue-200'
+        }`} />
+        <div className={`absolute -bottom-32 -right-32 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-30 animate-pulse ${
+          isDark ? 'bg-[#00c2e8]/20' : 'bg-sky-200'
+        }`} />
+
+        {/* Logo */}
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="w-16 h-16 flex items-center justify-center">
+            <BrandLogo size={56} />
+          </div>
+
+          {/* Spinner ring */}
+          <div className="relative w-14 h-14">
+            <svg className="w-14 h-14 animate-spin" viewBox="0 0 56 56" fill="none">
+              <circle cx="28" cy="28" r="24" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} strokeWidth="4" />
+              <path
+                d="M28 4 A24 24 0 0 1 52 28"
+                stroke={isDark ? '#0a84ff' : '#1e40af'}
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className={`absolute inset-0 m-auto w-6 h-6 rounded-full blur-md opacity-60 ${
+              isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'
+            }`} />
+          </div>
+
+          {/* Text */}
+          <div className="text-center space-y-1">
+            <p className={`text-base font-semibold tracking-wide ${isDark ? 'text-white' : 'text-slate-800'}`}>
+              {language === 'vi' ? 'Đang chuyển đến trang đăng nhập' : 'Redirecting to login'}
+              <span className="inline-block w-6 text-left">{'.'.repeat(dotCount)}</span>
+            </p>
+            <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-400'}`}>
+              {language === 'vi' ? 'Vui lòng chờ trong giây lát' : 'Please wait a moment'}
+            </p>
+          </div>
+
+          {/* Progress bar */}
+          <div className={`w-48 h-1 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+            <div
+              className={`h-full rounded-full transition-all ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`}
+              style={{ animation: 'progress-fill 1.8s ease-in-out forwards' }}
+            />
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes progress-fill {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-200 ${
