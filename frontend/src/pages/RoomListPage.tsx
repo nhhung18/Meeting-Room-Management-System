@@ -9,7 +9,6 @@ import {
   Button,
   Typography,
   Pagination,
-  Empty,
   Spin,
   Tooltip,
 } from 'antd';
@@ -18,13 +17,13 @@ import {
   TeamOutlined,
   ReloadOutlined,
   EnvironmentOutlined,
-  AppstoreOutlined,
   PictureOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
 import { Room, RoomStatus, ROOM_STATUS_CONFIG, STANDARD_EQUIPMENT, getRoomStatusLabel, getEquipmentLabel } from '../types';
 import { getRooms } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
+import { EmptyRoomState } from '../components/EmptyRoomState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -83,6 +82,12 @@ export const RoomListPage: React.FC = () => {
     );
     setCurrentPage(1);
   };
+
+  const hasActiveFilters =
+    Boolean(searchQuery) ||
+    statusFilter !== 'ALL' ||
+    capacityFilter > 0 ||
+    selectedEquipment.length > 0;
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -229,16 +234,23 @@ export const RoomListPage: React.FC = () => {
           <Spin size="large" description={t.loadingRooms} />
         </div>
       ) : rooms.length === 0 ? (
-        <div className={`p-8 rounded-2xl border text-center ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'}`}>
-          <Empty
-            description={t.emptyRooms || t.noRoomsFound}
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <Button type="primary" onClick={handleResetFilters} style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af' }}>
-              {t.clearFilters}
-            </Button>
-          </Empty>
-        </div>
+        <EmptyRoomState
+          title={t.emptyRooms || t.noRoomsFound}
+          description={
+            language === 'vi'
+              ? hasActiveFilters
+                ? 'Không có phòng họp nào khớp với bộ lọc hoặc từ khóa tìm kiếm hiện tại. Bạn có thể thử đặt lại bộ lọc để xem toàn bộ phòng.'
+                : 'Hiện tại hệ thống chưa có phòng họp nào khả dụng. Vui lòng liên hệ ban quản lý để thêm phòng mới.'
+              : hasActiveFilters
+                ? 'No rooms match your active filters or search terms. Try resetting your filters to see all rooms.'
+                : 'There are currently no meeting rooms registered in the system. Please contact the administrator.'
+          }
+          isDark={isDark}
+          primaryActionLabel={hasActiveFilters ? t.clearFilters : undefined}
+          onPrimaryAction={hasActiveFilters ? handleResetFilters : undefined}
+          secondaryActionLabel={t.refreshData}
+          onSecondaryAction={fetchRoomList}
+        />
       ) : (
         <>
           {/* Card View Grid: 3 cols desktop, 2 tablet, 1 mobile */}
@@ -267,15 +279,37 @@ export const RoomListPage: React.FC = () => {
                             navigate(`/rooms/${room.id}`);
                           }
                         }}
-                        className={`w-full h-36 rounded-xl mb-3 border border-dashed flex flex-col items-center justify-center relative overflow-hidden transition-all ${
+                        className={`w-full h-36 rounded-xl mb-3 border relative overflow-hidden transition-all ${
                           isMaintenanceBlocked
-                            ? 'cursor-not-allowed bg-amber-500/10 border-amber-500/40'
+                            ? 'cursor-not-allowed border-amber-500/40'
+                            : room.image_url
+                            ? 'cursor-pointer border-transparent hover:opacity-90'
                             : isDark
-                            ? 'bg-[#242426] border-white/15 hover:border-[#0a84ff] cursor-pointer group'
-                            : 'bg-slate-50 border-slate-200 hover:border-[#1e40af] cursor-pointer group'
+                            ? 'border-dashed bg-[#242426] border-white/15 hover:border-[#0a84ff] cursor-pointer group'
+                            : 'border-dashed bg-slate-50 border-slate-200 hover:border-[#1e40af] cursor-pointer group'
                         }`}
                       >
-                        {isMaintenanceBlocked ? (
+                        {room.image_url ? (
+                          <img
+                            src={room.image_url}
+                            alt={room.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-slate-200/60 dark:bg-white/10 flex items-center justify-center mb-1 text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] transition-colors">
+                              <PictureOutlined className="text-xl" />
+                            </div>
+                            <span className="text-xs text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200 font-medium">
+                              {t.roomPhotoPlaceholder}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+                              {t.roomPhotoHint}
+                            </span>
+                          </div>
+                        )}
+
+                        {isMaintenanceBlocked && (
                           <div className="absolute inset-0 bg-amber-950/20 dark:bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-3 text-center z-10">
                             <span className="text-amber-500 dark:text-amber-400 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
                               <ToolOutlined /> {t.statusMaintenance}
@@ -284,17 +318,7 @@ export const RoomListPage: React.FC = () => {
                               {t.roomMaintenanceBlocked}
                             </span>
                           </div>
-                        ) : null}
-
-                        <div className="w-10 h-10 rounded-full bg-slate-200/60 dark:bg-white/10 flex items-center justify-center mb-1 text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] transition-colors">
-                          <PictureOutlined className="text-xl" />
-                        </div>
-                        <span className="text-xs text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200 font-medium">
-                          {t.roomPhotoPlaceholder}
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-                          {t.roomPhotoHint}
-                        </span>
+                        )}
                       </div>
 
                       {/* Capacity & Status Badges */}

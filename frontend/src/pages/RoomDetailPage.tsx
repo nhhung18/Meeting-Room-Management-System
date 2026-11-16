@@ -7,11 +7,8 @@ import {
   Tag,
   Button,
   Space,
-  Divider,
   Spin,
   App,
-  Segmented,
-  Tooltip,
   Modal,
   Form,
   Input,
@@ -23,14 +20,10 @@ import {
   EnvironmentOutlined,
   UserOutlined,
   CalendarOutlined,
-  LeftOutlined,
-  RightOutlined,
   PlusOutlined,
   ArrowLeftOutlined,
   ClockCircleOutlined,
   VideoCameraOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   PictureOutlined,
@@ -40,14 +33,11 @@ import {
   BarcodeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import isoWeek from 'dayjs/plugin/isoWeek';
 import {
   Room,
   Booking,
   ROOM_STATUS_CONFIG,
-  BOOKING_STATUS_CONFIG,
   getRoomStatusLabel,
-  getBookingStatusLabel,
   getEquipmentLabel,
   EquipmentItem,
   EquipmentStatus,
@@ -56,12 +46,12 @@ import {
 } from '../types';
 import { getRoomById, getBookings, getEquipmentByRoom, getRooms, createEquipment, updateEquipment, deleteEquipment } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
+import { BookingCalendar, BookingPreviewModal } from '../components/BookingCalendar';
+import type { CalendarViewMode } from '../utils/bookingCalendar';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-
-dayjs.extend(isoWeek);
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -91,20 +81,9 @@ export const RoomDetailPage: React.FC = () => {
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
-  // Weekly calendar anchor date: starts on Sunday to match Google Calendar UI
-  const [currentWeekStart, setCurrentWeekStart] = useState<dayjs.Dayjs>(() => {
-    // Google Calendar starts on Sunday
-    const now = dayjs();
-    return now.subtract(now.day(), 'day').startOf('day');
-  });
-
-  // Selected day for mobile Day-View
-  const [selectedDayStr, setSelectedDayStr] = useState<string>(() =>
-    dayjs().format('YYYY-MM-DD')
-  );
-
-  // View mode for calendar: 'week' (Google Calendar Grid) or 'day'
-  const [calendarViewMode, setCalendarViewMode] = useState<'day' | 'week'>('week');
+  // Calendar anchor date and 4 view modes (day, week, month, year)
+  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('week');
+  const [currentDate, setCurrentDate] = useState<dayjs.Dayjs>(() => dayjs().startOf('day'));
 
   const fetchDetail = async () => {
     if (!id) return;
@@ -221,123 +200,10 @@ export const RoomDetailPage: React.FC = () => {
     }
   };
 
-  // Generate 7 days of the current week (Sun -> Sat like Google Calendar)
-  const weekDays = useMemo(() => {
-    const dayNames = language === 'vi'
-      ? ['CN', 'TH 2', 'TH 3', 'TH 4', 'TH 5', 'TH 6', 'TH 7']
-      : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const fullDayNames = language === 'vi'
-      ? ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
-      : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-    return Array.from({ length: 7 }).map((_, idx) => {
-      const date = currentWeekStart.add(idx, 'day');
-      const dIndex = date.day(); // 0 is Sunday, 1 is Monday...
-      return {
-        date,
-        dateStr: date.format('YYYY-MM-DD'),
-        dayName: dayNames[dIndex],
-        fullDayName: fullDayNames[dIndex],
-        dayNumber: date.format('D'),
-        formatted: date.format('DD/MM'),
-        isToday: date.isSame(dayjs(), 'day'),
-      };
-    });
-  }, [currentWeekStart, language]);
-
-  // Google Calendar working hours: 07:00 to 22:00 (7 AM - 10 PM)
-  const hours = useMemo(() => {
-    return [
-      '07:00',
-      '08:00',
-      '09:00',
-      '10:00',
-      '11:00',
-      '12:00',
-      '13:00',
-      '14:00',
-      '15:00',
-      '16:00',
-      '17:00',
-      '18:00',
-      '19:00',
-      '20:00',
-      '21:00',
-      '22:00',
-    ];
-  }, []);
-
-  // Filter bookings for the selected week
-  const weekBookings = useMemo(() => {
-    const startStr = currentWeekStart.format('YYYY-MM-DD');
-    const endStr = currentWeekStart.add(6, 'day').format('YYYY-MM-DD');
-    return bookings.filter((b) => {
-      const bDate = dayjs(b.start_at).format('YYYY-MM-DD');
-      return bDate >= startStr && bDate <= endStr;
-    });
-  }, [bookings, currentWeekStart]);
-
-  const handlePrevWeek = () => {
-    setCurrentWeekStart((prev) => prev.subtract(1, 'week'));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeekStart((prev) => prev.add(1, 'week'));
-  };
-
-  const handleCurrentWeek = () => {
-    const now = dayjs();
-    setCurrentWeekStart(now.subtract(now.day(), 'day').startOf('day'));
-  };
-
-  const handleBookSlot = (dateStr: string, timeHour: string) => {
-    if (!room || room.status !== 'AVAILABLE') {
-      message.warning(t.roomUnderMaintenanceAlert);
-      return;
-    }
-    navigate(`/rooms/${room.id}/book?date=${dateStr}&time=${timeHour}`);
-  };
-
   const handleOpenBookingPreview = (b: Booking, e: React.MouseEvent) => {
     e.stopPropagation();
     setPreviewBooking(b);
     setPreviewModalOpen(true);
-  };
-
-  // Google calendar month/year header display (e.g. Tháng 5, 2025 / May 2025)
-  const currentMonthYearLabel = useMemo(() => {
-    const midWeekDate = currentWeekStart.add(3, 'day');
-    return midWeekDate.format(language === 'vi' ? '[Tháng] M, YYYY' : 'MMMM YYYY');
-  }, [currentWeekStart, language]);
-
-  // Current live time for red marker
-  const now = dayjs();
-  const currentHour = now.hour();
-  const currentMinute = now.minute();
-  const isCurrentTimeInRange = currentHour >= 7 && currentHour <= 22;
-
-  // Google Calendar palette colors for events
-  const getEventBadgeStyle = (b: Booking) => {
-    if (b.status === 'CANCELLED') {
-      return {
-        bg: isDark ? 'bg-white/5 border-white/10 text-zinc-500 line-through' : 'bg-slate-100 border-slate-300 text-slate-500 line-through',
-        dot: 'bg-zinc-400',
-      };
-    }
-    if (b.status === 'CHECKED_IN') {
-      return {
-        bg: isDark ? 'bg-[#30d158]/20 border-[#30d158]/40 text-emerald-200' : 'bg-[#10b981] border-[#059669] text-white',
-        dot: 'bg-emerald-300',
-      };
-    }
-    // Confirmed bookings: alternate colors based on id (Apple HIG dynamic vibrancy palette)
-    const palettes = [
-      { bg: isDark ? 'bg-[#0a84ff]/25 border-[#0a84ff]/40 text-blue-100' : 'bg-[#1e40af] border-[#1d4ed8] text-white', dot: 'bg-sky-300' },
-      { bg: isDark ? 'bg-[#bf5af2]/25 border-[#bf5af2]/40 text-purple-100' : 'bg-[#7c3aed] border-[#6d28d9] text-white', dot: 'bg-purple-300' },
-      { bg: isDark ? 'bg-[#ff9f0a]/25 border-[#ff9f0a]/40 text-amber-100' : 'bg-[#ea580c] border-[#c2410c] text-white', dot: 'bg-amber-300' },
-      { bg: isDark ? 'bg-[#64d2ff]/25 border-[#64d2ff]/40 text-cyan-100' : 'bg-[#0284c7] border-[#0369a1] text-white', dot: 'bg-cyan-300' },
-    ];
-    return palettes[b.id % palettes.length];
   };
 
   if (loading) {
@@ -398,24 +264,28 @@ export const RoomDetailPage: React.FC = () => {
 
       {/* Top Section - 2 Columns (Room Information) */}
       <Row gutter={[16, 16]}>
-        {/* Left: Room Photo Slot */}
+        {/* Left: Room Photo */}
         <Col xs={24} md={10}>
-          <div className={`w-full aspect-video rounded-2xl border flex flex-col items-center justify-center relative overflow-hidden transition-colors ${
-            isDark
-              ? 'bg-[#1c1c1e] border-white/10'
-              : 'bg-slate-50 border-slate-200'
+          <div className={`w-full aspect-video rounded-2xl border relative overflow-hidden transition-colors ${
+            isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-slate-50 border-slate-200'
           }`}>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-2 ${
-              isDark ? 'bg-white/5 text-[#0a84ff] border border-white/10' : 'bg-white text-[#1e40af] shadow-xs'
-            }`}>
-              <PictureOutlined style={{ fontSize: 26 }} />
-            </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {room.name}
-            </span>
-            <span className="text-xs text-slate-400">
-              {room.floor || 'Khu hội nghị BlueOC Tech'}
-            </span>
+            {room.image_url ? (
+              <img src={room.image_url} alt={room.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-2 ${
+                  isDark ? 'bg-white/5 text-[#0a84ff] border border-white/10' : 'bg-white text-[#1e40af] shadow-xs'
+                }`}>
+                  <PictureOutlined style={{ fontSize: 26 }} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {room.name}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {room.floor || 'Khu hội nghị BlueOC Tech'}
+                </span>
+              </div>
+            )}
 
             {/* Status overlay tag */}
             <div className="absolute top-3 right-3">
@@ -456,47 +326,6 @@ export const RoomDetailPage: React.FC = () => {
               <Paragraph className={`text-xs sm:text-sm leading-relaxed mb-3 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
                 {room.description || t.defaultRoomDescription}
               </Paragraph>
-
-              <Divider style={{ margin: '10px 0', borderColor: isDark ? '#27272a' : '#e2e8f0' }} />
-
-              {/* Equipment with Tooltip for overflow */}
-              <div className="mb-3">
-                <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2 flex items-center justify-between">
-                  <span>{t.availableAmenities} ({room.equipment.length})</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {room.equipment.slice(0, 4).map((item, idx) => (
-                    <span
-                      key={idx}
-                      className={`px-2 py-0.5 text-xs rounded border ${
-                        isDark ? 'bg-[#18181b] border-[#27272a] text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {getEquipmentLabel(item, language)}
-                    </span>
-                  ))}
-                  {room.equipment.length > 4 && (
-                    <Tooltip
-                      title={
-                        <div>
-                          <div className="font-semibold text-xs mb-1 text-slate-200">{t.otherEquipmentTitle} (+{room.equipment.length - 4}):</div>
-                          <div className="flex flex-wrap gap-1">
-                            {room.equipment.slice(4).map((eq, idx) => (
-                              <span key={idx} className="text-[11px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-100">
-                                {getEquipmentLabel(eq, language)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      }
-                    >
-                      <span className="text-xs text-[#1e40af] dark:text-[#0a84ff] font-semibold cursor-pointer px-2 py-0.5 rounded bg-blue-50 dark:bg-white/10">
-                        +{room.equipment.length - 4} {t.otherEquipmentCount}
-                      </span>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
             </div>
 
             {/* Primary Action Button - Solid Corporate Blue */}
@@ -535,7 +364,7 @@ export const RoomDetailPage: React.FC = () => {
               {t.equipmentInRoomTitle}
             </span>
             <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-zinc-300">
-              {roomEquipments.length} {language === 'vi' ? 'thiết bị' : 'devices'}
+              {roomEquipments.length + (room.equipment?.length || 0)} {language === 'vi' ? 'mục' : 'items'}
             </span>
           </div>
 
@@ -556,6 +385,28 @@ export const RoomDetailPage: React.FC = () => {
             </Button>
           )}
         </div>
+
+        {/* Standard Room Amenities List */}
+        {room.equipment && room.equipment.length > 0 && (
+          <div className="mb-4 pb-3 border-b border-slate-100 dark:border-white/10">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
+              {t.availableAmenities} ({room.equipment.length})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {room.equipment.map((item, idx) => (
+                <span
+                  key={idx}
+                  className={`px-2.5 py-1 text-xs rounded-lg border font-medium flex items-center gap-1.5 ${
+                    isDark ? 'bg-[#242426] border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <ToolOutlined className="text-[11px] text-[#1e40af] dark:text-[#0a84ff]" />
+                  {getEquipmentLabel(item, language)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {roomEquipments.length === 0 ? (
           <div className="text-xs text-slate-400 py-3 text-center">
@@ -653,480 +504,26 @@ export const RoomDetailPage: React.FC = () => {
       </div>
 
       {/* GOOGLE CALENDAR WEEKLY SCHEDULE VIEW */}
-      <div className={`rounded-2xl border transition-colors overflow-hidden ${
-        isDark ? 'bg-[#1c1c1e] border-white/15 text-white' : 'bg-white border-slate-200 text-slate-800'
-      }`}>
-        {/* Google Calendar Style Top Control Bar */}
-        <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-white/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Left: Today, Prev/Next Arrows, Month Year */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Google Calendar 'Today' Button */}
-            <button
-              type="button"
-              onClick={handleCurrentWeek}
-              className={`px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                isDark
-                  ? 'border-white/15 bg-white/5 hover:bg-white/10 text-white'
-                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700 shadow-2xs'
-              }`}
-            >
-              {t.calendarToday}
-            </button>
-
-            {/* Arrows */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handlePrevWeek}
-                aria-label={t.calendarPrevWeek}
-                className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
-                  isDark
-                    ? 'border-white/15 hover:bg-white/10 text-white'
-                    : 'border-transparent hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <LeftOutlined style={{ fontSize: 13 }} />
-              </button>
-              <button
-                type="button"
-                onClick={handleNextWeek}
-                aria-label={t.calendarNextWeek}
-                className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
-                  isDark
-                    ? 'border-white/15 hover:bg-white/10 text-white'
-                    : 'border-transparent hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <RightOutlined style={{ fontSize: 13 }} />
-              </button>
-            </div>
-
-            {/* Month & Year Title */}
-            <span className="font-bold text-base sm:text-lg text-slate-800 dark:text-white tracking-tight ml-1">
-              {currentMonthYearLabel}
-            </span>
-          </div>
-
-          {/* Right: View Switcher & Quick Add Button */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-            <Segmented
-              size="small"
-              value={calendarViewMode}
-              onChange={(val) => setCalendarViewMode(val as any)}
-              options={[
-                { label: t.calendarWeekView, value: 'week', icon: <AppstoreOutlined /> },
-                { label: t.calendarDayView, value: 'day', icon: <BarsOutlined /> },
-              ]}
-            />
-
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={() => navigate(`/rooms/${room.id}/book`)}
-              style={{
-                backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-                borderColor: isDark ? '#0a84ff' : '#1e40af',
-                borderRadius: 6,
-                fontWeight: 600,
-                fontSize: 12,
-              }}
-            >
-              {t.calendarNewBooking}
-            </Button>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="px-4 py-2 bg-slate-50/70 dark:bg-[#242426] border-b border-slate-200 dark:border-white/15 flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-zinc-300 gap-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0a84ff] inline-block" />
-              <span>{t.statusConfirmed}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#30d158] inline-block" />
-              <span>{t.statusCheckedIn}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 inline-block" />
-              <span>{t.statusCancelled}</span>
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 italic">
-            {t.calendarSlotBookHint}
-          </span>
-        </div>
-
-        {/* VIEW 1: GOOGLE CALENDAR WEEK VIEW (Desktop & Tablet) */}
-        {calendarViewMode === 'week' ? (
-          <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              {/* Day Headers (CN, TH 2, TH 3, TH 4, TH 5, TH 6, TH 7) */}
-              <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-slate-200 dark:border-white/15 bg-white dark:bg-[#1c1c1e] sticky top-0 z-10">
-                {/* Time gutter header */}
-                <div className="p-2.5 text-center flex flex-col items-center justify-center border-r border-slate-200 dark:border-white/15">
-                  <span className="text-[10px] font-mono text-slate-400 font-semibold tracking-wider">
-                    GMT+7
-                  </span>
-                </div>
-
-                {/* 7 Day Columns matching Google Calendar attachment */}
-                {weekDays.map((day) => (
-                  <div
-                    key={day.dateStr}
-                    className={`py-2 px-1 text-center border-r border-slate-200 dark:border-white/15 last:border-r-0 ${
-                      day.isToday ? 'bg-blue-50/30 dark:bg-white/5' : ''
-                    }`}
-                  >
-                    {/* Day abbreviation */}
-                    <div className={`text-[11px] uppercase font-bold tracking-wider mb-1 ${
-                      day.isToday
-                        ? 'text-[#0a84ff]'
-                        : 'text-slate-500 dark:text-zinc-400'
-                    }`}>
-                      {day.dayName}
-                    </div>
-
-                    {/* Google Calendar Blue Circle on Today's Day Number */}
-                    {day.isToday ? (
-                      <div className="w-9 h-9 rounded-full bg-[#0a84ff] text-white flex items-center justify-center font-bold text-base shadow-sm mx-auto">
-                        {day.dayNumber}
-                      </div>
-                    ) : (
-                      <div className="w-9 h-9 flex items-center justify-center font-bold text-base text-slate-700 dark:text-zinc-200 mx-auto">
-                        {day.dayNumber}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Timetable Body (7:00 to 22:00) */}
-              <div className="relative">
-                {hours.map((hour) => {
-                  const hourNum = parseInt(hour.split(':')[0], 10);
-                  const isCurrentHourRow = isCurrentTimeInRange && hourNum === currentHour;
-
-                  return (
-                    <div
-                      key={hour}
-                      className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-slate-100 dark:border-white/5 min-h-[58px]"
-                    >
-                      {/* Left Time Gutter Column */}
-                      <div className="text-right pr-3 -mt-2.5 text-[11px] font-mono text-slate-400 select-none border-r border-slate-200 dark:border-white/10 bg-white dark:bg-[#1c1c1e]">
-                        {hour}
-                      </div>
-
-                      {/* 7 Day Slots for this hour */}
-                      {weekDays.map((day) => {
-                        const slotBookings = weekBookings.filter((b) => {
-                          const bDate = dayjs(b.start_at).format('YYYY-MM-DD');
-                          if (bDate !== day.dateStr) return false;
-                          const bStartHour = dayjs(b.start_at).hour();
-                          const bEndHour = dayjs(b.end_at).hour();
-                          return hourNum >= bStartHour && hourNum < Math.max(bStartHour + 1, bEndHour);
-                        });
-
-                        const isTodaySlot = day.isToday;
-
-                        return (
-                          <div
-                            key={day.dateStr + hour}
-                            onClick={() => {
-                              if (slotBookings.length === 0) {
-                                handleBookSlot(day.dateStr, hour);
-                              }
-                            }}
-                            className={`relative border-r border-slate-100 dark:border-white/5 last:border-r-0 p-1 transition-all ${
-                              slotBookings.length === 0
-                                ? 'hover:bg-blue-50/40 dark:hover:bg-white/5 cursor-pointer group'
-                                : ''
-                            } ${isTodaySlot ? 'bg-blue-50/10 dark:bg-white/[0.02]' : ''}`}
-                          >
-                            {/* Live Current Time Red Marker Line */}
-                            {isTodaySlot && isCurrentHourRow && (
-                              <div
-                                className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
-                                style={{ top: `${(currentMinute / 60) * 100}%` }}
-                              >
-                                <span className="w-2.5 h-2.5 rounded-full bg-[#ea4335] -ml-1.5 shadow-xs shrink-0" />
-                                <span className="h-[2px] bg-[#ea4335] w-full" />
-                              </div>
-                            )}
-
-                            {/* Render Booking Event Cards */}
-                            {slotBookings.map((b) => {
-                              const badgeStyle = getEventBadgeStyle(b);
-                              const isStartHour = dayjs(b.start_at).hour() === hourNum;
-
-                              if (!isStartHour) {
-                                // Continued slot of longer meeting
-                                return (
-                                  <div
-                                    key={b.id}
-                                    onClick={(e) => handleOpenBookingPreview(b, e)}
-                                    className={`w-full h-full rounded-md px-2 py-1 text-xs border cursor-pointer opacity-90 ${badgeStyle.bg}`}
-                                  >
-                                    <span className="text-[10px] opacity-80">{t.calendarContinuedMeeting}</span>
-                                  </div>
-                                );
-                              }
-
-                              return (
-                                <div
-                                  key={b.id}
-                                  onClick={(e) => handleOpenBookingPreview(b, e)}
-                                  className={`w-full rounded-md p-1.5 text-xs border shadow-2xs cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ${badgeStyle.bg}`}
-                                >
-                                  <div className="font-bold leading-tight line-clamp-1">
-                                    {b.purpose || t.internalWorkMeeting}
-                                  </div>
-                                  <div className="text-[10px] opacity-90 font-mono mt-0.5">
-                                    {dayjs(b.start_at).format('HH:mm')} - {dayjs(b.end_at).format('HH:mm')}
-                                  </div>
-                                  <div className="text-[10px] opacity-80 truncate mt-0.5">
-                                    {b.user_name || t.roleEmployee}
-                                  </div>
-                                </div>
-                              );
-                            })}
-
-                            {/* Empty Hover Prompt */}
-                            {slotBookings.length === 0 && (
-                              <div className="hidden group-hover:flex items-center justify-center w-full h-full text-[10px] text-[#1e40af] dark:text-[#38bdf8] font-semibold">
-                                {language === 'vi' ? '+ Đặt' : '+ Book'}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* VIEW 2: DAY VIEW OPTIMIZATION */
-          <div className="p-4 space-y-3">
-            {/* Horizontal Day Selector with Date Badge */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100 dark:border-zinc-800">
-              {weekDays.map((day) => {
-                const isSelected = day.dateStr === selectedDayStr;
-                return (
-                  <button
-                    key={day.dateStr}
-                    type="button"
-                    onClick={() => setSelectedDayStr(day.dateStr)}
-                    className={`flex flex-col items-center justify-center px-3.5 py-2 rounded-xl text-center transition-all shrink-0 min-w-[76px] border cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#0a84ff] text-white border-[#0a84ff] shadow-xs'
-                        : day.isToday
-                        ? 'bg-blue-50 dark:bg-white/10 text-[#1e40af] dark:text-[#0a84ff] border-blue-200 dark:border-white/20 font-semibold'
-                        : 'bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-white/10'
-                    }`}
-                  >
-                    <span className="text-[10px] uppercase font-bold">{day.dayName}</span>
-                    <span className="text-base font-bold font-mono">{day.dayNumber}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Vertical Time Slots for selected day */}
-            <div className="space-y-2 pt-1">
-              {hours.map((hour) => {
-                const hourNum = parseInt(hour.split(':')[0], 10);
-                const matchedBooking = weekBookings.find((b) => {
-                  const bDate = dayjs(b.start_at).format('YYYY-MM-DD');
-                  if (bDate !== selectedDayStr) return false;
-                  const bStartHour = dayjs(b.start_at).hour();
-                  const bEndHour = dayjs(b.end_at).hour();
-                  return hourNum >= bStartHour && hourNum < Math.max(bStartHour + 1, bEndHour);
-                });
-
-                if (matchedBooking) {
-                  const isCheckedIn = matchedBooking.status === 'CHECKED_IN';
-                  const isCancelled = matchedBooking.status === 'CANCELLED';
-
-                  return (
-                    <div
-                      key={hour}
-                      onClick={(e) => handleOpenBookingPreview(matchedBooking, e)}
-                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01] ${
-                        isCheckedIn
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
-                          : isCancelled
-                          ? 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
-                          : 'bg-blue-500/10 border-blue-500/40 text-blue-900 dark:text-blue-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="font-mono font-bold text-sm min-w-[50px]">
-                          {hour}
-                        </div>
-                        <div>
-                          <div className="font-bold text-xs sm:text-sm">
-                            {dayjs(matchedBooking.start_at).format('HH:mm')} - {dayjs(matchedBooking.end_at).format('HH:mm')}: {matchedBooking.purpose || t.internalWorkMeeting}
-                          </div>
-                          <div className="text-[11px] opacity-80 mt-0.5">
-                            {t.meetingOrganizer} {matchedBooking.user_name || t.roleEmployee} · {matchedBooking.num_attendees} {t.peopleUnit}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Tag color={isCheckedIn ? 'green' : isCancelled ? 'error' : 'blue'} className="m-0 text-xs">
-                        {getBookingStatusLabel(matchedBooking.status, language)}
-                      </Tag>
-                    </div>
-                  );
-                }
-
-                // Available slot
-                return (
-                  <div
-                    key={hour}
-                    onClick={() => handleBookSlot(selectedDayStr, hour)}
-                    className={`p-2.5 rounded-xl border border-dashed flex items-center justify-between transition-colors cursor-pointer group ${
-                      isDark
-                        ? 'border-white/10 bg-white/5 hover:border-[#0a84ff] hover:bg-white/10'
-                        : 'border-slate-200 bg-white hover:border-[#1e40af] hover:bg-blue-50/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="font-mono font-semibold text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] text-sm min-w-[50px]">
-                        {hour}
-                      </div>
-                      <span className="text-xs text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff]">
-                        {t.calendarAvailableSlot}
-                      </span>
-                    </div>
-
-                    <Button
-                      type="primary"
-                      size="small"
-                      ghost
-                      icon={<PlusOutlined />}
-                      style={{ fontSize: 11, borderRadius: 6, borderColor: isDark ? '#0a84ff' : '#1e40af', color: isDark ? '#0a84ff' : '#1e40af' }}
-                    >
-                      {t.calendarBookThisSlot}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+      <BookingCalendar
+        bookings={bookings}
+        currentDate={currentDate}
+        onCurrentDateChange={setCurrentDate}
+        viewMode={calendarViewMode}
+        showViewModeSelector
+        onViewModeChange={setCalendarViewMode}
+        onBookingClick={handleOpenBookingPreview}
+      />
 
       {/* Pop-up modal: Event details preview */}
-      <Modal
+      <BookingPreviewModal
+        booking={previewBooking}
         open={previewModalOpen}
-        onCancel={() => setPreviewModalOpen(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-            <span className="font-bold text-base">
-              {t.previewMeetingTitle}
-            </span>
-          </div>
-        }
-        footer={[
-          <Button key="close" onClick={() => setPreviewModalOpen(false)} style={{ borderRadius: 6 }}>
-            {t.close}
-          </Button>,
-          <Button
-            key="book"
-            type="primary"
-            onClick={() => {
-              setPreviewModalOpen(false);
-              navigate(`/rooms/${room.id}/book`);
-            }}
-            style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', borderRadius: 6 }}
-          >
-            {t.bookThisRoomBtn}
-          </Button>,
-        ]}
-      >
-        {previewBooking && (
-          <div className="flex flex-col gap-4 py-2 text-xs sm:text-sm">
-            <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
-              isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div>
-                <div className="font-bold text-base text-slate-800 dark:text-slate-100">
-                  {previewBooking.purpose || t.internalWorkMeeting}
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {t.fieldRoom}: {previewBooking.room_name}
-                </div>
-              </div>
-              <Tag
-                color={BOOKING_STATUS_CONFIG[previewBooking.status]?.color || 'default'}
-                className="m-0 font-medium"
-              >
-                {getBookingStatusLabel(previewBooking.status, language)}
-              </Tag>
-            </div>
-
-            <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
-              isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-500 dark:text-zinc-400">{t.meetingTimeLabel}:</span>
-                <span className="font-mono font-bold text-black dark:text-white">
-                  {dayjs(previewBooking.start_at).format('HH:mm')} - {dayjs(previewBooking.end_at).format('HH:mm')}
-                  <span className="text-slate-500 dark:text-zinc-400 font-normal ml-2">
-                    ({dayjs(previewBooking.start_at).format('DD/MM/YYYY')})
-                  </span>
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <UserOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-                <span className="font-semibold">{t.meetingOrganizer}:</span>
-                <span>{previewBooking.user_name || t.roleEmployee} ({previewBooking.user_email})</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <TeamOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-                <span className="font-semibold">{t.meetingAttendeesLabel}:</span>
-                <span>{previewBooking.num_attendees} {t.peopleUnit}</span>
-              </div>
-            </div>
-
-            {previewBooking.attendees.length > 0 && (
-              <div className={`p-3.5 rounded-xl border w-full mx-auto ${
-                isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div className="font-semibold text-xs text-slate-400 mb-3 text-center flex items-center justify-center gap-1.5 uppercase tracking-wider">
-                  <TeamOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-                  <span>{t.meetingAttendeeListLabel} ({previewBooking.attendees.length})</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-0.5 w-full">
-                  {previewBooking.attendees.map((att) => (
-                    <div
-                      key={att.id}
-                      className={`text-xs px-3 py-2 rounded-lg border flex items-center gap-2.5 w-full min-w-0 transition-colors ${
-                        isDark ? 'bg-[#242426] border-white/15 text-zinc-200' : 'bg-white border-slate-200 text-slate-700 shadow-2xs'
-                      }`}
-                    >
-                      <UserOutlined className="text-[#1e40af] dark:text-[#0a84ff] shrink-0 text-sm" />
-                      <div className="min-w-0 flex-1 truncate text-left">
-                        <div className="font-medium text-slate-800 dark:text-zinc-100 truncate">{att.name}</div>
-                        {att.attendee_email && (
-                          <div className="text-[11px] text-slate-400 truncate">{att.attendee_email}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+        onClose={() => setPreviewModalOpen(false)}
+        onActionClick={() => {
+          setPreviewModalOpen(false);
+          navigate(`/rooms/${room.id}/book`);
+        }}
+      />
 
       {/* Modal Add/Edit Equipment for this Room */}
       <Modal

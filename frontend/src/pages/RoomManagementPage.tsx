@@ -285,24 +285,37 @@ export const RoomManagementPage: React.FC = () => {
                     }`}
                   >
                     <div>
-                      {/* Ô div để add ảnh phòng sau này */}
+                      {/* Room image / photo slot */}
                       <div
                         onClick={() => handleOpenEdit(room)}
-                        className={`w-full h-36 rounded-xl mb-3 border border-dashed flex flex-col items-center justify-center relative overflow-hidden transition-all cursor-pointer group ${
-                          isDark
-                            ? 'bg-[#242426] border-white/15 hover:border-[#0a84ff]'
-                            : 'bg-slate-50 border-slate-200 hover:border-[#1e40af]'
+                        className={`w-full h-36 rounded-xl mb-3 border relative overflow-hidden transition-all cursor-pointer group ${
+                          room.image_url
+                            ? 'border-transparent hover:opacity-90'
+                            : isDark
+                            ? 'border-dashed bg-[#242426] border-white/15 hover:border-[#0a84ff]'
+                            : 'border-dashed bg-slate-50 border-slate-200 hover:border-[#1e40af]'
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-full bg-slate-200/60 dark:bg-white/10 flex items-center justify-center mb-1 text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] transition-colors">
-                          <PictureOutlined className="text-xl" />
-                        </div>
-                        <span className="text-xs text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200 font-medium">
-                          {t.roomPhotoPlaceholder}
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-                          {t.roomPhotoHint}
-                        </span>
+                        {room.image_url ? (
+                          <img src={room.image_url} alt={room.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <>
+                            <div className="w-10 h-10 rounded-full bg-slate-200/60 dark:bg-white/10 flex items-center justify-center mb-1 text-slate-400 group-hover:text-[#1e40af] dark:group-hover:text-[#0a84ff] transition-colors absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-6">
+                              <PictureOutlined className="text-xl" />
+                            </div>
+                            <span className="text-xs text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200 font-medium absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-2">
+                              {t.roomPhotoPlaceholder}
+                            </span>
+                          </>
+                        )}
+                        {/* Edit overlay on hover */}
+                        {room.image_url && (
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-lg">
+                              {language === 'vi' ? 'Chỉnh sửa' : 'Edit'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Top Row: Sức chứa & Trạng thái */}
