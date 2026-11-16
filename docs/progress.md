@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-29
+> Cập nhật lần cuối: 2026-11-16
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -69,7 +69,7 @@
 | FR-03 | Availability search + room-service snapshots | ✅ Done | GET /api/bookings/rooms/available; floor/capacity/equipment/time filters; room event consumer; 7 integration tests |
 | FR-04 | Booking CRUD + check-in | ✅ Done | Concurrency EXCLUDE constraint; check-in ±window |
 | FR-05 | Admin cấu hình runtime policy (check-in window) | ✅ Done | system_policies table; PolicyService cache 60s; PATCH /api/bookings/policies/{key} |
-| FR-06 | Thông báo async (booking.created, cancelled, reminders) | ✅ Done | 6 event types; outbox pattern; DLQ; reminder worker; room-outbox-relay |
+| FR-06 | Thông báo async (booking.created, cancelled, reminders) | ✅ Done | 7 event types; outbox pattern; DLQ; 3-email lifecycle (confirmation + 1-day + 15-min check-in alert); room-outbox-relay |
 | FR-07 | Báo cáo quản trị viên | ⏳ | Chưa làm |
 | FR-08 | Nhật ký kiểm toán | ⏳ | Chưa quyết định nơi lưu |
 
