@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { INITIAL_USERS } from '../api/mockData';
+import { getStoredUsers, patchUserAccountById } from '../api/client';
 import { setTokenProvider } from '../api/http';
 import {
   AuthContext,
@@ -19,6 +19,16 @@ const cleanUserName = (name: string): string => {
   return name.replace(/\s*\((Admin|Manager|Nhân viên|Administrator)\)/gi, '').trim();
 };
 
+const accountToUser = (a: ReturnType<typeof getStoredUsers>[number]): User => ({
+  id: a.id,
+  name: cleanUserName(a.name),
+  email: a.email,
+  role: a.role,
+  department: a.department,
+  phone: a.phone,
+  avatar: a.avatar,
+});
+
 const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -31,8 +41,12 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     } catch (e) {
       console.error(e);
     }
-    const defaultUser = { ...INITIAL_USERS[0], name: cleanUserName(INITIAL_USERS[0].name) };
-    return defaultUser;
+    // Fall back to first ACTIVE ADMINISTRATOR from unified accounts store
+    const accounts = getStoredUsers();
+    const def = accounts.find((u) => u.role === 'ADMINISTRATOR' && u.status === 'ACTIVE')
+      ?? accounts.find((u) => u.status === 'ACTIVE')
+      ?? accounts[0];
+    return def ? accountToUser(def) : null;
   });
 
   useEffect(() => {
@@ -51,16 +65,20 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   }, []);
 
   const loginWithAuth0 = (role: UserRole = 'ADMINISTRATOR') => {
-    const matched = INITIAL_USERS.find((u) => u.role === role) || INITIAL_USERS[0];
-    setUser({ ...matched, name: cleanUserName(matched.name) });
+    const accounts = getStoredUsers();
+    const matched = accounts.find((u) => u.role === role && u.status === 'ACTIVE')
+      ?? accounts.find((u) => u.status === 'ACTIVE')
+      ?? accounts[0];
+    if (matched) setUser(accountToUser(matched));
   };
 
   const logout = () => setUser(null);
 
   const switchRole = (role: UserRole) => {
-    const matched = INITIAL_USERS.find((u) => u.role === role);
+    const accounts = getStoredUsers();
+    const matched = accounts.find((u) => u.role === role && u.status === 'ACTIVE');
     if (matched) {
-      setUser(matched);
+      setUser(accountToUser(matched));
     } else if (user) {
       setUser({ ...user, role });
     }
@@ -74,7 +92,15 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   const updateProfile = (data: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null;
-      return { ...prev, ...data, name: data.name ? cleanUserName(data.name) : prev.name };
+      const updated = { ...prev, ...data, name: data.name ? cleanUserName(data.name) : prev.name };
+      // Sync profile changes back to the unified accounts store
+      patchUserAccountById(updated.id, {
+        name: updated.name,
+        department: updated.department,
+        phone: updated.phone,
+        avatar: updated.avatar,
+      });
+      return updated;
     });
   };
 

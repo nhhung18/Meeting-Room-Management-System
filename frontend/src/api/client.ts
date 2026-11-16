@@ -263,7 +263,7 @@ export const deleteEquipment = async (id: string): Promise<void> => {
 
 // ==================== USER ACCOUNTS & RBAC SERVICE ====================
 
-const getStoredUsers = (): UserAccount[] => {
+export const getStoredUsers = (): UserAccount[] => {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
@@ -276,6 +276,15 @@ const getStoredUsers = (): UserAccount[] => {
 
 const saveStoredUsers = (users: UserAccount[]): void => {
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+};
+
+export const patchUserAccountById = (userId: string, data: Partial<UserAccount>): void => {
+  const users = getStoredUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx !== -1) {
+    users[idx] = { ...users[idx], ...data };
+    saveStoredUsers(users);
+  }
 };
 
 export const getUserAccounts = async (params: {
