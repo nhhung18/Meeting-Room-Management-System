@@ -534,16 +534,7 @@ export const RoomListPage: React.FC = () => {
 
                       {/* Management actions — extra row, only for ROOM_MANAGER / ADMINISTRATOR */}
                       {isManager && (
-                        <div className="pt-2 border-t border-dashed border-slate-100 dark:border-white/5 flex items-center justify-between">
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={<EyeOutlined />}
-                            onClick={() => navigate(`/rooms/${room.id}`)}
-                            style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontSize: 12 }}
-                          >
-                            {t.actionView}
-                          </Button>
+                        <div className="pt-2 border-t border-dashed border-slate-100 dark:border-white/5 flex items-center justify-end">
                           <Space size="small">
                             <Button
                               size="small"
