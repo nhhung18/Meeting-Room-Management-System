@@ -55,7 +55,7 @@ export const LoginPage: React.FC = () => {
       const target = from && from !== '/login' && from !== '/callback' ? from : '/dashboard';
       const timer = setTimeout(() => {
         loginWithRedirect({ appState: { returnTo: target } });
-      }, 1800);
+      }, 900);
       return () => clearTimeout(timer);
     }
   }, [isLoading, isAuthenticated, auth0Mode, loginWithRedirect, location]);
@@ -137,7 +137,7 @@ export const LoginPage: React.FC = () => {
           <div className={`w-48 h-1 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
             <div
               className={`h-full rounded-full transition-all ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`}
-              style={{ animation: 'progress-fill 1.8s ease-in-out forwards' }}
+              style={{ animation: 'progress-fill 0.9s ease-in-out forwards' }}
             />
           </div>
         </div>
