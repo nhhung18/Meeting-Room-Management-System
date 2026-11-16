@@ -38,6 +38,9 @@ export interface BookingCalendarProps {
   hideEmptyHours?: boolean;
   showDayHeader?: boolean;
   loading?: boolean;
+  /** Auth0 sub of the logged-in user. When provided, bookings owned by others
+   *  show a minimal privacy badge (no popup, no details). */
+  currentUserId?: string;
 }
 
 /**
@@ -56,6 +59,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
   hideEmptyHours = false,
   showDayHeader = true,
   loading = false,
+  currentUserId,
 }) => {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
@@ -236,10 +240,6 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-[#30d158] inline-block" />
             <span>{t.statusCheckedIn}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 inline-block" />
-            <span>{t.statusCancelled}</span>
-          </span>
         </div>
         <span className="text-[11px] text-slate-400 italic">{t.calendarReadOnlyHint}</span>
       </div>
@@ -356,6 +356,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                           )}
 
                           {slotBookings.map((b) => {
+                            const isOwner = !currentUserId || b.user_id === currentUserId;
                             const badgeStyle = getEventBadgeStyle(b, isDark);
                             const isStartHour = dayjs(b.start_at).hour() === hourNum;
 
@@ -363,12 +364,33 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                               return (
                                 <div
                                   key={b.id}
-                                  onClick={(e) => onBookingClick(b, e)}
-                                  className={`w-full h-full rounded-md px-2 py-1 text-xs border cursor-pointer opacity-90 ${badgeStyle.bg}`}
+                                  onClick={isOwner ? (e) => onBookingClick(b, e) : undefined}
+                                  className={`w-full h-full rounded-md px-2 py-1 text-xs border opacity-90 ${badgeStyle.bg} ${isOwner ? 'cursor-pointer' : 'cursor-default'}`}
                                 >
                                   <span className="text-[10px] opacity-80">
-                                    {t.calendarContinuedMeeting}
+                                    {isOwner ? t.calendarContinuedMeeting : (language === 'vi' ? 'Đã đặt' : 'Booked')}
                                   </span>
+                                </div>
+                              );
+                            }
+
+                            if (!isOwner) {
+                              return (
+                                <div
+                                  key={b.id}
+                                  className={`w-full rounded-md p-1.5 text-xs border shadow-2xs cursor-default ${
+                                    isDark
+                                      ? 'bg-white/8 border-white/15 text-zinc-400'
+                                      : 'bg-slate-100 border-slate-300 text-slate-500'
+                                  }`}
+                                >
+                                  <div className="font-bold leading-tight line-clamp-1">
+                                    {language === 'vi' ? 'Đã có người đặt' : 'Booked'}
+                                  </div>
+                                  <div className="text-[10px] opacity-80 font-mono mt-0.5">
+                                    {dayjs(b.start_at).format('HH:mm')} - {dayjs(b.end_at).format('HH:mm')}
+                                    {showRoomName && b.room_name ? ` · ${b.room_name}` : ''}
+                                  </div>
                                 </div>
                               );
                             }
@@ -473,16 +495,17 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
                   <div className="space-y-1 mt-1 overflow-hidden">
                     {d.dayBookings.slice(0, 2).map((b) => {
+                      const isOwner = !currentUserId || b.user_id === currentUserId;
                       const badgeStyle = getEventBadgeStyle(b, isDark);
                       return (
                         <div
                           key={b.id}
-                          onClick={(e) => onBookingClick(b, e)}
-                          className={`text-[10px] px-1.5 py-0.5 rounded truncate font-medium border ${badgeStyle.bg}`}
-                          title={`${dayjs(b.start_at).format('HH:mm')} - ${dayjs(b.end_at).format('HH:mm')}: ${b.purpose || t.internalWorkMeeting}`}
+                          onClick={isOwner ? (e) => onBookingClick(b, e) : undefined}
+                          className={`text-[10px] px-1.5 py-0.5 rounded truncate font-medium border ${isOwner ? badgeStyle.bg : (isDark ? 'bg-white/8 border-white/15 text-zinc-400' : 'bg-slate-100 border-slate-300 text-slate-500')} ${isOwner ? 'cursor-pointer' : 'cursor-default'}`}
+                          title={isOwner ? `${dayjs(b.start_at).format('HH:mm')} - ${dayjs(b.end_at).format('HH:mm')}: ${b.purpose || t.internalWorkMeeting}` : (language === 'vi' ? 'Đã có người đặt' : 'Booked')}
                         >
                           <span className="font-mono">{dayjs(b.start_at).format('HH:mm')}</span>{' '}
-                          {b.purpose || t.internalWorkMeeting}
+                          {isOwner ? (b.purpose || t.internalWorkMeeting) : (language === 'vi' ? 'Đã đặt' : 'Booked')}
                         </div>
                       );
                     })}

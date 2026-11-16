@@ -26,7 +26,6 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import isoWeek from 'dayjs/plugin/isoWeek';
 import {
   AreaChart,
   Area,
@@ -38,12 +37,11 @@ import {
 import { Room, Booking } from '../types';
 import { getRooms, getBookings, checkInBooking, isCheckInEligible } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
+import { BookingCalendar, BookingPreviewModal } from '../components/BookingCalendar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-
-dayjs.extend(isoWeek);
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -61,10 +59,18 @@ export const DashboardPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
 
-  // Selected date in the interactive calendar schedule section
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() =>
-    dayjs().format('YYYY-MM-DD')
+  // Anchor date and preview modal state for the shared Day-View calendar
+  const [calendarDate, setCalendarDate] = useState<dayjs.Dayjs>(() =>
+    dayjs().startOf('day')
   );
+  const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+
+  const handleOpenBookingPreview = (b: Booking, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPreviewBooking(b);
+    setPreviewModalOpen(true);
+  };
 
   const fetchData = async () => {
     try {
@@ -147,34 +153,6 @@ export const DashboardPage: React.FC = () => {
       return !hasActiveBooking;
     });
   }, [rooms, bookings]);
-
-  // Generate 7 days for the interactive calendar schedule section
-  const currentWeekDays = useMemo(() => {
-    const startOfWeek = dayjs().startOf('isoWeek');
-    const dayNames = [t.dayMon, t.dayTue, t.dayWed, t.dayThu, t.dayFri, t.daySat, t.daySun];
-    return Array.from({ length: 7 }).map((_, index) => {
-      const day = startOfWeek.add(index, 'day');
-      const dateStr = day.format('YYYY-MM-DD');
-      const dayBookingsCount = bookings.filter(
-        (b) => dayjs(b.start_at).format('YYYY-MM-DD') === dateStr && b.status !== 'CANCELLED'
-      ).length;
-
-      return {
-        dateStr,
-        dayName: dayNames[index],
-        dayNumber: day.format('DD'),
-        isToday: day.isSame(dayjs(), 'day'),
-        count: dayBookingsCount,
-      };
-    });
-  }, [bookings, t]);
-
-  // Bookings on the selected calendar day
-  const selectedDayBookings = useMemo(() => {
-    return bookings
-      .filter((b) => dayjs(b.start_at).format('YYYY-MM-DD') === selectedCalendarDate && b.status !== 'CANCELLED')
-      .sort((a, b) => dayjs(a.start_at).valueOf() - dayjs(b.start_at).valueOf());
-  }, [bookings, selectedCalendarDate]);
 
   // Hourly utilization chart data for today
   const hourlyChartData = useMemo(() => {
@@ -359,120 +337,30 @@ export const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 3. LỊCH HỌP TRONG TUẦN (Full Width Responsive Container) */}
-      <div className={`p-4 sm:p-5 rounded-2xl border transition-colors ${
-        isDark ? 'bg-[#1c1c1e] border-white/15 text-white' : 'bg-white border-slate-200 text-slate-800'
-      }`}>
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-white/10">
-          <div>
-            <span className="font-bold text-sm sm:text-base flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`} />
-              {t.weeklyScheduleTitle}
-            </span>
-            <span className="text-xs text-slate-400 mt-0.5 block">
-              {t.weeklyScheduleSub}
-            </span>
-          </div>
-        </div>
+      {/* 3. LỊCH HỌP THEO NGÀY (Đồng bộ Google Calendar Day View với Chi tiết phòng) */}
+      <BookingCalendar
+        bookings={bookings}
+        currentDate={calendarDate}
+        onCurrentDateChange={setCalendarDate}
+        viewMode="day"
+        showViewModeSelector={false}
+        hideEmptyHours
+        showDayHeader={false}
+        onBookingClick={handleOpenBookingPreview}
+        showRoomName
+        loading={loading}
+        currentUserId={user?.id}
+      />
 
-        {/* 7-Day Interactive Day Strip with overflow protection */}
-        <div className="overflow-x-auto pb-1 mb-4">
-          <div className="grid grid-cols-7 gap-1.5 min-w-[340px]">
-            {currentWeekDays.map((d) => {
-              const isSelected = d.dateStr === selectedCalendarDate;
-              return (
-                <button
-                  key={d.dateStr}
-                  type="button"
-                  onClick={() => setSelectedCalendarDate(d.dateStr)}
-                  className={`py-2 px-1 rounded-xl text-center border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#0a84ff] text-white border-[#0a84ff] shadow-sm font-semibold'
-                      : d.isToday
-                      ? 'bg-blue-50 dark:bg-[#2c2c2e] text-[#1e40af] dark:text-[#64d2ff] border-blue-200 dark:border-[#0a84ff]/60 font-semibold'
-                      : 'bg-slate-50 dark:bg-[#242426] text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-white/15 hover:border-slate-300 dark:hover:border-white/25 dark:hover:bg-[#2c2c2e]'
-                  }`}
-                >
-                  <div className="text-[10px] uppercase opacity-75 font-medium">{d.dayName}</div>
-                  <div className="text-sm sm:text-base font-bold font-mono tabular-nums mt-0.5">{d.dayNumber}</div>
-                  {d.count > 0 && (
-                    <span className={`inline-block text-[9px] font-mono px-1 rounded-full mt-0.5 ${
-                      isSelected ? 'bg-white/25 text-white font-bold' : 'bg-blue-100 dark:bg-white/15 text-blue-700 dark:text-zinc-200 font-medium'
-                    }`}>
-                      {d.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Selected Date Schedule List */}
-        <div className="space-y-2 max-h-[380px] overflow-y-auto pr-0.5">
-          {selectedDayBookings.length === 0 ? (
-            <div className="py-8 text-center rounded-xl bg-slate-50/50 dark:bg-[#242426] border border-dashed border-slate-200 dark:border-white/15">
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={`${t.noMeetingsOnDate} ${dayjs(selectedCalendarDate).format('DD/MM/YYYY')}`}
-              >
-              </Empty>
-            </div>
-          ) : (
-            <Row gutter={[12, 12]}>
-              {selectedDayBookings.map((b) => {
-                const isCheckedIn = b.status === 'CHECKED_IN';
-                const isCancelled = b.status === 'CANCELLED';
-
-                return (
-                  <Col xs={24} md={12} key={b.id}>
-                    <div
-                      onClick={() => navigate('/my-bookings')}
-                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                        isDark
-                          ? 'bg-[#242426] border-white/15 hover:border-[#0a84ff] hover:bg-[#2c2c2e]'
-                          : 'bg-slate-50/70 border-slate-200/80 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="space-y-0.5 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm truncate">{b.room_name}</span>
-                          {isCheckedIn ? (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded font-medium shrink-0">
-                              {t.statusCheckedIn}
-                            </span>
-                          ) : isCancelled ? (
-                            <span className="text-[10px] text-rose-500 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 px-1.5 py-0.2 rounded font-medium shrink-0">
-                              {t.statusCancelled}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-[#1e40af] dark:text-[#64d2ff] bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-1.5 py-0.2 rounded font-medium shrink-0">
-                              {t.statusConfirmed}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-400 dark:text-zinc-400 truncate">
-                          {b.purpose || t.internalWorkMeeting}
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="font-mono text-xs font-semibold text-[#1e40af] dark:text-[#64d2ff] tabular-nums">
-                          {dayjs(b.start_at).format('HH:mm')} - {dayjs(b.end_at).format('HH:mm')}
-                        </div>
-                        <div className="text-[11px] text-slate-400 dark:text-zinc-400">
-                          {b.num_attendees} {t.peopleUnit}
-                        </div>
-                      </div>
-                    </div>
-                  </Col>
-                );
-              })}
-            </Row>
-          )}
-        </div>
-      </div>
+      <BookingPreviewModal
+        booking={previewBooking}
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        onActionClick={(b) => {
+          setPreviewModalOpen(false);
+          navigate(`/rooms/${b.room_id}/book`);
+        }}
+      />
 
       {/* 4. BOOKING CỦA BẠN SẮP TỚI */}
       <div className={`p-4 sm:p-5 rounded-2xl border transition-colors ${
@@ -481,7 +369,7 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-white/10">
           <div>
             <span className="font-bold text-sm sm:text-base flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`} />
+              {/* <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`} /> */}
               {t.upcomingMeetingsTitle}
             </span>
             <span className="text-xs text-slate-400 mt-0.5 block">
