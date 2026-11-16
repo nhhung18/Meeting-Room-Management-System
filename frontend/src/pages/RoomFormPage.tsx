@@ -500,6 +500,14 @@ export const RoomFormPage: React.FC = () => {
       {/* Top bar: breadcrumb + actions */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/admin/rooms')}
+            style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontWeight: 600, marginBottom: 4 }}
+          >
+            {language === 'vi' ? 'Quay lại' : 'Back'}
+          </Button>
           <Breadcrumb
             items={[
               {
@@ -531,13 +539,6 @@ export const RoomFormPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/admin/rooms')}
-            style={{ borderRadius: 10 }}
-          >
-            {language === 'vi' ? 'Quay lại' : 'Back'}
-          </Button>
           <Button
             type="primary"
             icon={isEdit ? <CheckOutlined /> : <PlusOutlined />}
