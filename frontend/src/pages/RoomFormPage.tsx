@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
@@ -11,6 +11,9 @@ import {
   Spin,
   Tag,
   Breadcrumb,
+  Upload,
+  Popconfirm,
+  Progress,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -24,6 +27,9 @@ import {
   UserOutlined,
   HomeOutlined,
   EditOutlined,
+  PictureOutlined,
+  DeleteOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import {
   Room,
@@ -32,7 +38,7 @@ import {
   getRoomStatusLabel,
   getEquipmentLabel,
 } from '../types';
-import { getRoomById, createRoom, updateRoom } from '../api/rooms';
+import { getRoomById, createRoom, updateRoom, uploadRoomImage, deleteRoomImage } from '../api/rooms';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -123,20 +129,27 @@ const RoomPreviewCard: React.FC<{
   isDark: boolean;
   language: string;
   isNew: boolean;
-}> = ({ values, isDark, language, isNew }) => {
+  imageUrl?: string | null;
+}> = ({ values, isDark, language, isNew, imageUrl }) => {
   const status = (values.status as any) || 'AVAILABLE';
   const cfg = ROOM_STATUS_CONFIG[status as keyof typeof ROOM_STATUS_CONFIG];
 
   return (
     <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200 shadow-sm'}`}>
-      {/* Photo placeholder */}
-      <div className={`w-full h-40 flex flex-col items-center justify-center border-b ${isDark ? 'bg-[#242426] border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-2 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
-          <HomeOutlined className={`text-2xl ${isDark ? 'text-zinc-400' : 'text-slate-400'}`} />
-        </div>
-        <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-          {language === 'vi' ? 'Ảnh phòng' : 'Room photo'}
-        </span>
+      {/* Photo area */}
+      <div className={`w-full h-40 border-b overflow-hidden ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+        {imageUrl ? (
+          <img src={imageUrl} alt={values.name || 'room'} className="w-full h-full object-cover" />
+        ) : (
+          <div className={`w-full h-full flex flex-col items-center justify-center ${isDark ? 'bg-[#242426]' : 'bg-slate-50'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-2 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+              <HomeOutlined className={`text-2xl ${isDark ? 'text-zinc-400' : 'text-slate-400'}`} />
+            </div>
+            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              {language === 'vi' ? 'Ảnh phòng' : 'Room photo'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-4 space-y-3">
@@ -229,6 +242,21 @@ export const RoomFormPage: React.FC = () => {
     equipment: [],
   });
 
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [deletingImage, setDeletingImage] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
   // Load existing room for edit
   useEffect(() => {
     if (!isEdit) return;
@@ -245,6 +273,7 @@ export const RoomFormPage: React.FC = () => {
           equipment: room.equipment,
         });
         setPreview(room);
+        setExistingImageUrl(room.image_url ?? null);
       } catch {
         message.error(language === 'vi' ? 'Không tải được thông tin phòng' : 'Failed to load room');
         navigate('/admin/rooms');
@@ -268,6 +297,41 @@ export const RoomFormPage: React.FC = () => {
     setCustomEquipment('');
   };
 
+  const handleFileSelect = (file: File) => {
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (!ALLOWED.includes(file.type)) {
+      message.error(language === 'vi' ? 'Chỉ chấp nhận JPEG, PNG, WebP' : 'Only JPEG, PNG, WebP allowed');
+      return false;
+    }
+    if (file.size > MAX_BYTES) {
+      message.error(language === 'vi' ? 'Ảnh vượt quá 5MB' : 'Image exceeds 5MB limit');
+      return false;
+    }
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    const url = URL.createObjectURL(file);
+    objectUrlRef.current = url;
+    setImageFile(file);
+    setImagePreviewUrl(url);
+    return false; // prevent antd auto-upload
+  };
+
+  const handleDeleteImage = async () => {
+    if (!isEdit || !id) return;
+    setDeletingImage(true);
+    try {
+      await deleteRoomImage(Number(id));
+      setExistingImageUrl(null);
+      setImageFile(null);
+      setImagePreviewUrl(null);
+      message.success(language === 'vi' ? 'Đã xóa ảnh phòng' : 'Room image removed');
+    } catch (err: any) {
+      message.error(err?.message || (language === 'vi' ? 'Lỗi khi xóa ảnh' : 'Failed to remove image'));
+    } finally {
+      setDeletingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -281,13 +345,30 @@ export const RoomFormPage: React.FC = () => {
         description: values.description || undefined,
         equipment: values.equipment || [],
       };
+
+      let roomId: number;
       if (isEdit) {
         await updateRoom(Number(id), payload);
+        roomId = Number(id);
         message.success(language === 'vi' ? 'Cập nhật phòng thành công' : 'Room updated successfully');
       } else {
-        await createRoom(payload);
+        const created = await createRoom(payload);
+        roomId = created.id;
         message.success(language === 'vi' ? 'Tạo phòng họp thành công' : 'Room created successfully');
       }
+
+      if (imageFile) {
+        setImageUploading(true);
+        try {
+          await uploadRoomImage(roomId, imageFile);
+          message.success(language === 'vi' ? 'Tải ảnh thành công' : 'Image uploaded successfully');
+        } catch (imgErr: any) {
+          message.error(imgErr?.message || (language === 'vi' ? 'Lỗi khi tải ảnh lên' : 'Failed to upload image'));
+        } finally {
+          setImageUploading(false);
+        }
+      }
+
       navigate('/admin/rooms');
     } catch (err: any) {
       if (err?.errorFields) return;
@@ -351,7 +432,7 @@ export const RoomFormPage: React.FC = () => {
           <Button
             type="primary"
             icon={isEdit ? <CheckOutlined /> : <PlusOutlined />}
-            loading={submitting}
+            loading={submitting || imageUploading || deletingImage}
             onClick={handleSubmit}
             style={{
               backgroundColor: isDark ? '#0a84ff' : '#1e40af',
@@ -448,6 +529,85 @@ export const RoomFormPage: React.FC = () => {
                 style={{ borderRadius: 10 }}
               />
             </Form.Item>
+
+            {/* Image upload */}
+            <div>
+              <p className={`font-semibold text-xs mb-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                <PictureOutlined className="mr-1" />
+                {language === 'vi' ? 'Ảnh phòng họp' : 'Room Image'}
+              </p>
+
+              {/* Current / selected image preview */}
+              {(imagePreviewUrl || existingImageUrl) && (
+                <div className="relative mb-2 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-white/20 h-40">
+                  <img
+                    src={imagePreviewUrl || existingImageUrl || ''}
+                    alt="room preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 right-2 flex gap-1.5">
+                    {imagePreviewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreviewUrl(null);
+                          if (objectUrlRef.current) {
+                            URL.revokeObjectURL(objectUrlRef.current);
+                            objectUrlRef.current = null;
+                          }
+                        }}
+                        className="bg-black/60 hover:bg-black/80 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1 transition-colors"
+                      >
+                        <CloseOutlined style={{ fontSize: 10 }} />
+                        {language === 'vi' ? 'Bỏ chọn' : 'Clear'}
+                      </button>
+                    )}
+                    {isEdit && existingImageUrl && !imagePreviewUrl && (
+                      <Popconfirm
+                        title={language === 'vi' ? 'Xác nhận xóa ảnh phòng này?' : "Remove this room's image?"}
+                        onConfirm={handleDeleteImage}
+                        okText={language === 'vi' ? 'Xóa' : 'Remove'}
+                        cancelText={language === 'vi' ? 'Hủy' : 'Cancel'}
+                        okButtonProps={{ danger: true }}
+                      >
+                        <button
+                          type="button"
+                          className="bg-red-600/80 hover:bg-red-700 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1 transition-colors"
+                        >
+                          <DeleteOutlined style={{ fontSize: 10 }} />
+                          {language === 'vi' ? 'Xóa ảnh' : 'Remove image'}
+                        </button>
+                      </Popconfirm>
+                    )}
+                  </div>
+                  {imageUploading && (
+                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+                      <Spin size="small" />
+                      <Progress percent={99} status="active" size="small" style={{ width: '80%' }} showInfo={false} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Upload.Dragger
+                accept="image/jpeg,image/png,image/webp"
+                showUploadList={false}
+                beforeUpload={handleFileSelect}
+                multiple={false}
+                style={{ borderRadius: 10 }}
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined style={{ fontSize: 28, color: isDark ? '#0a84ff' : '#1e40af' }} />
+                </p>
+                <p className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                  {language === 'vi' ? 'Kéo thả hoặc bấm để tải ảnh' : 'Drag & drop or click to upload'}
+                </p>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  JPEG · PNG · WebP · {language === 'vi' ? 'tối đa 5MB' : 'max 5MB'}
+                </p>
+              </Upload.Dragger>
+            </div>
           </SectionCard>
 
           {/* Location & Manager */}
@@ -540,7 +700,13 @@ export const RoomFormPage: React.FC = () => {
           <p className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
             {language === 'vi' ? 'Xem trước' : 'Live preview'}
           </p>
-          <RoomPreviewCard values={preview} isDark={isDark} language={language} isNew={!isEdit} />
+          <RoomPreviewCard
+            values={preview}
+            isDark={isDark}
+            language={language}
+            isNew={!isEdit}
+            imageUrl={imagePreviewUrl || existingImageUrl}
+          />
 
           {/* Equipment count summary */}
           <div className={`rounded-2xl border p-4 ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'}`}>
