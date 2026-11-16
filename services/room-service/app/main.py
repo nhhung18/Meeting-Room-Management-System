@@ -4,7 +4,7 @@ import time
 import cloudinary
 from fastapi import FastAPI, Request
 
-from app.api import health, room_image, rooms
+from app.api import equipment, health, room_image, rooms
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_request_id
@@ -62,3 +62,6 @@ app.include_router(rooms.router, prefix=settings.api_prefix)
 
 # Room image upload — Cloudinary (FR-02-6)
 app.include_router(room_image.router, prefix=settings.api_prefix)
+
+# Equipment management
+app.include_router(equipment.router, prefix=settings.api_prefix)

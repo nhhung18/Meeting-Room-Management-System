@@ -13,11 +13,11 @@ import {
 import {
   INITIAL_ROOMS,
   generateInitialBookings,
-  INITIAL_EQUIPMENT,
   INITIAL_USER_ACCOUNTS,
   INITIAL_AUDIT_LOGS,
   DEFAULT_BOOKING_POLICIES,
 } from './mockData';
+import { request } from './http';
 
 // Rooms API — calls room-service over HTTP
 export * from './rooms';
@@ -29,42 +29,43 @@ dayjs.extend(isBetween);
 
 const ROOMS_STORAGE_KEY = 'mrms_rooms_v1';
 const BOOKINGS_STORAGE_KEY = 'mrms_bookings_v1';
-const EQUIPMENT_STORAGE_KEY = 'mrms_equipment_v1';
+const EQUIPMENT_STORAGE_KEY = 'mrms_equipment_v1'; // kept to clear legacy data
 const USERS_STORAGE_KEY = 'mrms_users_accounts_v1';
 const AUDIT_LOGS_STORAGE_KEY = 'mrms_audit_logs_v1';
 const POLICIES_STORAGE_KEY = 'mrms_booking_policies_v1';
 
-const getStoredEquipment = (): EquipmentItem[] => {
-  try {
-    const raw = localStorage.getItem(EQUIPMENT_STORAGE_KEY);
-    if (raw) {
-      const parsed: EquipmentItem[] = JSON.parse(raw);
-      return parsed.map((item) => {
-        const room_ids = item.room_ids && item.room_ids.length > 0
-          ? item.room_ids
-          : item.room_id ? [item.room_id] : [];
-        const room_names = item.room_names && item.room_names.length > 0
-          ? item.room_names
-          : item.room_name ? [item.room_name] : [];
-        return {
-          ...item,
-          room_ids,
-          room_names,
-          room_id: room_ids[0] ?? null,
-          room_name: room_names[0] ?? null,
-        };
-      });
-    }
-  } catch (e) {
-    console.error('Error reading equipment from storage', e);
-  }
-  localStorage.setItem(EQUIPMENT_STORAGE_KEY, JSON.stringify(INITIAL_EQUIPMENT));
-  return INITIAL_EQUIPMENT;
-};
+// Convert backend EquipmentResponse to frontend EquipmentItem shape
+interface BackendEquipmentRoom { room_id: number; room_name: string | null }
+interface BackendEquipmentResponse {
+  id: number;
+  name: string;
+  category: string;
+  status: string;
+  serial_number: string | null;
+  notes: string | null;
+  rooms: BackendEquipmentRoom[];
+  created_at: string;
+  updated_at: string;
+}
 
-const saveStoredEquipment = (equipment: EquipmentItem[]): void => {
-  localStorage.setItem(EQUIPMENT_STORAGE_KEY, JSON.stringify(equipment));
-};
+function adaptEquipment(raw: BackendEquipmentResponse): EquipmentItem {
+  const room_ids = raw.rooms.map((r) => r.room_id);
+  const room_names = raw.rooms.map((r) => r.room_name ?? '').filter(Boolean);
+  return {
+    id: String(raw.id),
+    name: raw.name,
+    category: raw.category,
+    status: raw.status as EquipmentItem['status'],
+    serial_number: raw.serial_number ?? undefined,
+    notes: raw.notes ?? undefined,
+    rooms: raw.rooms,
+    room_ids,
+    room_names,
+    room_id: room_ids[0] ?? null,
+    room_name: room_names[0] ?? null,
+    updated_at: raw.updated_at,
+  } as unknown as EquipmentItem;
+}
 
 // Initialize LocalStorage with mock data if not present
 const getStoredRooms = (): Room[] => {
@@ -111,154 +112,70 @@ export interface EquipmentFilterParams {
 }
 
 export const getEquipmentList = async (params: EquipmentFilterParams = {}): Promise<EquipmentItem[]> => {
-  await delay();
-  let items = getStoredEquipment();
-
-  if (params.q) {
-    const qLower = params.q.toLowerCase().trim();
-    items = items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(qLower) ||
-        item.id.toLowerCase().includes(qLower) ||
-        (item.serial_number && item.serial_number.toLowerCase().includes(qLower)) ||
-        (item.room_name && item.room_name.toLowerCase().includes(qLower)) ||
-        (item.room_names && item.room_names.some((rn) => rn.toLowerCase().includes(qLower))) ||
-        item.category.toLowerCase().includes(qLower)
-    );
-  }
-
-  if (params.category && params.category !== 'ALL') {
-    items = items.filter((item) => item.category === params.category);
-  }
-
-  if (params.status && params.status !== 'ALL') {
-    items = items.filter((item) => item.status === params.status);
-  }
-
+  const queryParams: Record<string, string | number | undefined> = {};
+  if (params.q) queryParams.q = params.q;
+  if (params.category && params.category !== 'ALL') queryParams.category = params.category;
+  if (params.status && params.status !== 'ALL') queryParams.status = params.status;
   if (params.roomId !== undefined && params.roomId !== 'ALL') {
-    if (params.roomId === 'UNASSIGNED') {
-      items = items.filter((item) => !item.room_ids || item.room_ids.length === 0);
-    } else {
-      items = items.filter(
-        (item) =>
-          (item.room_ids && item.room_ids.includes(params.roomId as number)) ||
-          item.room_id === params.roomId
-      );
-    }
+    queryParams.room_id = params.roomId === 'UNASSIGNED' ? -1 : (params.roomId as number);
   }
 
-  return items;
+  const resp = await request<{ items: BackendEquipmentResponse[]; total: number }>(
+    '/rooms/equipment',
+    { params: queryParams }
+  );
+  return resp.items.map(adaptEquipment);
 };
 
 export const getEquipmentByRoom = async (roomId: number): Promise<EquipmentItem[]> => {
-  await delay();
-  const items = getStoredEquipment();
-  return items.filter(
-    (item) =>
-      (item.room_ids && item.room_ids.includes(roomId)) ||
-      item.room_id === roomId
-  );
+  const resp = await request<BackendEquipmentResponse[]>(`/rooms/${roomId}/equipment`);
+  return resp.map(adaptEquipment);
 };
 
 export const createEquipment = async (
   data: Omit<EquipmentItem, 'id' | 'updated_at'>
 ): Promise<EquipmentItem> => {
-  await delay();
-  const items = getStoredEquipment();
-  const newId = `EQ-${String(items.length + 1).padStart(3, '0')}`;
-  const rooms = getStoredRooms();
-
-  const roomIds = data.room_ids && data.room_ids.length > 0
-    ? data.room_ids
-    : data.room_id ? [data.room_id] : [];
-
-  let roomNames = data.room_names;
-  if (!roomNames || roomNames.length === 0) {
-    roomNames = roomIds.map((rid) => rooms.find((r) => r.id === rid)?.name).filter(Boolean) as string[];
-  }
-
-  const primaryRoomId = roomIds[0] ?? null;
-  const primaryRoomName = roomNames[0] ?? null;
-
-  const newItem: EquipmentItem = {
-    ...data,
-    id: newId,
-    room_id: primaryRoomId,
-    room_name: primaryRoomName,
-    room_ids: roomIds,
-    room_names: roomNames,
-    updated_at: new Date().toISOString(),
+  const body = {
+    name: data.name,
+    category: data.category,
+    status: data.status,
+    serial_number: data.serial_number ?? null,
+    notes: data.notes ?? null,
+    room_ids: data.room_ids && data.room_ids.length > 0
+      ? data.room_ids
+      : (data.room_id ? [data.room_id] : []),
   };
-
-  items.unshift(newItem);
-  saveStoredEquipment(items);
-
-  // Sync with rooms' equipment lists for all assigned rooms
-  if (roomIds.length > 0) {
-    let roomsUpdated = false;
-    roomIds.forEach((rid) => {
-      const rIdx = rooms.findIndex((r) => r.id === rid);
-      if (rIdx !== -1 && !rooms[rIdx].equipment.includes(newItem.category)) {
-        rooms[rIdx].equipment.push(newItem.category);
-        roomsUpdated = true;
-      }
-    });
-    if (roomsUpdated) saveStoredRooms(rooms);
-  }
-
-  return newItem;
+  const resp = await request<BackendEquipmentResponse>('/rooms/equipment', { method: 'POST', body });
+  return adaptEquipment(resp);
 };
 
 export const updateEquipment = async (
   id: string,
   data: Partial<EquipmentItem>
 ): Promise<EquipmentItem> => {
-  await delay();
-  const items = getStoredEquipment();
-  const index = items.findIndex((e) => e.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy thiết bị');
+  const body: Record<string, unknown> = {};
+  if (data.name !== undefined) body.name = data.name;
+  if (data.category !== undefined) body.category = data.category;
+  if (data.status !== undefined) body.status = data.status;
+  if (data.serial_number !== undefined) body.serial_number = data.serial_number;
+  if (data.notes !== undefined) body.notes = data.notes;
+  if (data.room_ids !== undefined) {
+    body.room_ids = data.room_ids;
+  } else if (data.room_id !== undefined) {
+    body.room_ids = data.room_id ? [data.room_id] : [];
   }
 
-  const existing = items[index];
-  const rooms = getStoredRooms();
-
-  let roomIds = data.room_ids !== undefined
-    ? data.room_ids
-    : (data.room_id !== undefined
-        ? (data.room_id ? [data.room_id] : [])
-        : (existing.room_ids || (existing.room_id ? [existing.room_id] : [])));
-
-  let roomNames = data.room_names;
-  if (data.room_ids !== undefined && (!roomNames || roomNames.length === 0)) {
-    roomNames = roomIds.map((rid) => rooms.find((r) => r.id === rid)?.name).filter(Boolean) as string[];
-  } else if (!roomNames) {
-    roomNames = existing.room_names || (existing.room_name ? [existing.room_name] : []);
-  }
-
-  const primaryRoomId = roomIds[0] ?? null;
-  const primaryRoomName = roomNames[0] ?? null;
-
-  const updated: EquipmentItem = {
-    ...existing,
-    ...data,
-    room_id: primaryRoomId,
-    room_name: primaryRoomName,
-    room_ids: roomIds,
-    room_names: roomNames,
-    updated_at: new Date().toISOString(),
-  };
-
-  items[index] = updated;
-  saveStoredEquipment(items);
-  return updated;
+  const numericId = parseInt(id, 10);
+  const resp = await request<BackendEquipmentResponse>(`/rooms/equipment/${numericId}`, {
+    method: 'PATCH',
+    body,
+  });
+  return adaptEquipment(resp);
 };
 
 export const deleteEquipment = async (id: string): Promise<void> => {
-  await delay();
-  const items = getStoredEquipment();
-  const filtered = items.filter((e) => e.id !== id);
-  saveStoredEquipment(filtered);
+  const numericId = parseInt(id, 10);
+  await request<void>(`/rooms/equipment/${numericId}`, { method: 'DELETE' });
 };
 
 // ==================== USER ACCOUNTS & RBAC SERVICE ====================
@@ -688,7 +605,7 @@ export const toggleRoomMaintenance = async (
 export const resetMockDataToDefault = (): void => {
   localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(INITIAL_ROOMS));
   localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(generateInitialBookings()));
-  localStorage.setItem(EQUIPMENT_STORAGE_KEY, JSON.stringify(INITIAL_EQUIPMENT));
+  localStorage.removeItem(EQUIPMENT_STORAGE_KEY); // equipment migrated to real DB
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USER_ACCOUNTS));
   localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(INITIAL_AUDIT_LOGS));
   localStorage.setItem(POLICIES_STORAGE_KEY, JSON.stringify(DEFAULT_BOOKING_POLICIES));
