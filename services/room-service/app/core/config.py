@@ -13,8 +13,6 @@ class Settings(ServiceSettings):
     notifications_queue: str = "notifications"
     outbox_relay_interval_seconds: int = 5
 
-    cloudinary_url: str | None = None
-
 
 @lru_cache
 def get_settings() -> Settings:
