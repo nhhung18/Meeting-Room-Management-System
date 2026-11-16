@@ -8,14 +8,12 @@ import {
   Tag,
   Button,
   Typography,
-  Space,
-  Drawer,
+  Modal,
   Form,
   Popconfirm,
   App,
   Spin,
   Empty,
-  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -23,11 +21,6 @@ import {
   DeleteOutlined,
   SearchOutlined,
   ToolOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  CloseCircleOutlined,
-  ReloadOutlined,
-  AppstoreOutlined,
   EnvironmentOutlined,
   BarcodeOutlined,
 } from '@ant-design/icons';
@@ -67,20 +60,8 @@ export const EquipmentManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [roomFilter, setRoomFilter] = useState<number | 'ALL' | 'UNASSIGNED'>('ALL');
 
-  // Expanded card state
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  // Drawer states
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Modal states
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -129,7 +110,7 @@ export const EquipmentManagementPage: React.FC = () => {
       status: 'FUNCTIONAL',
       room_ids: [],
     });
-    setDrawerOpen(true);
+    setModalOpen(true);
   };
 
   const handleOpenEdit = (item: EquipmentItem) => {
@@ -145,7 +126,7 @@ export const EquipmentManagementPage: React.FC = () => {
       serial_number: item.serial_number || '',
       notes: item.notes || '',
     });
-    setDrawerOpen(true);
+    setModalOpen(true);
   };
 
   const handleDelete = async (item: EquipmentItem) => {
@@ -195,7 +176,7 @@ export const EquipmentManagementPage: React.FC = () => {
         message.success(t.addEquipmentSuccess);
       }
 
-      setDrawerOpen(false);
+      setModalOpen(false);
       fetchData();
     } catch (err: any) {
       if (!err?.errorFields) {
@@ -345,7 +326,6 @@ export const EquipmentManagementPage: React.FC = () => {
             return (
               <Col xs={24} sm={12} lg={8} key={item.id}>
                 {(() => {
-                  const isExpanded = expandedIds.has(item.id);
                   const assignedIds = item.room_ids && item.room_ids.length > 0
                     ? item.room_ids
                     : (item.room_id ? [item.room_id] : []);
@@ -354,116 +334,91 @@ export const EquipmentManagementPage: React.FC = () => {
                     : (item.room_name ? [item.room_name] : []);
 
                   return (
-                <div className={`h-full flex flex-col justify-between rounded-2xl border transition-all ${
+                <div className={`h-full flex flex-col rounded-2xl border transition-all ${
                   isDark
-                    ? 'bg-[#1c1c1e] border-white/10 hover:border-[#0a84ff]'
-                    : 'bg-white border-slate-200 shadow-2xs hover:border-[#1e40af]'
+                    ? 'bg-[#1c1c1e] border-white/10 hover:border-[#0a84ff]/60'
+                    : 'bg-white border-slate-200 shadow-sm hover:border-[#1e40af]/40'
                 }`}>
-                  {/* Clickable top area */}
-                  <button
-                    type="button"
-                    className="text-left p-4 flex-1 cursor-pointer"
-                    onClick={() => toggleExpand(item.id)}
-                  >
+                  {/* Card body */}
+                  <div className="p-4 flex-1">
                     {/* Header: ID & Status */}
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-white/10">
-                        {item.id}
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-white/10">
+                        #{item.id}
                       </span>
-                      <div className="flex items-center gap-1.5">
-                        <Tag color={statusCfg.color} className="m-0 font-medium text-xs">
-                          {language === 'vi' ? statusCfg.label : statusCfg.labelEn}
-                        </Tag>
-                        <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} text-slate-400`}>▼</span>
-                      </div>
+                      <Tag color={statusCfg.color} className="m-0 font-medium text-xs">
+                        {language === 'vi' ? statusCfg.label : statusCfg.labelEn}
+                      </Tag>
                     </div>
 
                     {/* Device Name */}
-                    <div className="font-bold text-base text-slate-800 dark:text-white line-clamp-1 mb-1">
+                    <div className="font-bold text-base text-slate-800 dark:text-white line-clamp-1 mb-0.5">
                       {item.name}
                     </div>
 
                     {/* Category */}
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-2.5 flex items-center gap-1.5">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                       <ToolOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
                       <span>{item.category}</span>
                     </div>
 
-                    {/* Rooms — always visible, compact chips */}
+                    {/* Rooms */}
                     {assignedIds.length === 0 ? (
-                      <div className={`text-[11px] px-2 py-1 rounded-lg border ${
+                      <div className={`text-[11px] px-2 py-1.5 rounded-lg border flex items-center gap-1.5 ${
                         isDark ? 'bg-white/5 border-white/5 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'
                       }`}>
+                        <EnvironmentOutlined style={{ fontSize: 11 }} />
                         {t.unassignedStorage}
                       </div>
                     ) : assignedIds.length === 1 ? (
-                      <div className={`text-[11px] px-2 py-1 rounded-lg border flex items-center gap-1.5 ${
+                      <div className={`text-[11px] px-2 py-1.5 rounded-lg border flex items-center gap-1.5 ${
                         isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50/50 border-blue-100'
                       }`}>
-                        <EnvironmentOutlined className="text-[#1e40af] dark:text-[#0a84ff] shrink-0" />
+                        <EnvironmentOutlined className="text-[#1e40af] dark:text-[#0a84ff] shrink-0" style={{ fontSize: 11 }} />
                         <span className="truncate font-medium text-slate-700 dark:text-zinc-200">{assignedNames[0]}</span>
                       </div>
                     ) : (
-                      <div className="flex flex-wrap gap-1">
-                        <Tag color="cyan" className="m-0 text-[11px] font-semibold">
-                          {t.sharedEquipmentBadge} ({assignedIds.length})
-                        </Tag>
-                        {assignedIds.map((rid, idx) => (
-                          <span key={rid} className={`text-[11px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                            isDark ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-                          }`}>
-                            <EnvironmentOutlined style={{ fontSize: 10 }} />
-                            {assignedNames[idx] || `Phòng #${rid}`}
+                      <div className={`text-[11px] px-2 py-1.5 rounded-lg border ${
+                        isDark ? 'bg-cyan-950/20 border-cyan-800/30' : 'bg-cyan-50/60 border-cyan-100'
+                      }`}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <EnvironmentOutlined className="text-cyan-500 shrink-0" style={{ fontSize: 11 }} />
+                          <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                            {assignedIds.length} {language === 'vi' ? 'phòng' : 'rooms'}
                           </span>
-                        ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {assignedNames.map((name, idx) => (
+                            <span key={assignedIds[idx]} className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${
+                              isDark ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-white border-cyan-200 text-slate-600'
+                            }`}>
+                              {name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Expanded detail */}
-                    {isExpanded && (
-                      <div className={`mt-3 pt-3 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
-                        {/* Room links */}
-                        {assignedIds.length > 0 && (
-                          <div className="space-y-1">
-                            {assignedIds.map((rid, idx) => (
-                              <button
-                                key={rid}
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/rooms/${rid}`); }}
-                                className={`w-full text-left text-[11px] px-2 py-1.5 rounded-lg border flex items-center justify-between transition-all ${
-                                  isDark
-                                    ? 'bg-white/5 border-white/10 text-[#64d2ff] hover:bg-white/10'
-                                    : 'bg-blue-50/50 border-blue-100 text-[#1e40af] hover:bg-blue-100/50'
-                                }`}
-                              >
-                                <span className="flex items-center gap-1.5 font-medium">
-                                  <EnvironmentOutlined style={{ fontSize: 11 }} />
-                                  {assignedNames[idx] || `Phòng #${rid}`}
-                                </span>
-                                <span className="font-medium">{t.viewDetails} →</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {/* Serial */}
+                    {/* Serial & Notes */}
+                    {(item.serial_number || item.notes) && (
+                      <div className="mt-2.5 space-y-1">
                         {item.serial_number && (
                           <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 dark:text-zinc-500">
-                            <BarcodeOutlined />
+                            <BarcodeOutlined style={{ fontSize: 11 }} />
                             <span>{item.serial_number}</span>
                           </div>
                         )}
-                        {/* Notes */}
                         {item.notes && (
-                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 italic m-0">
-                            "{item.notes}"
+                          <p className="text-[11px] text-slate-400 dark:text-zinc-500 italic m-0 line-clamp-1">
+                            {item.notes}
                           </p>
                         )}
                       </div>
                     )}
-                  </button>
+                  </div>
 
                   {/* Actions Footer */}
-                  <div className="px-4 pb-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2 pt-3">
+                  <div className="px-4 pb-3 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2">
                     <Button
                       size="small"
                       icon={<EditOutlined />}
@@ -498,21 +453,21 @@ export const EquipmentManagementPage: React.FC = () => {
         </Row>
       )}
 
-      {/* Create / Edit Drawer */}
-      <Drawer
-        title={editingItem ? (language === 'vi' ? 'Chỉnh sửa thiết bị' : 'Edit Equipment') : t.addNewEquipmentBtn}
-        placement="right"
-        size={460}
-        onClose={() => setDrawerOpen(false)}
-        open={drawerOpen}
+      {/* Create / Edit Modal */}
+      <Modal
+        title={
+          <span className="font-semibold text-slate-800 dark:text-white">
+            {editingItem ? (language === 'vi' ? 'Chỉnh sửa thiết bị' : 'Edit Equipment') : t.addNewEquipmentBtn}
+          </span>
+        }
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={null}
+        width={520}
+        centered
         styles={{
-          body: {
-            backgroundColor: isDark ? '#18181b' : '#ffffff',
-          },
-          header: {
-            backgroundColor: isDark ? '#18181b' : '#ffffff',
-            borderColor: isDark ? '#27272a' : '#e2e8f0',
-          },
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
         }}
       >
         <Form
@@ -520,6 +475,7 @@ export const EquipmentManagementPage: React.FC = () => {
           layout="vertical"
           requiredMark={false}
           onFinish={handleFormSubmit}
+          className="pt-2"
         >
           <Form.Item
             name="name"
@@ -534,9 +490,7 @@ export const EquipmentManagementPage: React.FC = () => {
             label={<span className="font-medium text-xs text-slate-600 dark:text-zinc-300">{t.equipmentCategoryLabel}</span>}
             rules={[{ required: true }]}
           >
-            <Select
-              options={STANDARD_EQUIPMENT.map((eq) => ({ value: eq, label: eq }))}
-            />
+            <Select options={STANDARD_EQUIPMENT.map((eq) => ({ value: eq, label: eq }))} />
           </Form.Item>
 
           <Form.Item
@@ -559,8 +513,8 @@ export const EquipmentManagementPage: React.FC = () => {
             extra={
               <span className="text-[11px] text-slate-400">
                 {language === 'vi'
-                  ? 'Có thể chọn nhiều phòng nếu là thiết bị dùng chung (VD: TV di động, máy chiếu di động)'
-                  : 'Select multiple rooms if shared across rooms (e.g. mobile TV, portable projector)'}
+                  ? 'Có thể chọn nhiều phòng nếu là thiết bị dùng chung'
+                  : 'Select multiple rooms if this is shared equipment'}
               </span>
             }
           >
@@ -586,11 +540,11 @@ export const EquipmentManagementPage: React.FC = () => {
             name="notes"
             label={<span className="font-medium text-xs text-slate-600 dark:text-zinc-300">{t.equipmentNotesLabel}</span>}
           >
-            <Input.TextArea rows={3} placeholder={language === 'vi' ? 'Thông tin bảo hành, tình trạng hoặc cấu hình đặc biệt...' : 'Warranty, configuration or hardware details...'} />
+            <Input.TextArea rows={3} placeholder={language === 'vi' ? 'Thông tin bảo hành, cấu hình đặc biệt...' : 'Warranty, configuration or hardware details...'} />
           </Form.Item>
 
           <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2">
-            <Button onClick={() => setDrawerOpen(false)}>
+            <Button onClick={() => setModalOpen(false)}>
               {t.cancel}
             </Button>
             <Button
@@ -607,7 +561,7 @@ export const EquipmentManagementPage: React.FC = () => {
             </Button>
           </div>
         </Form>
-      </Drawer>
+      </Modal>
     </div>
   );
 };
