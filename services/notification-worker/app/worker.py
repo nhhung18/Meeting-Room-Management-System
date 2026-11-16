@@ -91,6 +91,7 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
             "booking.checked_in": sender.send_booking_checked_in,
             "booking.auto_cancelled": sender.send_booking_auto_cancelled,
             "booking.reminder": sender.send_booking_reminder,
+            "booking.daily_reminder": sender.send_booking_daily_reminder,
             "room.maintenance_started": sender.send_room_maintenance,
         }
         handler = dispatch.get(event_type)

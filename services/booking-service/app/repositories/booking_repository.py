@@ -133,6 +133,25 @@ class BookingRepository:
         )
         return list(self._db.execute(stmt).scalars().all())
 
+    def find_needing_daily_reminder(self, now: datetime) -> list[Booking]:
+        """CONFIRMED bookings starting in 23–25h window that haven't received the 1-day reminder."""
+        from datetime import timedelta
+
+        window_start = now + timedelta(hours=23)
+        window_end = now + timedelta(hours=25)
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.status == BookingStatus.CONFIRMED,
+                Booking.start_at >= window_start,
+                Booking.start_at < window_end,
+                Booking.daily_reminder_sent_at.is_(None),
+                Booking.deleted_at.is_(None),
+            )
+            .options(selectinload(Booking.attendees))
+        )
+        return list(self._db.execute(stmt).scalars().all())
+
     def update(self, booking: Booking) -> Booking:
         booking.updated_at = datetime.now(UTC)
         self._db.flush()

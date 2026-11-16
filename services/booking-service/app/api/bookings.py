@@ -141,6 +141,7 @@ def create_booking(
                     {
                         "booking_id": result.id,
                         "room_id": result.room_id,
+                        "room_name": result.room_name,
                         "user_id": result.user_id,
                         "booker_email": result.booker_email,
                         "start_at": result.start_at.isoformat(),

@@ -46,15 +46,22 @@ class EmailSender:
 
     def send_booking_created(self, payload: dict) -> None:
         attendees = payload.get("attendees", [])
-        to = [a["email"] for a in attendees if a.get("email")]
-        subject = f"Booking Confirmed — Room {payload.get('room_id')}"
+        to_set = {a["email"] for a in attendees if a.get("email")}
+        if payload.get("booker_email"):
+            to_set.add(payload["booker_email"])
+        room = payload.get("room_name") or f"Room {payload.get('room_id')}"
+        subject = f"[MRMS] Booking Confirmed — {room}"
+        purpose_line = f"Purpose:   {payload['purpose']}\n" if payload.get("purpose") else ""
         body = (
-            f"Your booking (ID: {payload.get('booking_id')}) is confirmed.\n"
-            f"Room: {payload.get('room_id')}\n"
-            f"From: {payload.get('start_at')}\n"
-            f"To:   {payload.get('end_at')}\n"
+            f"Your meeting room booking is confirmed.\n\n"
+            f"Booking ID: {payload.get('booking_id')}\n"
+            f"Room:       {room}\n"
+            f"Start:      {payload.get('start_at')}\n"
+            f"End:        {payload.get('end_at')}\n"
+            f"{purpose_line}"
+            f"\nPlease check in within 15 minutes of the start time to avoid auto-cancellation.\n"
         )
-        self._send(to, subject, body)
+        self._send(list(to_set), subject, body)
 
     def send_booking_cancelled(self, payload: dict) -> None:
         # Gửi tới user_id (email không có trong payload cancel — log user_id)
@@ -104,15 +111,39 @@ class EmailSender:
         self._send(list(to_set), subject, body)
 
     def send_booking_reminder(self, payload: dict) -> None:
+        """Check-in alert — gửi trước 15 phút khi cuộc họp bắt đầu."""
         attendees = payload.get("attendees", [])
         to_set = {a["email"] for a in attendees if a.get("email")}
         if payload.get("booker_email"):
             to_set.add(payload["booker_email"])
-        subject = f"Reminder: Meeting starts soon — Room {payload.get('room_id')}"
+        room = payload.get("room_name") or f"Room {payload.get('room_id')}"
+        subject = f"[MRMS] Check-in Reminder — Your meeting starts in 15 minutes"
         body = (
-            f"This is a reminder that your meeting (Booking ID: {payload.get('booking_id')})\n"
-            f"starts at: {payload.get('start_at')}\n"
-            f"Room: {payload.get('room_id')}\n"
+            f"Your meeting starts in approximately 15 minutes.\n\n"
+            f"Booking ID: {payload.get('booking_id')}\n"
+            f"Room:       {room}\n"
+            f"Start:      {payload.get('start_at')}\n"
+            f"\nRemember to check in. Bookings with no check-in are auto-cancelled 15 minutes after start.\n"
+        )
+        self._send(list(to_set), subject, body)
+
+    def send_booking_daily_reminder(self, payload: dict) -> None:
+        """Nhắc lịch trước 1 ngày."""
+        attendees = payload.get("attendees", [])
+        to_set = {a["email"] for a in attendees if a.get("email")}
+        if payload.get("booker_email"):
+            to_set.add(payload["booker_email"])
+        room = payload.get("room_name") or f"Room {payload.get('room_id')}"
+        purpose_line = f"Purpose:   {payload['purpose']}\n" if payload.get("purpose") else ""
+        subject = f"[MRMS] Meeting Tomorrow — {room}"
+        body = (
+            f"You have a meeting scheduled for tomorrow.\n\n"
+            f"Booking ID: {payload.get('booking_id')}\n"
+            f"Room:       {room}\n"
+            f"Start:      {payload.get('start_at')}\n"
+            f"End:        {payload.get('end_at')}\n"
+            f"{purpose_line}"
+            f"\nPlease check in within 15 minutes of the start time.\n"
         )
         self._send(list(to_set), subject, body)
 

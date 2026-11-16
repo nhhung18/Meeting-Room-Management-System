@@ -55,10 +55,12 @@ def _make_booking(
     booking.start_at = start_at or (now + timedelta(hours=1))
     booking.end_at = end_at or (now + timedelta(hours=2))
     booking.num_attendees = num_attendees
+    booking.purpose = None
     booking.attendees = attendees if attendees is not None else []
     booking.checked_in_at = None
     booking.auto_cancelled_at = None
     booking.reminder_sent_at = None
+    booking.daily_reminder_sent_at = None
     booking.created_at = now
     booking.updated_at = now
     return booking
