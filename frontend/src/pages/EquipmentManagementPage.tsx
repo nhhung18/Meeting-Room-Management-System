@@ -67,6 +67,18 @@ export const EquipmentManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [roomFilter, setRoomFilter] = useState<number | 'ALL' | 'UNASSIGNED'>('ALL');
 
+  // Expanded card state
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // Drawer states
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
@@ -332,20 +344,38 @@ export const EquipmentManagementPage: React.FC = () => {
             const statusCfg = EQUIPMENT_STATUS_CONFIG[item.status];
             return (
               <Col xs={24} sm={12} lg={8} key={item.id}>
-                <div className={`h-full flex flex-col justify-between rounded-2xl p-4 border transition-all ${
+                {(() => {
+                  const isExpanded = expandedIds.has(item.id);
+                  const assignedIds = item.room_ids && item.room_ids.length > 0
+                    ? item.room_ids
+                    : (item.room_id ? [item.room_id] : []);
+                  const assignedNames = item.room_names && item.room_names.length > 0
+                    ? item.room_names
+                    : (item.room_name ? [item.room_name] : []);
+
+                  return (
+                <div className={`h-full flex flex-col justify-between rounded-2xl border transition-all ${
                   isDark
                     ? 'bg-[#1c1c1e] border-white/10 hover:border-[#0a84ff]'
                     : 'bg-white border-slate-200 shadow-2xs hover:border-[#1e40af]'
                 }`}>
-                  <div>
+                  {/* Clickable top area */}
+                  <button
+                    type="button"
+                    className="text-left p-4 flex-1 cursor-pointer"
+                    onClick={() => toggleExpand(item.id)}
+                  >
                     {/* Header: ID & Status */}
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-white/10">
                         {item.id}
                       </span>
-                      <Tag color={statusCfg.color} className="m-0 font-medium text-xs">
-                        {language === 'vi' ? statusCfg.label : statusCfg.labelEn}
-                      </Tag>
+                      <div className="flex items-center gap-1.5">
+                        <Tag color={statusCfg.color} className="m-0 font-medium text-xs">
+                          {language === 'vi' ? statusCfg.label : statusCfg.labelEn}
+                        </Tag>
+                        <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} text-slate-400`}>▼</span>
+                      </div>
                     </div>
 
                     {/* Device Name */}
@@ -359,88 +389,81 @@ export const EquipmentManagementPage: React.FC = () => {
                       <span>{item.category}</span>
                     </div>
 
-                    {/* Location / Assigned Room(s) */}
-                    {(() => {
-                      const assignedIds = item.room_ids && item.room_ids.length > 0
-                        ? item.room_ids
-                        : (item.room_id ? [item.room_id] : []);
-                      const assignedNames = item.room_names && item.room_names.length > 0
-                        ? item.room_names
-                        : (item.room_name ? [item.room_name] : []);
-
-                      if (assignedIds.length > 1) {
-                        return (
-                          <div className={`p-2.5 rounded-lg border text-xs mb-3 ${
-                            isDark ? 'bg-cyan-950/20 border-cyan-800/30' : 'bg-cyan-50/60 border-cyan-100'
+                    {/* Rooms — always visible, compact chips */}
+                    {assignedIds.length === 0 ? (
+                      <div className={`text-[11px] px-2 py-1 rounded-lg border ${
+                        isDark ? 'bg-white/5 border-white/5 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'
+                      }`}>
+                        {t.unassignedStorage}
+                      </div>
+                    ) : assignedIds.length === 1 ? (
+                      <div className={`text-[11px] px-2 py-1 rounded-lg border flex items-center gap-1.5 ${
+                        isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50/50 border-blue-100'
+                      }`}>
+                        <EnvironmentOutlined className="text-[#1e40af] dark:text-[#0a84ff] shrink-0" />
+                        <span className="truncate font-medium text-slate-700 dark:text-zinc-200">{assignedNames[0]}</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        <Tag color="cyan" className="m-0 text-[11px] font-semibold">
+                          {t.sharedEquipmentBadge} ({assignedIds.length})
+                        </Tag>
+                        {assignedIds.map((rid, idx) => (
+                          <span key={rid} className={`text-[11px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                            isDark ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-600'
                           }`}>
-                            <div className="flex items-center justify-between gap-1 mb-1.5">
-                              <Tag color="cyan" className="m-0 font-semibold text-[11px]">
-                                {t.sharedEquipmentBadge} ({assignedIds.length})
-                              </Tag>
-                              <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-medium">
-                                {t.sharedAcrossRooms}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {assignedIds.map((rid, idx) => (
-                                <button
-                                  key={rid}
-                                  type="button"
-                                  onClick={() => navigate(`/rooms/${rid}`)}
-                                  className="text-[11px] px-1.5 py-0.5 rounded border transition-all cursor-pointer bg-white dark:bg-white/10 border-slate-200 dark:border-white/15 text-[#1e40af] dark:text-[#64d2ff] hover:underline flex items-center gap-1 font-medium"
-                                >
-                                  <EnvironmentOutlined style={{ fontSize: 10 }} />
-                                  <span>{assignedNames[idx] || `Phòng #${rid}`}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
+                            <EnvironmentOutlined style={{ fontSize: 10 }} />
+                            {assignedNames[idx] || `Phòng #${rid}`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
-                      return (
-                        <div className={`p-2 rounded-lg border text-xs mb-3 flex items-center justify-between ${
-                          assignedIds.length === 1
-                            ? isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50/50 border-blue-100'
-                            : isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'
-                        }`}>
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <EnvironmentOutlined className={assignedIds.length === 1 ? 'text-[#1e40af] dark:text-[#0a84ff]' : 'text-slate-400'} />
-                            <span className="truncate font-medium text-slate-700 dark:text-zinc-200">
-                              {assignedNames[0] || t.unassignedStorage}
-                            </span>
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className={`mt-3 pt-3 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+                        {/* Room links */}
+                        {assignedIds.length > 0 && (
+                          <div className="space-y-1">
+                            {assignedIds.map((rid, idx) => (
+                              <button
+                                key={rid}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/rooms/${rid}`); }}
+                                className={`w-full text-left text-[11px] px-2 py-1.5 rounded-lg border flex items-center justify-between transition-all ${
+                                  isDark
+                                    ? 'bg-white/5 border-white/10 text-[#64d2ff] hover:bg-white/10'
+                                    : 'bg-blue-50/50 border-blue-100 text-[#1e40af] hover:bg-blue-100/50'
+                                }`}
+                              >
+                                <span className="flex items-center gap-1.5 font-medium">
+                                  <EnvironmentOutlined style={{ fontSize: 11 }} />
+                                  {assignedNames[idx] || `Phòng #${rid}`}
+                                </span>
+                                <span className="font-medium">{t.viewDetails} →</span>
+                              </button>
+                            ))}
                           </div>
-                          {assignedIds.length === 1 && (
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/rooms/${assignedIds[0]}`)}
-                              className="text-[11px] text-[#1e40af] dark:text-[#0a84ff] hover:underline font-medium shrink-0 ml-1 cursor-pointer"
-                            >
-                              {t.viewDetails} &rarr;
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Serial & Notes */}
-                    <div className="space-y-1 text-xs text-slate-400">
-                      {item.serial_number && (
-                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                          <BarcodeOutlined />
-                          <span>{item.serial_number}</span>
-                        </div>
-                      )}
-                      {item.notes && (
-                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-2 italic m-0">
-                          "{item.notes}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                        )}
+                        {/* Serial */}
+                        {item.serial_number && (
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 dark:text-zinc-500">
+                            <BarcodeOutlined />
+                            <span>{item.serial_number}</span>
+                          </div>
+                        )}
+                        {/* Notes */}
+                        {item.notes && (
+                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 italic m-0">
+                            "{item.notes}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </button>
 
                   {/* Actions Footer */}
-                  <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2 mt-4">
+                  <div className="px-4 pb-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2 pt-3">
                     <Button
                       size="small"
                       icon={<EditOutlined />}
@@ -467,6 +490,8 @@ export const EquipmentManagementPage: React.FC = () => {
                     </Popconfirm>
                   </div>
                 </div>
+                  );
+                })()}
               </Col>
             );
           })}
