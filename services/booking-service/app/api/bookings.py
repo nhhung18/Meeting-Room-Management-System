@@ -154,6 +154,28 @@ def create_booking(
                 ),
             )
         )
+        # Send invitation emails to attendees
+        if result.attendees:
+            db.add(
+                OutboxEvent(
+                    event_type="booking.invitation",
+                    payload=json.dumps(
+                        {
+                            "booking_id": result.id,
+                            "room_id": result.room_id,
+                            "room_name": result.room_name,
+                            "booker_name": user.name if hasattr(user, "name") else user.email,
+                            "booker_email": result.booker_email,
+                            "start_at": result.start_at.isoformat(),
+                            "end_at": result.end_at.isoformat(),
+                            "purpose": result.purpose,
+                            "attendees": [
+                                {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                            ],
+                        }
+                    ),
+                )
+            )
         db.commit()
         return result
     except BookingService.DomainError as exc:

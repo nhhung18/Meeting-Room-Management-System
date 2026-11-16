@@ -86,6 +86,7 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
         sender = get_email_sender()
         dispatch = {
             "booking.created": sender.send_booking_created,
+            "booking.invitation": sender.send_booking_invitation,
             "booking.updated": sender.send_booking_updated,
             "booking.cancelled": sender.send_booking_cancelled,
             "booking.checked_in": sender.send_booking_checked_in,
