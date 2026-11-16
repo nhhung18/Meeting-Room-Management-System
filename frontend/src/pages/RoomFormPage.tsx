@@ -10,7 +10,7 @@ import {
   App,
   Spin,
   Tag,
-  Breadcrumb,
+
   Upload,
   Popconfirm,
   Progress,
@@ -496,67 +496,35 @@ export const RoomFormPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-7">
-      {/* Top bar: breadcrumb + actions */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/admin/rooms')}
-            style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontWeight: 600, marginBottom: 4 }}
-          >
-            {language === 'vi' ? 'Quay lại' : 'Back'}
-          </Button>
-          <Breadcrumb
-            items={[
-              {
-                title: (
-                  <span
-                    className="cursor-pointer text-xs hover:underline"
-                    onClick={() => navigate('/admin/rooms')}
-                  >
-                    {language === 'vi' ? 'Quản lý phòng họp' : 'Room Management'}
-                  </span>
-                ),
-              },
-              {
-                title: (
-                  <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                    {isEdit
-                      ? (language === 'vi' ? 'Chỉnh sửa phòng' : 'Edit Room')
-                      : (language === 'vi' ? 'Tạo phòng mới' : 'New Room')}
-                  </span>
-                ),
-              },
-            ]}
-          />
-          <h1 className={`text-xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-800'}`}>
-            {isEdit
-              ? (language === 'vi' ? 'Chỉnh sửa phòng họp' : 'Edit Meeting Room')
-              : (language === 'vi' ? 'Tạo phòng họp mới' : 'Create New Meeting Room')}
-          </h1>
-        </div>
+    <div className="max-w-full space-y-7">
+      {/* Top bar: back button + save action */}
+      <div className="flex items-center justify-between">
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/admin/rooms')}
+          style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontWeight: 600 }}
+        >
+          {language === 'vi' ? 'Quay lại danh sách phòng' : 'Back to room list'}
+        </Button>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="primary"
-            icon={isEdit ? <CheckOutlined /> : <PlusOutlined />}
-            loading={submitting || imageUploading || deletingImage}
-            onClick={handleSubmit}
-            style={{
-              backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-              borderColor: isDark ? '#0a84ff' : '#1e40af',
-              borderRadius: 10,
-              fontWeight: 600,
-              minWidth: 130,
-            }}
-          >
-            {isEdit
-              ? (language === 'vi' ? 'Lưu thay đổi' : 'Save Changes')
-              : (language === 'vi' ? 'Tạo phòng họp' : 'Create Room')}
-          </Button>
-        </div>
+        <Button
+          type="primary"
+          icon={isEdit ? <CheckOutlined /> : <PlusOutlined />}
+          loading={submitting || imageUploading || deletingImage}
+          onClick={handleSubmit}
+          style={{
+            backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+            borderColor: isDark ? '#0a84ff' : '#1e40af',
+            borderRadius: 10,
+            fontWeight: 600,
+            minWidth: 130,
+          }}
+        >
+          {isEdit
+            ? (language === 'vi' ? 'Lưu thay đổi' : 'Save Changes')
+            : (language === 'vi' ? 'Tạo phòng họp' : 'Create Room')}
+        </Button>
       </div>
 
       {/* Two-column layout */}
