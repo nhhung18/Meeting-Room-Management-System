@@ -129,12 +129,7 @@ export const AppLayout: React.FC = () => {
     },
   ];
 
-  if (user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR') {
-    menuItems.push({
-      key: '/admin/rooms',
-      icon: <SettingOutlined style={{ fontSize: 16 }} />,
-      label: t.roomManagement,
-    });
+  if (user?.role === 'ADMINISTRATOR') {
     menuItems.push({
       key: '/admin/equipment',
       icon: <ToolOutlined style={{ fontSize: 16 }} />,
