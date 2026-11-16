@@ -202,23 +202,32 @@ class BookingService:
             )
 
         changes = dto.model_dump(exclude_unset=True)
-        time_changed = "start_at" in changes or "end_at" in changes
+        time_or_room_changed = (
+            "start_at" in changes or "end_at" in changes or "room_id" in changes
+        )
 
-        # Apply scalar field changes first
-        for field in ("num_attendees", "start_at", "end_at", "room_id", "purpose"):
-            if field in changes:
-                setattr(booking, field, changes[field])
+        # Compute new values WITHOUT modifying the booking yet — if we setattr first and
+        # then call has_overlap(), SQLAlchemy's autoflush sends the dirty object to
+        # Postgres before the app-level check runs, causing the EXCLUDE constraint to fire.
+        new_room_id = changes.get("room_id", booking.room_id)
+        new_start_at = changes.get("start_at", booking.start_at)
+        new_end_at = changes.get("end_at", booking.end_at)
 
-        # If time changed, re-validate past + overlap
-        if time_changed:
-            if booking.start_at <= datetime.now(UTC):
+        # Validate BEFORE applying changes (avoids autoflush-triggered constraint violation)
+        if time_or_room_changed:
+            if new_start_at <= datetime.now(UTC):
                 raise BookingService.PastBookingError(
                     "Updated booking start time must be in the future"
                 )
             if self._booking_repo.has_overlap(
-                booking.room_id, booking.start_at, booking.end_at, exclude_id=booking_id
+                new_room_id, new_start_at, new_end_at, exclude_id=booking_id
             ):
                 raise BookingService.OverlapError("Updated time slot overlaps an existing booking")
+
+        # Apply scalar field changes after validation
+        for field in ("num_attendees", "start_at", "end_at", "room_id", "purpose"):
+            if field in changes:
+                setattr(booking, field, changes[field])
 
         # Replace attendees list if provided
         if "attendees" in changes and changes["attendees"] is not None:
