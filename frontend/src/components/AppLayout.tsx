@@ -42,6 +42,7 @@ import { resetMockDataToDefault } from '../api/client';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { BrightnessIcon, MoonIcon } from './ThemeIcons';
 import { LanguageToggle } from './LanguageToggle';
+import { BrandLogo } from './BrandLogo';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -89,6 +90,12 @@ export const AppLayout: React.FC = () => {
     } else if (path === '/admin/rooms') {
       items.push({ title: <span>{t.adminSection}</span> });
       items.push({ title: <span>{t.roomManagement}</span> });
+    } else if (path === '/admin/rooms/new') {
+      items.push({ title: <Link to="/rooms">{t.roomList}</Link> });
+      items.push({ title: <span>{language === 'vi' ? 'Tạo phòng mới' : 'New Room'}</span> });
+    } else if (path.startsWith('/admin/rooms/') && path.endsWith('/edit')) {
+      items.push({ title: <Link to="/rooms">{t.roomList}</Link> });
+      items.push({ title: <span>{language === 'vi' ? 'Chỉnh sửa phòng' : 'Edit Room'}</span> });
     } else if (path === '/admin/equipment') {
       items.push({ title: <span>{t.adminSection}</span> });
       items.push({ title: <span>{t.equipmentManagement}</span> });
@@ -164,7 +171,11 @@ export const AppLayout: React.FC = () => {
   const activeKey = menuItems.find((item) => {
     if (!item?.key) return false;
     const keyStr = String(item.key);
-    if (keyStr === '/rooms' && (location.pathname.startsWith('/rooms/') || location.pathname === '/book')) {
+    if (keyStr === '/rooms' && (
+      location.pathname.startsWith('/rooms/') ||
+      location.pathname === '/book' ||
+      location.pathname.startsWith('/admin/rooms/')
+    )) {
       return true;
     }
     return location.pathname === keyStr;
@@ -306,24 +317,11 @@ export const AppLayout: React.FC = () => {
           >
             {collapsed ? (
               <div className="w-full flex justify-center">
-                <img
-                  src="/assets/aistudio/Logo.png"
-                  alt="Logo"
-                  className="w-10 h-10 object-contain shrink-0"
-                />
+                <BrandLogo variant="icon" className="w-7 h-7" alt="Logo" />
               </div>
             ) : (
-              <div className="flex items-center gap-2.5">
-                <img
-                  src="/assets/aistudio/Logo.png"
-                  alt="Logo"
-                  className="w-10 h-10 object-contain shrink-0"
-                />
-                <div className="overflow-hidden whitespace-nowrap">
-                  <div className={`font-extrabold text-[13px] tracking-wide uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
-                    MEETING ROOM SYSTEM
-                  </div>
-                </div>
+              <div className="flex items-center">
+                <BrandLogo variant="full" className="h-7 w-auto" alt="Logo" />
               </div>
             )}
           </div>
@@ -386,14 +384,7 @@ export const AppLayout: React.FC = () => {
                   }
                 }}
               >
-                <img
-                  src="/assets/aistudio/Logo.png"
-                  alt="Logo"
-                  className="w-9 h-9 object-contain shrink-0"
-                />
-                <div className={`font-extrabold text-xs tracking-tight uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
-                  MEETING ROOM SYSTEM
-                </div>
+                <BrandLogo variant="full" className="h-6 w-auto" alt="Logo" />
               </div>
             ) : (
               <div className="hidden sm:block">
@@ -537,14 +528,7 @@ export const AppLayout: React.FC = () => {
             role="button"
             tabIndex={0}
           >
-            <img
-              src="/assets/aistudio/Logo.png"
-              alt="Logo"
-              className="w-9 h-9 object-contain shrink-0"
-            />
-            <div className={`font-extrabold text-[13px] tracking-wide uppercase ${isDark ? 'text-white' : 'text-[#141b54]'}`}>
-              MEETING ROOM SYSTEM
-            </div>
+            <BrandLogo variant="full" className="h-6 w-auto" alt="Logo" />
           </div>
         }
         placement="left"

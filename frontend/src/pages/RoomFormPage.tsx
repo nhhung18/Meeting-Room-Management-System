@@ -376,7 +376,7 @@ export const RoomFormPage: React.FC = () => {
         setExistingImageUrl(room.image_url ?? null);
       } catch {
         message.error(language === 'vi' ? 'Không tải được thông tin phòng' : 'Failed to load room');
-        navigate('/admin/rooms');
+        navigate('/rooms');
       } finally {
         setLoadingRoom(false);
       }
@@ -478,7 +478,7 @@ export const RoomFormPage: React.FC = () => {
         }
       }
 
-      navigate('/admin/rooms');
+      navigate('/rooms');
     } catch (err: any) {
       if (err?.errorFields) return;
       message.error(err?.message || (language === 'vi' ? 'Lỗi khi lưu phòng' : 'Error saving room'));
@@ -502,7 +502,7 @@ export const RoomFormPage: React.FC = () => {
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/admin/rooms')}
+          onClick={() => navigate('/rooms')}
           style={{ paddingLeft: 0, color: isDark ? '#0a84ff' : '#1e40af', fontWeight: 600 }}
         >
           {language === 'vi' ? 'Quay lại danh sách phòng' : 'Back to room list'}
