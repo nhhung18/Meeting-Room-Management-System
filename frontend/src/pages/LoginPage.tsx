@@ -15,6 +15,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { UserRole } from '../types';
 import { BrightnessIcon, MoonIcon } from '../components/ThemeIcons';
 import { LanguageToggle } from '../components/LanguageToggle';
+import { BrandLogo } from '../components/BrandLogo';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -33,7 +34,7 @@ export const LoginPage: React.FC = () => {
     import.meta.env.VITE_AUTH0_AUDIENCE
   );
 
-  // If already logged in, redirect
+  // If already logged in, redirect to intended page
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
       const from = (location.state as any)?.from?.pathname;
@@ -41,6 +42,15 @@ export const LoginPage: React.FC = () => {
       navigate(target, { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate, location]);
+
+  // Auth0 mode: auto-forward to Auth0 login instead of showing this page
+  React.useEffect(() => {
+    if (!isLoading && !isAuthenticated && auth0Mode && loginWithRedirect) {
+      const from = (location.state as any)?.from?.pathname;
+      const target = from && from !== '/login' && from !== '/callback' ? from : '/dashboard';
+      loginWithRedirect({ appState: { returnTo: target } });
+    }
+  }, [isLoading, isAuthenticated, auth0Mode, loginWithRedirect, location]);
 
   const handleAuth0Login = async (role: UserRole = 'ADMINISTRATOR') => {
     if (auth0Mode && loginWithRedirect) {
@@ -103,10 +113,9 @@ export const LoginPage: React.FC = () => {
       >
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
-            <img
-              src="/assets/aistudio/Logo.png"
-              alt="MRMS Logo"
-              className="w-28 h-28 object-contain drop-shadow-md hover:scale-105 transition-transform"
+            <BrandLogo
+              variant="full"
+              className="h-10 sm:h-12 w-auto drop-shadow-sm hover:scale-105 transition-transform"
             />
           </div>
           <Title level={3} style={{ marginTop: 0, marginBottom: 4, fontWeight: 800, color: isDark ? '#ffffff' : '#141b54' }}>
@@ -116,21 +125,7 @@ export const LoginPage: React.FC = () => {
             {t.loginAppSubtitle}
           </Text>
         </div>
-
-        <div className={`mb-5 p-3.5 rounded-xl border ${
-          isDark
-            ? 'bg-white/5 border-white/10 text-zinc-300'
-            : 'bg-sky-50/70 border-sky-100 text-slate-700'
-        }`}>
-          <div className="font-semibold text-xs text-[#00c2e8] flex items-center gap-1.5 mb-1">
-            <SafetyCertificateOutlined />
-            <span>{t.ssoAuthBoxTitle}</span>
-          </div>
-          <p className="m-0 text-xs text-slate-400">
-            {t.ssoAuthBoxDesc}
-          </p>
-        </div>
-
+        
         {/* Primary Auth0 Login Button Solid Corporate Blue */}
         <Button
           type="primary"
@@ -151,54 +146,6 @@ export const LoginPage: React.FC = () => {
         >
           {t.loginWithAuth0Btn}
         </Button>
-
-        <Divider plain>
-          <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {t.orSelectTestRole}
-          </span>
-        </Divider>
-
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
-          <Button
-            block
-            icon={<SettingOutlined />}
-            onClick={() => handleAuth0Login('ADMINISTRATOR')}
-            style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}
-          >
-            <span>{t.roleAdmin} (Admin)</span>
-            <Tag color="purple">{t.roleAdminFullAccess}</Tag>
-          </Button>
-
-          <Button
-            block
-            icon={<TeamOutlined />}
-            onClick={() => handleAuth0Login('ROOM_MANAGER')}
-            style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}
-          >
-            <span>{t.roleManager} (Manager)</span>
-            <Tag color="cyan">{t.roleManagerRoomAdmin}</Tag>
-          </Button>
-
-          <Button
-            block
-            icon={<UserOutlined />}
-            onClick={() => handleAuth0Login('EMPLOYEE')}
-            style={{ textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}
-          >
-            <span>{t.roleEmployee} (Employee)</span>
-            <Tag color="blue">{t.roleEmployeeBookingCheckin}</Tag>
-          </Button>
-        </Space>
-
-        <div className={`mt-6 pt-3 border-t text-center ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
-          <div className="flex items-center justify-center gap-2 text-slate-400 text-[11px]">
-            <span><CheckCircleOutlined className="text-emerald-500 mr-1" />{t.instantSyncFeature}</span>
-            <span>·</span>
-            <span><CheckCircleOutlined className="text-emerald-500 mr-1" />{t.checkIn15mFeature}</span>
-            <span>·</span>
-            <span><CheckCircleOutlined className="text-emerald-500 mr-1" />{t.blueocSecurityFeature}</span>
-          </div>
-        </div>
       </Card>
     </div>
   );
