@@ -474,18 +474,15 @@ export const RoomFormPage: React.FC = () => {
       if (isEdit) {
         await updateRoom(Number(id), payload);
         roomId = Number(id);
-        message.success(language === 'vi' ? 'Cập nhật phòng thành công' : 'Room updated successfully');
       } else {
         const created = await createRoom(payload);
         roomId = created.id;
-        message.success(language === 'vi' ? 'Tạo phòng họp thành công' : 'Room created successfully');
       }
 
       if (imageFile) {
         setImageUploading(true);
         try {
           await uploadRoomImage(roomId, imageFile);
-          message.success(language === 'vi' ? 'Tải ảnh thành công' : 'Image uploaded successfully');
         } catch (imgErr: any) {
           message.error(imgErr?.message || (language === 'vi' ? 'Lỗi khi tải ảnh lên' : 'Failed to upload image'));
         } finally {
@@ -493,6 +490,10 @@ export const RoomFormPage: React.FC = () => {
         }
       }
 
+      message.success(isEdit
+        ? (language === 'vi' ? 'Cập nhật phòng thành công' : 'Room updated successfully')
+        : (language === 'vi' ? 'Tạo phòng họp thành công' : 'Room created successfully')
+      );
       navigate('/rooms');
     } catch (err: any) {
       if (err?.errorFields) return;
