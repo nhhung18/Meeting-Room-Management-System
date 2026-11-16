@@ -17,7 +17,6 @@ import {
   Row,
   Col,
   Spin,
-  Empty,
   Pagination,
   Modal,
 } from 'antd';
@@ -34,16 +33,130 @@ import {
   SafetyCertificateOutlined,
   ThunderboltOutlined,
   ToolOutlined,
+  CloseOutlined,
+  CheckOutlined,
+  InfoCircleOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { Room, RoomStatus, ROOM_STATUS_CONFIG, STANDARD_EQUIPMENT, getRoomStatusLabel, getEquipmentLabel } from '../types';
 import { getRooms, createRoom, updateRoom, deleteRoom, forceReleaseRoom, toggleRoomMaintenance } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
+import { EmptyRoomState } from '../components/EmptyRoomState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
+
+// ── Equipment chip selector (standard equipment) ──────────────────────────────
+interface EquipmentChipGroupProps {
+  value?: string[];
+  onChange?: (val: string[]) => void;
+  standardEquipment: string[];
+  language: string;
+  isDark: boolean;
+  getEquipmentLabel: (eq: string, lang: string) => string;
+}
+
+const EquipmentChipGroup: React.FC<EquipmentChipGroupProps> = ({
+  value = [],
+  onChange,
+  standardEquipment,
+  language,
+  isDark,
+  getEquipmentLabel,
+}) => {
+  const toggle = (eq: string) => {
+    if (value.includes(eq)) {
+      onChange?.(value.filter((v) => v !== eq));
+    } else {
+      onChange?.([...value, eq]);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {standardEquipment.map((eq) => {
+        const selected = value.includes(eq);
+        return (
+          <button
+            key={eq}
+            type="button"
+            onClick={() => toggle(eq)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer select-none ${
+              selected
+                ? isDark
+                  ? 'bg-[#0a84ff]/20 border-[#0a84ff] text-[#0a84ff]'
+                  : 'bg-blue-50 border-[#1e40af] text-[#1e40af]'
+                : isDark
+                ? 'bg-white/5 border-white/15 text-zinc-400 hover:border-white/30 hover:text-zinc-200'
+                : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+            }`}
+          >
+            {selected && <CheckOutlined style={{ fontSize: 10 }} />}
+            {getEquipmentLabel(eq, language)}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Custom equipment removable tags ───────────────────────────────────────────
+interface CustomEquipmentTagsProps {
+  value?: string[];
+  onChange?: (val: string[]) => void;
+  standardEquipment: string[];
+  isDark: boolean;
+  getEquipmentLabel: (eq: string, lang: string) => string;
+  language: string;
+}
+
+const CustomEquipmentTags: React.FC<CustomEquipmentTagsProps> = ({
+  value = [],
+  onChange,
+  standardEquipment,
+  isDark,
+  getEquipmentLabel,
+  language,
+}) => {
+  const customItems = value.filter((v) => !standardEquipment.includes(v));
+  if (customItems.length === 0) return null;
+
+  const remove = (eq: string) => onChange?.(value.filter((v) => v !== eq));
+
+  return (
+    <div className="mt-3">
+      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        {language === 'vi' ? 'Thiết bị tuỳ chỉnh đã thêm' : 'Added custom equipment'}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {customItems.map((eq) => (
+          <span
+            key={eq}
+            className={`flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-medium border ${
+              isDark
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                : 'bg-amber-50 border-amber-200 text-amber-700'
+            }`}
+          >
+            {getEquipmentLabel(eq, language)}
+            <button
+              type="button"
+              onClick={() => remove(eq)}
+              className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                isDark ? 'hover:bg-amber-500/30 text-amber-400' : 'hover:bg-amber-200 text-amber-600'
+              }`}
+            >
+              <CloseOutlined style={{ fontSize: 9 }} />
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const RoomManagementPage: React.FC = () => {
   const navigate = useNavigate();
@@ -342,16 +455,24 @@ export const RoomManagementPage: React.FC = () => {
           <Spin size="large" description={t.loadingRooms} />
         </div>
       ) : rooms.length === 0 ? (
-        <div className={`p-8 rounded-2xl border text-center ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'}`}>
-          <Empty
-            description={t.emptyRooms || t.noRoomsFound}
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <Button type="primary" onClick={handleOpenCreate} style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af' }}>
-              {t.addNewRoomBtn}
-            </Button>
-          </Empty>
-        </div>
+        <EmptyRoomState
+          title={t.emptyRooms || t.noRoomsFound}
+          description={
+            language === 'vi'
+              ? (searchQuery || statusFilter !== 'ALL')
+                ? 'Không có phòng họp nào khớp với điều kiện tìm kiếm hoặc trạng thái hiện tại.'
+                : 'Hệ thống hiện chưa có phòng họp nào. Bấm nút bên dưới để tạo phòng họp đầu tiên.'
+              : (searchQuery || statusFilter !== 'ALL')
+                ? 'No meeting rooms match your current search or status filter.'
+                : 'There are currently no meeting rooms in the system. Click below to add your first room.'
+          }
+          isDark={isDark}
+          primaryActionLabel={t.addNewRoomBtn}
+          primaryActionIcon={<PlusOutlined />}
+          onPrimaryAction={handleOpenCreate}
+          secondaryActionLabel={t.refreshData}
+          onSecondaryAction={fetchRooms}
+        />
       ) : (
         <>
           <Row gutter={[16, 16]}>
@@ -577,141 +698,256 @@ export const RoomManagementPage: React.FC = () => {
 
       {/* Create / Edit Drawer */}
       <Drawer
-        title={
-          <span className="font-bold text-base">
-            {editingRoom ? `${t.drawerEditRoomTitle}: ${editingRoom.name}` : t.drawerCreateRoomTitle}
-          </span>
-        }
+        title={null}
         placement="right"
-        size={typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 480}
+        width={typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 520}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
+        closeIcon={null}
         styles={{
-          body: {
-            backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
-          },
-          header: {
-            backgroundColor: isDark ? '#242426' : '#ffffff',
-            borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #f1f5f9',
-          },
+          body: { backgroundColor: isDark ? '#1c1c1e' : '#f8fafc', padding: 0 },
+          wrapper: { boxShadow: isDark ? '-8px 0 32px rgba(0,0,0,0.6)' : '-8px 0 32px rgba(0,0,0,0.12)' },
         }}
         footer={
-          <div className="flex items-center justify-end gap-2 py-1">
-            <Button onClick={() => setDrawerOpen(false)} style={{ borderRadius: 6 }}>
-              {t.cancel}
-            </Button>
-            <Button
-              type="primary"
-              loading={submitting}
-              onClick={handleFormSubmit}
-              style={{
-                backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-                borderColor: isDark ? '#0a84ff' : '#1e40af',
-                borderRadius: 6,
-                fontWeight: 600,
-              }}
-            >
-              {editingRoom ? t.saveChangesSubmitBtn : t.createRoomSubmitBtn}
-            </Button>
+          <div className={`flex items-center justify-between gap-3 px-5 py-3.5 border-t ${isDark ? 'border-white/10 bg-[#1c1c1e]' : 'border-slate-200 bg-white'}`}>
+            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              {editingRoom
+                ? (language === 'vi' ? `Chỉnh sửa: ${editingRoom.name}` : `Editing: ${editingRoom.name}`)
+                : (language === 'vi' ? 'Tạo phòng họp mới' : 'Creating new meeting room')}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setDrawerOpen(false)} style={{ borderRadius: 8 }}>
+                {t.cancel}
+              </Button>
+              <Button
+                type="primary"
+                loading={submitting}
+                icon={editingRoom ? <CheckOutlined /> : <PlusOutlined />}
+                onClick={handleFormSubmit}
+                style={{
+                  backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+                  borderColor: isDark ? '#0a84ff' : '#1e40af',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  minWidth: 120,
+                }}
+              >
+                {editingRoom ? t.saveChangesSubmitBtn : t.createRoomSubmitBtn}
+              </Button>
+            </div>
           </div>
         }
       >
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark="optional"
-          className="space-y-3"
-        >
-          {/* Tên phòng */}
-          <Form.Item
-            label={<span className="font-semibold text-xs">{t.fieldName}</span>}
-            name="name"
-            rules={[{ required: true, message: t.errRequiredName }]}
-          >
-            <Input placeholder={t.fieldNamePlaceholder} size="large" />
-          </Form.Item>
-
-          {/* Sức chứa & Trạng thái */}
-          <Row gutter={12}>
-            <Col xs={12}>
-              <Form.Item
-                label={<span className="font-semibold text-xs">{t.fieldCapacityNumber}</span>}
-                name="capacity"
-                rules={[
-                  { required: true, message: t.fieldCapacityNumber },
-                  { type: 'number', min: 1, message: language === 'vi' ? 'Tối thiểu 1 người' : 'Min 1 person' },
-                ]}
-              >
-                <InputNumber min={1} max={200} style={{ width: '100%' }} size="large" />
-              </Form.Item>
-            </Col>
-
-            <Col xs={12}>
-              <Form.Item
-                label={<span className="font-semibold text-xs">{t.fieldStatus}</span>}
-                name="status"
-                rules={[{ required: true, message: t.fieldStatus }]}
-              >
-                <Select
-                  size="large"
-                  options={[
-                    { value: 'AVAILABLE', label: t.statusAvailable },
-                    { value: 'MAINTENANCE', label: t.statusMaintenance },
-                    { value: 'ARCHIVED', label: t.statusArchived },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {/* Vị trí / Tầng */}
-          <Form.Item
-            label={<span className="font-semibold text-xs">{t.fieldLocationFloor}</span>}
-            name="floor"
-          >
-            <Input placeholder={t.fieldLocationFloorPlaceholder} size="large" />
-          </Form.Item>
-
-          {/* Quản lý phụ trách */}
-          <Form.Item
-            label={<span className="font-semibold text-xs">{t.fieldManagerInCharge}</span>}
-            name="owner_id"
-          >
-            <Input placeholder={t.fieldManagerInChargePlaceholder} size="large" />
-          </Form.Item>
-
-          {/* Thiết bị sẵn có */}
-          <Form.Item
-            label={<span className="font-semibold text-xs">{t.fieldAvailableEquipment}</span>}
-            name="equipment"
-          >
-            <Checkbox.Group className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              {STANDARD_EQUIPMENT.map((eq) => (
-                <Checkbox key={eq} value={eq} className="text-xs">
-                  {getEquipmentLabel(eq, language)}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
-          </Form.Item>
-
-          {/* Thêm thiết bị tùy chỉnh */}
-          <div className="pt-2">
-            <Text type="secondary" className="text-xs mb-1.5 block">
-              {t.addCustomEquipmentLabel}
-            </Text>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                placeholder={t.customEquipmentPlaceholder}
-                value={customEquipment}
-                onChange={(e) => setCustomEquipment(e.target.value)}
-                onPressEnter={handleAddCustomEquipment}
-              />
-              <Button onClick={handleAddCustomEquipment} type="dashed">
-                {t.addCustomEquipmentBtn}
-              </Button>
-            </Space.Compact>
+        {/* Drawer Header */}
+        <div className={`px-5 py-4 border-b flex items-center justify-between ${isDark ? 'bg-[#242426] border-white/10' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? 'bg-[#0a84ff]/15' : 'bg-blue-50'}`}>
+              {editingRoom ? (
+                <EditOutlined className={isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]'} style={{ fontSize: 16 }} />
+              ) : (
+                <PlusOutlined className={isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]'} style={{ fontSize: 16 }} />
+              )}
+            </div>
+            <div>
+              <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                {editingRoom ? t.drawerEditRoomTitle : t.drawerCreateRoomTitle}
+              </div>
+              {editingRoom && (
+                <div className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>ID: {editingRoom.id}</div>
+              )}
+            </div>
           </div>
-        </Form>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-zinc-400 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'}`}
+          >
+            <CloseOutlined style={{ fontSize: 14 }} />
+          </button>
+        </div>
+
+        {/* Drawer Body */}
+        <div className="overflow-y-auto h-full pb-4">
+          <Form form={form} layout="vertical" requiredMark="optional">
+
+            {/* Section: Thông tin cơ bản */}
+            <div className={`mx-4 mt-4 rounded-2xl border ${isDark ? 'bg-[#242426] border-white/10' : 'bg-white border-slate-200'}`}>
+              <div className={`px-4 py-3 border-b flex items-center gap-2 ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
+                <InfoCircleOutlined className={isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]'} />
+                <span className={`font-semibold text-xs uppercase tracking-wider ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                  {language === 'vi' ? 'Thông tin cơ bản' : 'Basic Information'}
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <Form.Item
+                  label={<span className={`font-semibold text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{t.fieldName}</span>}
+                  name="name"
+                  rules={[{ required: true, message: t.errRequiredName }]}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
+                    placeholder={t.fieldNamePlaceholder}
+                    size="large"
+                    style={{ borderRadius: 10 }}
+                  />
+                </Form.Item>
+
+                <Row gutter={12}>
+                  <Col xs={12}>
+                    <Form.Item
+                      label={
+                        <span className={`font-semibold text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                          <TeamOutlined className="mr-1" />{t.fieldCapacityNumber}
+                        </span>
+                      }
+                      name="capacity"
+                      rules={[
+                        { required: true, message: t.fieldCapacityNumber },
+                        { type: 'number', min: 1, message: language === 'vi' ? 'Tối thiểu 1 người' : 'Min 1' },
+                      ]}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <InputNumber
+                        min={1} max={500}
+                        style={{ width: '100%', borderRadius: 10 }}
+                        size="large"
+                        addonAfter={<span className="text-xs text-slate-400">{t.peopleUnit}</span>}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Item
+                      label={<span className={`font-semibold text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{t.fieldStatus}</span>}
+                      name="status"
+                      rules={[{ required: true, message: t.fieldStatus }]}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Select
+                        size="large"
+                        style={{ borderRadius: 10 }}
+                        options={[
+                          { value: 'AVAILABLE', label: <span><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />{t.statusAvailable}</span> },
+                          { value: 'MAINTENANCE', label: <span><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5" />{t.statusMaintenance}</span> },
+                          { value: 'ARCHIVED', label: <span><span className="inline-block w-2 h-2 rounded-full bg-slate-400 mr-1.5" />{t.statusArchived}</span> },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </div>
+            </div>
+
+            {/* Section: Vị trí & Quản lý */}
+            <div className={`mx-4 mt-3 rounded-2xl border ${isDark ? 'bg-[#242426] border-white/10' : 'bg-white border-slate-200'}`}>
+              <div className={`px-4 py-3 border-b flex items-center gap-2 ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
+                <EnvironmentOutlined className={isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]'} />
+                <span className={`font-semibold text-xs uppercase tracking-wider ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                  {language === 'vi' ? 'Vị trí & Quản lý' : 'Location & Manager'}
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <Form.Item
+                  label={<span className={`font-semibold text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{t.fieldLocationFloor}</span>}
+                  name="floor"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
+                    placeholder={t.fieldLocationFloorPlaceholder}
+                    size="large"
+                    style={{ borderRadius: 10 }}
+                    prefix={<EnvironmentOutlined className="text-slate-400" />}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label={<span className={`font-semibold text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{t.fieldManagerInCharge}</span>}
+                  name="owner_id"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
+                    placeholder={t.fieldManagerInChargePlaceholder}
+                    size="large"
+                    style={{ borderRadius: 10 }}
+                    prefix={<UserOutlined className="text-slate-400" />}
+                  />
+                </Form.Item>
+              </div>
+            </div>
+
+            {/* Section: Thiết bị */}
+            <div className={`mx-4 mt-3 rounded-2xl border ${isDark ? 'bg-[#242426] border-white/10' : 'bg-white border-slate-200'}`}>
+              <div className={`px-4 py-3 border-b flex items-center justify-between ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
+                <div className="flex items-center gap-2">
+                  <ToolOutlined className={isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]'} />
+                  <span className={`font-semibold text-xs uppercase tracking-wider ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                    {language === 'vi' ? 'Thiết bị sẵn có' : 'Available Equipment'}
+                  </span>
+                </div>
+                <Form.Item name="equipment" noStyle>
+                  <span />
+                </Form.Item>
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-md ${isDark ? 'bg-white/8 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+                  {(form.getFieldValue('equipment') || []).length} {language === 'vi' ? 'mục' : 'items'}
+                </span>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* Standard equipment chips */}
+                <div>
+                  <p className={`text-xs mb-2.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    {language === 'vi' ? 'Nhấn để chọn / bỏ chọn thiết bị tiêu chuẩn' : 'Click to select / deselect standard equipment'}
+                  </p>
+                  <Form.Item name="equipment" noStyle>
+                    <EquipmentChipGroup
+                      standardEquipment={STANDARD_EQUIPMENT}
+                      language={language}
+                      isDark={isDark}
+                      getEquipmentLabel={getEquipmentLabel}
+                    />
+                  </Form.Item>
+                </div>
+
+                {/* Custom equipment */}
+                <div className={`pt-3 border-t ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
+                  <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                    {t.addCustomEquipmentLabel}
+                  </p>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      placeholder={t.customEquipmentPlaceholder}
+                      value={customEquipment}
+                      onChange={(e) => setCustomEquipment(e.target.value)}
+                      onPressEnter={handleAddCustomEquipment}
+                      style={{ borderRadius: '10px 0 0 10px' }}
+                    />
+                    <Button
+                      onClick={handleAddCustomEquipment}
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      disabled={!customEquipment.trim()}
+                      style={{
+                        borderRadius: '0 10px 10px 0',
+                        backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+                        borderColor: isDark ? '#0a84ff' : '#1e40af',
+                      }}
+                    >
+                      {t.addCustomEquipmentBtn}
+                    </Button>
+                  </Space.Compact>
+
+                  {/* Custom equipment tags */}
+                  <Form.Item name="equipment" noStyle>
+                    <CustomEquipmentTags
+                      standardEquipment={STANDARD_EQUIPMENT}
+                      isDark={isDark}
+                      getEquipmentLabel={getEquipmentLabel}
+                      language={language}
+                    />
+                  </Form.Item>
+                </div>
+              </div>
+            </div>
+
+          </Form>
+        </div>
       </Drawer>
 
       {/* Admin Override: Force Release Modal */}
