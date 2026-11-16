@@ -206,25 +206,6 @@ const RoomPreviewCard: React.FC<{
                 </button>
               </Upload>
             </div>
-            {/* Uploading overlay */}
-            {imageUploading && (
-              <div className="absolute inset-0 backdrop-blur-[2px] bg-black/55 flex flex-col items-center justify-center gap-3">
-                {/* Spinner ring */}
-                <div className="relative w-11 h-11">
-                  <div className="absolute inset-0 rounded-full border-2 border-white/15" />
-                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
-                  <div className="absolute inset-[6px] rounded-full border border-transparent border-t-white/50 animate-spin" style={{ animationDuration: '0.6s', animationDirection: 'reverse' }} />
-                </div>
-                {/* Label */}
-                <span className="text-white text-xs font-semibold animate-pulse">
-                  {language === 'vi' ? 'Đang tải ảnh lên…' : 'Uploading image…'}
-                </span>
-                {/* Shimmer bar */}
-                <div className="w-24 h-1 rounded-full bg-white/15 overflow-hidden">
-                  <div className="h-full w-1/2 rounded-full bg-white/70" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           // No image: upload zone
@@ -253,17 +234,6 @@ const RoomPreviewCard: React.FC<{
               </div>
             </div>
           </Upload.Dragger>
-        )}
-        {deletingImage && (
-          <div className="absolute inset-0 backdrop-blur-[2px] bg-black/55 flex flex-col items-center justify-center gap-2">
-            <div className="relative w-9 h-9">
-              <div className="absolute inset-0 rounded-full border-2 border-white/15" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-rose-400 animate-spin" />
-            </div>
-            <span className="text-white text-xs font-semibold animate-pulse">
-              {language === 'vi' ? 'Đang xóa…' : 'Removing…'}
-            </span>
-          </div>
         )}
       </div>
 
