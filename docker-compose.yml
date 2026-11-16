@@ -63,6 +63,7 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
       AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
       AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
     depends_on:
       postgres:
         condition: service_healthy

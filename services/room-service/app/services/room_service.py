@@ -113,7 +113,7 @@ class RoomService:
         try:
             result = cloudinary.uploader.upload(
                 file_bytes,
-                public_id=f"rooms/{room_id}",
+                public_id=f"mrms/room/{room_id}",
                 overwrite=True,
                 resource_type="image",
             )
