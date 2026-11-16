@@ -1,4 +1,4 @@
-import { request } from './http';
+import { request, uploadFile } from './http';
 import type { Room, RoomStatus, RoomFilterParams, PaginatedResponse } from '../types';
 
 export interface RoomWriteInput {
@@ -56,4 +56,14 @@ export async function updateRoom(id: number, data: Partial<RoomWriteInput>): Pro
 
 export async function deleteRoom(id: number): Promise<void> {
   return request<void>(`/rooms/${id}`, { method: 'DELETE' });
+}
+
+export async function uploadRoomImage(roomId: number, file: File): Promise<Room> {
+  const fd = new FormData();
+  fd.append('file', file);
+  return uploadFile<Room>(`/rooms/${roomId}/image`, fd);
+}
+
+export async function deleteRoomImage(roomId: number): Promise<Room> {
+  return request<Room>(`/rooms/${roomId}`, { method: 'PATCH', body: { image_url: null } });
 }

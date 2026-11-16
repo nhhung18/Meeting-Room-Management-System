@@ -57,6 +57,45 @@ async function doFetch(url: string, init: RequestInit): Promise<Response> {
   return fetch(url, init);
 }
 
+export async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
+  const url = buildUrl(path);
+  const token = await getToken();
+  const headers: Record<string, string> = { 'X-Request-ID': crypto.randomUUID() };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let response: Response;
+  try {
+    response = await doFetch(url, { method: 'POST', headers, body: formData });
+  } catch (err) {
+    throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
+  }
+
+  if (response.status === 401 && tokenProvider) {
+    const freshToken = await getToken(true);
+    if (freshToken && freshToken !== token) {
+      headers['Authorization'] = `Bearer ${freshToken}`;
+      headers['X-Request-ID'] = crypto.randomUUID();
+      try {
+        response = await doFetch(url, { method: 'POST', headers, body: formData });
+      } catch (err) {
+        throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
+      }
+      if (response.status === 401) throw new ApiError(401, 'Phiên đăng nhập hết hạn');
+    } else {
+      throw new ApiError(401, 'Phiên đăng nhập hết hạn');
+    }
+  }
+
+  if (response.ok) return response.json() as Promise<T>;
+
+  let detail = response.statusText || 'Unknown error';
+  try {
+    const errorBody = await response.json();
+    if (errorBody?.detail) detail = String(errorBody.detail);
+  } catch { /* non-JSON */ }
+  throw new ApiError(response.status, detail);
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, params } = options;
   const url = buildUrl(path, params);

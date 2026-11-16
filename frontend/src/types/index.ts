@@ -102,6 +102,7 @@ export interface Room {
   updated_at: string;
   floor?: string;
   description?: string;
+  image_url?: string | null;
 }
 
 export interface Booking {
