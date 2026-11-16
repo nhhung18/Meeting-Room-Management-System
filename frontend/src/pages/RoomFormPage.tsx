@@ -123,31 +123,131 @@ const CustomEquipmentTags: React.FC<{
   );
 };
 
-// ── Room preview card ─────────────────────────────────────────────────────────
+// ── Room preview card (with integrated image upload) ──────────────────────────
 const RoomPreviewCard: React.FC<{
   values: Partial<Room>;
   isDark: boolean;
   language: string;
   isNew: boolean;
   imageUrl?: string | null;
-}> = ({ values, isDark, language, isNew, imageUrl }) => {
+  hasNewImage?: boolean;
+  imageUploading?: boolean;
+  deletingImage?: boolean;
+  isEdit?: boolean;
+  existingImageUrl?: string | null;
+  onFileSelect?: (file: File) => boolean;
+  onClearNewImage?: () => void;
+  onDeleteExistingImage?: () => void;
+}> = ({
+  values,
+  isDark,
+  language,
+  isNew,
+  imageUrl,
+  hasNewImage,
+  imageUploading,
+  deletingImage,
+  isEdit,
+  existingImageUrl,
+  onFileSelect,
+  onClearNewImage,
+  onDeleteExistingImage,
+}) => {
   const status = (values.status as any) || 'AVAILABLE';
   const cfg = ROOM_STATUS_CONFIG[status as keyof typeof ROOM_STATUS_CONFIG];
 
   return (
     <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200 shadow-sm'}`}>
-      {/* Photo area */}
-      <div className={`w-full h-40 border-b overflow-hidden ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+      {/* Photo area — integrated upload */}
+      <div className={`w-full relative border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
         {imageUrl ? (
-          <img src={imageUrl} alt={values.name || 'room'} className="w-full h-full object-cover" />
-        ) : (
-          <div className={`w-full h-full flex flex-col items-center justify-center ${isDark ? 'bg-[#242426]' : 'bg-slate-50'}`}>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-2 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
-              <HomeOutlined className={`text-2xl ${isDark ? 'text-zinc-400' : 'text-slate-400'}`} />
+          // Has image: show image with action buttons
+          <div className="relative">
+            <img src={imageUrl} alt={values.name || 'room'} className="w-full h-48 object-cover" />
+            {/* Overlay actions */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+            <div className="absolute bottom-2.5 right-2.5 flex gap-1.5">
+              {hasNewImage ? (
+                <button
+                  type="button"
+                  onClick={onClearNewImage}
+                  className="bg-black/60 hover:bg-black/80 text-white rounded-lg px-2.5 py-1 text-xs flex items-center gap-1 transition-colors backdrop-blur-sm"
+                >
+                  <CloseOutlined style={{ fontSize: 10 }} />
+                  {language === 'vi' ? 'Bỏ chọn' : 'Clear'}
+                </button>
+              ) : isEdit && existingImageUrl ? (
+                <Popconfirm
+                  title={language === 'vi' ? 'Xác nhận xóa ảnh phòng này?' : "Remove this room's image?"}
+                  onConfirm={onDeleteExistingImage}
+                  okText={language === 'vi' ? 'Xóa' : 'Remove'}
+                  cancelText={language === 'vi' ? 'Hủy' : 'Cancel'}
+                  okButtonProps={{ danger: true }}
+                >
+                  <button
+                    type="button"
+                    className="bg-red-600/80 hover:bg-red-700 text-white rounded-lg px-2.5 py-1 text-xs flex items-center gap-1 transition-colors backdrop-blur-sm"
+                  >
+                    <DeleteOutlined style={{ fontSize: 10 }} />
+                    {language === 'vi' ? 'Xóa ảnh' : 'Remove'}
+                  </button>
+                </Popconfirm>
+              ) : null}
+              {/* Change image button */}
+              <Upload
+                accept="image/jpeg,image/png,image/webp"
+                showUploadList={false}
+                beforeUpload={onFileSelect}
+                multiple={false}
+              >
+                <button
+                  type="button"
+                  className="bg-black/60 hover:bg-black/80 text-white rounded-lg px-2.5 py-1 text-xs flex items-center gap-1 transition-colors backdrop-blur-sm"
+                >
+                  <PictureOutlined style={{ fontSize: 10 }} />
+                  {language === 'vi' ? 'Đổi ảnh' : 'Change'}
+                </button>
+              </Upload>
             </div>
-            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              {language === 'vi' ? 'Ảnh phòng' : 'Room photo'}
-            </span>
+            {/* Uploading overlay */}
+            {imageUploading && (
+              <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+                <Spin size="small" />
+                <Progress percent={99} status="active" size="small" style={{ width: '75%' }} showInfo={false} />
+              </div>
+            )}
+          </div>
+        ) : (
+          // No image: upload zone
+          <Upload.Dragger
+            accept="image/jpeg,image/png,image/webp"
+            showUploadList={false}
+            beforeUpload={onFileSelect}
+            multiple={false}
+            style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRadius: 0,
+            }}
+          >
+            <div className={`h-44 flex flex-col items-center justify-center gap-3 ${isDark ? 'bg-[#242426]' : 'bg-slate-50'}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}>
+                <InboxOutlined style={{ fontSize: 22, color: isDark ? '#0a84ff' : '#1e40af' }} />
+              </div>
+              <div className="text-center">
+                <p className={`text-xs font-semibold ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                  {language === 'vi' ? 'Kéo thả hoặc bấm để tải ảnh' : 'Drag & drop or click to upload'}
+                </p>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  JPEG · PNG · WebP · {language === 'vi' ? 'tối đa 5MB' : 'max 5MB'}
+                </p>
+              </div>
+            </div>
+          </Upload.Dragger>
+        )}
+        {deletingImage && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <Spin size="small" />
           </div>
         )}
       </div>
@@ -313,7 +413,16 @@ export const RoomFormPage: React.FC = () => {
     objectUrlRef.current = url;
     setImageFile(file);
     setImagePreviewUrl(url);
-    return false; // prevent antd auto-upload
+    return false;
+  };
+
+  const handleClearNewImage = () => {
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
   };
 
   const handleDeleteImage = async () => {
@@ -387,7 +496,7 @@ export const RoomFormPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto space-y-7">
       {/* Top bar: breadcrumb + actions */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -450,14 +559,15 @@ export const RoomFormPage: React.FC = () => {
       </div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
-        {/* Left: form */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+        {/* Left: form sections */}
         <Form
           form={form}
           layout="vertical"
           requiredMark="optional"
           onValuesChange={handleValuesChange}
           initialValues={{ status: 'AVAILABLE', capacity: 10, equipment: [] }}
+          className="space-y-5"
         >
           {/* Basic info */}
           <SectionCard
@@ -529,85 +639,6 @@ export const RoomFormPage: React.FC = () => {
                 style={{ borderRadius: 10 }}
               />
             </Form.Item>
-
-            {/* Image upload */}
-            <div>
-              <p className={`font-semibold text-xs mb-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
-                <PictureOutlined className="mr-1" />
-                {language === 'vi' ? 'Ảnh phòng họp' : 'Room Image'}
-              </p>
-
-              {/* Current / selected image preview */}
-              {(imagePreviewUrl || existingImageUrl) && (
-                <div className="relative mb-2 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-white/20 h-40">
-                  <img
-                    src={imagePreviewUrl || existingImageUrl || ''}
-                    alt="room preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2 right-2 flex gap-1.5">
-                    {imagePreviewUrl && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null);
-                          setImagePreviewUrl(null);
-                          if (objectUrlRef.current) {
-                            URL.revokeObjectURL(objectUrlRef.current);
-                            objectUrlRef.current = null;
-                          }
-                        }}
-                        className="bg-black/60 hover:bg-black/80 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1 transition-colors"
-                      >
-                        <CloseOutlined style={{ fontSize: 10 }} />
-                        {language === 'vi' ? 'Bỏ chọn' : 'Clear'}
-                      </button>
-                    )}
-                    {isEdit && existingImageUrl && !imagePreviewUrl && (
-                      <Popconfirm
-                        title={language === 'vi' ? 'Xác nhận xóa ảnh phòng này?' : "Remove this room's image?"}
-                        onConfirm={handleDeleteImage}
-                        okText={language === 'vi' ? 'Xóa' : 'Remove'}
-                        cancelText={language === 'vi' ? 'Hủy' : 'Cancel'}
-                        okButtonProps={{ danger: true }}
-                      >
-                        <button
-                          type="button"
-                          className="bg-red-600/80 hover:bg-red-700 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1 transition-colors"
-                        >
-                          <DeleteOutlined style={{ fontSize: 10 }} />
-                          {language === 'vi' ? 'Xóa ảnh' : 'Remove image'}
-                        </button>
-                      </Popconfirm>
-                    )}
-                  </div>
-                  {imageUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
-                      <Spin size="small" />
-                      <Progress percent={99} status="active" size="small" style={{ width: '80%' }} showInfo={false} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Upload.Dragger
-                accept="image/jpeg,image/png,image/webp"
-                showUploadList={false}
-                beforeUpload={handleFileSelect}
-                multiple={false}
-                style={{ borderRadius: 10 }}
-              >
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined style={{ fontSize: 28, color: isDark ? '#0a84ff' : '#1e40af' }} />
-                </p>
-                <p className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
-                  {language === 'vi' ? 'Kéo thả hoặc bấm để tải ảnh' : 'Drag & drop or click to upload'}
-                </p>
-                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  JPEG · PNG · WebP · {language === 'vi' ? 'tối đa 5MB' : 'max 5MB'}
-                </p>
-              </Upload.Dragger>
-            </div>
           </SectionCard>
 
           {/* Location & Manager */}
@@ -695,17 +726,26 @@ export const RoomFormPage: React.FC = () => {
           </SectionCard>
         </Form>
 
-        {/* Right: live preview */}
-        <div className="space-y-3 lg:sticky lg:top-20">
+        {/* Right: live preview + summary */}
+        <div className="space-y-5 lg:sticky lg:top-20">
           <p className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
             {language === 'vi' ? 'Xem trước' : 'Live preview'}
           </p>
+
           <RoomPreviewCard
             values={preview}
             isDark={isDark}
             language={language}
             isNew={!isEdit}
             imageUrl={imagePreviewUrl || existingImageUrl}
+            hasNewImage={!!imagePreviewUrl}
+            imageUploading={imageUploading}
+            deletingImage={deletingImage}
+            isEdit={isEdit}
+            existingImageUrl={existingImageUrl}
+            onFileSelect={handleFileSelect}
+            onClearNewImage={handleClearNewImage}
+            onDeleteExistingImage={handleDeleteImage}
           />
 
           {/* Equipment count summary */}
