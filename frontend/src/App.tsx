@@ -25,6 +25,7 @@ import { RoomDetailPage } from './pages/RoomDetailPage';
 import { BookingFormPage } from './pages/BookingFormPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { RoomManagementPage } from './pages/RoomManagementPage';
+import { RoomFormPage } from './pages/RoomFormPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { EquipmentManagementPage } from './pages/EquipmentManagementPage';
@@ -237,6 +238,22 @@ const AppContent: React.FC = () => {
                   element={
                     <ProtectedRoute allowedRoles={['ROOM_MANAGER', 'ADMINISTRATOR']}>
                       <RoomManagementPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/rooms/new"
+                  element={
+                    <ProtectedRoute allowedRoles={['ROOM_MANAGER', 'ADMINISTRATOR']}>
+                      <RoomFormPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/rooms/:id/edit"
+                  element={
+                    <ProtectedRoute allowedRoles={['ROOM_MANAGER', 'ADMINISTRATOR']}>
+                      <RoomFormPage />
                     </ProtectedRoute>
                   }
                 />

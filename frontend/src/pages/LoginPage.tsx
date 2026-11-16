@@ -103,7 +103,7 @@ export const LoginPage: React.FC = () => {
         {/* Logo */}
         <div className="relative z-10 flex flex-col items-center gap-6">
           <div className="w-16 h-16 flex items-center justify-center">
-            <BrandLogo size={56} />
+            <BrandLogo variant="icon" className="w-14 h-14" />
           </div>
 
           {/* Spinner ring */}
