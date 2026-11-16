@@ -248,7 +248,7 @@ const RoomPreviewCard: React.FC<{
                   {language === 'vi' ? 'Kéo thả hoặc bấm để tải ảnh' : 'Drag & drop or click to upload'}
                 </p>
                 <p className={`text-[11px] mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  JPEG · PNG · WebP · {language === 'vi' ? 'tối đa 5MB' : 'max 5MB'}
+                  JPEG · PNG · WebP · {language === 'vi' ? 'tối đa 10MB' : 'max 10MB'}
                 </p>
               </div>
             </div>
@@ -414,13 +414,13 @@ export const RoomFormPage: React.FC = () => {
 
   const handleFileSelect = (file: File) => {
     const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
-    const MAX_BYTES = 5 * 1024 * 1024;
+    const MAX_BYTES = 10 * 1024 * 1024;
     if (!ALLOWED.includes(file.type)) {
       message.error(language === 'vi' ? 'Chỉ chấp nhận JPEG, PNG, WebP' : 'Only JPEG, PNG, WebP allowed');
       return false;
     }
     if (file.size > MAX_BYTES) {
-      message.error(language === 'vi' ? 'Ảnh vượt quá 5MB' : 'Image exceeds 5MB limit');
+      message.error(language === 'vi' ? 'Ảnh vượt quá 10MB' : 'Image exceeds 10MB limit');
       return false;
     }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);

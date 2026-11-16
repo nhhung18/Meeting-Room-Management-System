@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["rooms"])
 
 _ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-_MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+_MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 def _get_service(db: Session = Depends(get_db)) -> RoomService:
