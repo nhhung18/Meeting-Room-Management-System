@@ -13,7 +13,6 @@ import {
 
   Upload,
   Popconfirm,
-  Progress,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -25,8 +24,6 @@ import {
   ToolOutlined,
   InfoCircleOutlined,
   UserOutlined,
-  HomeOutlined,
-  EditOutlined,
   PictureOutlined,
   DeleteOutlined,
   InboxOutlined,
@@ -211,9 +208,24 @@ const RoomPreviewCard: React.FC<{
             </div>
             {/* Uploading overlay */}
             {imageUploading && (
-              <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
-                <Spin size="small" />
-                <Progress percent={99} status="active" size="small" style={{ width: '75%' }} showInfo={false} />
+              <div className="absolute inset-0 backdrop-blur-[2px] bg-black/55 flex flex-col items-center justify-center gap-3">
+                {/* Spinner ring */}
+                <div className="relative w-11 h-11">
+                  <div className="absolute inset-0 rounded-full border-2 border-white/15" />
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
+                  <div className="absolute inset-[6px] rounded-full border border-transparent border-t-white/50 animate-spin" style={{ animationDuration: '0.6s', animationDirection: 'reverse' }} />
+                </div>
+                {/* Label */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-white text-xs font-semibold animate-pulse">
+                    {language === 'vi' ? 'Đang tải ảnh lên…' : 'Uploading image…'}
+                  </span>
+                  <span className="text-white/50 text-[10px]">Cloudinary</span>
+                </div>
+                {/* Shimmer bar */}
+                <div className="w-24 h-1 rounded-full bg-white/15 overflow-hidden">
+                  <div className="h-full w-1/2 rounded-full bg-white/70" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
+                </div>
               </div>
             )}
           </div>
@@ -246,8 +258,14 @@ const RoomPreviewCard: React.FC<{
           </Upload.Dragger>
         )}
         {deletingImage && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <Spin size="small" />
+          <div className="absolute inset-0 backdrop-blur-[2px] bg-black/55 flex flex-col items-center justify-center gap-2">
+            <div className="relative w-9 h-9">
+              <div className="absolute inset-0 rounded-full border-2 border-white/15" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-rose-400 animate-spin" />
+            </div>
+            <span className="text-white text-xs font-semibold animate-pulse">
+              {language === 'vi' ? 'Đang xóa…' : 'Removing…'}
+            </span>
           </div>
         )}
       </div>
@@ -716,37 +734,6 @@ export const RoomFormPage: React.FC = () => {
             onClearNewImage={handleClearNewImage}
             onDeleteExistingImage={handleDeleteImage}
           />
-
-          {/* Equipment count summary */}
-          <div className={`rounded-2xl border p-4 ${isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'}`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              {language === 'vi' ? 'Tóm tắt' : 'Summary'}
-            </p>
-            <div className="space-y-2">
-              {[
-                {
-                  label: language === 'vi' ? 'Thiết bị tiêu chuẩn' : 'Standard equipment',
-                  value: (preview.equipment || []).filter((e) => STANDARD_EQUIPMENT.includes(e)).length,
-                  color: isDark ? 'text-[#0a84ff]' : 'text-[#1e40af]',
-                },
-                {
-                  label: language === 'vi' ? 'Thiết bị tuỳ chỉnh' : 'Custom equipment',
-                  value: (preview.equipment || []).filter((e) => !STANDARD_EQUIPMENT.includes(e)).length,
-                  color: isDark ? 'text-amber-400' : 'text-amber-600',
-                },
-                {
-                  label: language === 'vi' ? 'Tổng cộng' : 'Total',
-                  value: (preview.equipment || []).length,
-                  color: isDark ? 'text-white' : 'text-slate-800',
-                },
-              ].map((row) => (
-                <div key={row.label} className="flex items-center justify-between">
-                  <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{row.label}</span>
-                  <span className={`text-sm font-bold ${row.color}`}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
