@@ -3,30 +3,16 @@
 Dev mode: khi smtp_host rỗng, log nội dung email thay vì gửi thật.
 """
 
-import base64
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Logo embedded as base64 at import time (from static/logo.png in the same package)
-_LOGO_B64 = ""
-_LOGO_PATH = Path(__file__).parent / "static" / "logo.png"
-if _LOGO_PATH.exists():
-    _LOGO_B64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode()
-
 
 def _html_wrapper(content_html: str) -> str:
-    """Wrap content in a branded HTML email template with logo."""
-    logo_tag = (
-        f'<img src="data:image/png;base64,{_LOGO_B64}" alt="MRMS" '
-        f'style="height:48px;max-width:200px;display:block;" />'
-        if _LOGO_B64
-        else '<span style="font-size:22px;font-weight:700;color:#1677ff;">MRMS</span>'
-    )
+    """Wrap content in a branded HTML email template."""
     return f"""<!DOCTYPE html>
 <html lang="vi">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -36,8 +22,9 @@ def _html_wrapper(content_html: str) -> str:
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
         <!-- Header -->
         <tr>
-          <td style="background:#1677ff;padding:24px 32px;">
-            {logo_tag}
+          <td style="background:#1677ff;padding:20px 32px;">
+            <span style="font-size:22px;font-weight:700;color:#fff;letter-spacing:1px;">MRMS</span>
+            <span style="font-size:13px;color:#d6e8ff;margin-left:10px;">Meeting Room Management System</span>
           </td>
         </tr>
         <!-- Body -->
