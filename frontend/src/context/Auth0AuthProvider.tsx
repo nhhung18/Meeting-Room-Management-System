@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Auth0Provider, useAuth0, GetTokenSilentlyOptions } from '@auth0/auth0-react';
 import { User, UserRole } from '../types';
@@ -51,6 +51,8 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
     logout: auth0Logout,
   } = useAuth0();
   const [profileOverride, setProfileOverride] = useState<Partial<User> | null>(null);
+  // Request nền lỗi login_required trong lúc logout không được redirect đăng nhập, nếu không sẽ đè lên logout và hiện màn MFA.
+  const loggingOutRef = useRef(false);
 
   useEffect(() => {
     if (auth0Error) {
@@ -74,8 +76,10 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isAuthenticated) {
-      const onLoginRequired = () =>
+      const onLoginRequired = () => {
+        if (loggingOutRef.current) return;
         loginWithRedirect({ authorizationParams: { audience } });
+      };
       setTokenProvider(createAuth0TokenProvider(getAccessTokenSilently, onLoginRequired));
     } else {
       setTokenProvider(null);
@@ -91,6 +95,8 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    loggingOutRef.current = true;
+    setTokenProvider(null);
     setProfileOverride(null);
     auth0Logout({ logoutParams: { returnTo: window.location.origin + '/login' } });
   };
