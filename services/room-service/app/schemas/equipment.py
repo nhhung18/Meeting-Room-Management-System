@@ -47,3 +47,7 @@ class EquipmentResponse(BaseModel):
 class EquipmentListResponse(BaseModel):
     items: list[EquipmentResponse]
     total: int
+
+
+class EquipmentCategoriesResponse(BaseModel):
+    categories: list[str]

@@ -177,6 +177,11 @@ export const deleteEquipment = async (id: string): Promise<void> => {
   await request<void>(`/rooms/equipment/${numericId}`, { method: 'DELETE' });
 };
 
+export const getEquipmentCategories = async (): Promise<string[]> => {
+  const resp = await request<{ categories: string[] }>('/rooms/equipment/categories');
+  return resp.categories;
+};
+
 // ==================== USER ACCOUNTS & RBAC SERVICE ====================
 
 export const getStoredUsers = (): UserAccount[] => {

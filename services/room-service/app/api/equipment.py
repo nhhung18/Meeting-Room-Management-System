@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.security import current_user, require_room_manager
 from app.db.session import get_db
 from app.schemas.equipment import (
+    EquipmentCategoriesResponse,
     EquipmentCreate,
     EquipmentListResponse,
     EquipmentResponse,
@@ -43,6 +44,14 @@ def list_equipment(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/equipment/categories", response_model=EquipmentCategoriesResponse)
+def list_equipment_categories(
+    _user=Depends(current_user),
+    service: EquipmentService = Depends(_get_service),
+) -> EquipmentCategoriesResponse:
+    return service.list_categories()
 
 
 @router.get("/equipment/{equipment_id}", response_model=EquipmentResponse)

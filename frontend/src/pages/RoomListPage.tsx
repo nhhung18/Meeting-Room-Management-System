@@ -29,8 +29,9 @@ import {
   EyeOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { Room, RoomStatus, ROOM_STATUS_CONFIG, STANDARD_EQUIPMENT, getRoomStatusLabel, getEquipmentLabel } from '../types';
-import { getRooms, deleteRoom, forceReleaseRoom, toggleRoomMaintenance } from '../api/client';
+import { Room, RoomStatus, ROOM_STATUS_CONFIG, getRoomStatusLabel } from '../types';
+import { getRooms, deleteRoom, forceReleaseRoom, toggleRoomMaintenance, getEquipmentByRoom, getEquipmentCategories } from '../api/client';
+import type { EquipmentItem } from '../types';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { EmptyRoomState } from '../components/EmptyRoomState';
 import { useAuth } from '../context/AuthContext';
@@ -52,6 +53,8 @@ export const RoomListPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ status: number; detail: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomEquipment, setRoomEquipment] = useState<Record<number, EquipmentItem[]>>({});
+  const [equipmentCategories, setEquipmentCategories] = useState<string[]>([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +88,18 @@ export const RoomListPage: React.FC = () => {
         equipment: selectedEquipment,
       });
       setRooms(res.items);
+      // fetch equipment for each room in background (non-blocking)
+      const eqMap: Record<number, EquipmentItem[]> = {};
+      await Promise.allSettled(
+        res.items.map(async (r) => {
+          try {
+            eqMap[r.id] = await getEquipmentByRoom(r.id);
+          } catch {
+            eqMap[r.id] = [];
+          }
+        })
+      );
+      setRoomEquipment(eqMap);
     } catch (err: any) {
       setError({
         status: err.status ?? 0,
@@ -98,6 +113,10 @@ export const RoomListPage: React.FC = () => {
   useEffect(() => {
     fetchRoomList();
   }, [searchQuery, statusFilter, capacityFilter, selectedEquipment]);
+
+  useEffect(() => {
+    getEquipmentCategories().then(setEquipmentCategories).catch(() => {});
+  }, []);
 
   // Handle Tag toggle for equipment
   const handleEquipmentToggle = (item: string) => {
@@ -293,7 +312,7 @@ export const RoomListPage: React.FC = () => {
               {t.filterEquipmentLabel}
             </Text>
             <div className="flex items-center gap-1.5 shrink-0">
-              {STANDARD_EQUIPMENT.slice(0, 5).map((eq) => {
+              {equipmentCategories.slice(0, 5).map((eq) => {
                 const isChecked = selectedEquipment.includes(eq);
                 return (
                   <Tag.CheckableTag
@@ -316,7 +335,7 @@ export const RoomListPage: React.FC = () => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {getEquipmentLabel(eq, language)}
+                    {eq}
                   </Tag.CheckableTag>
                 );
               })}
@@ -452,45 +471,50 @@ export const RoomListPage: React.FC = () => {
                       </div>
 
                       {/* Equipment List with Tooltip */}
-                      <div className="mb-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                          {t.equipmentCount} ({room.equipment.length}):
-                        </div>
-                        <div className="flex flex-wrap gap-1 items-center">
-                          {room.equipment.slice(0, 3).map((eq, i) => (
-                            <span
-                              key={i}
-                              className={`text-[11px] px-1.5 py-0.5 rounded border ${
-                                isDark
-                                  ? 'bg-white/5 border-white/10 text-zinc-300'
-                                  : 'bg-slate-50 border-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {getEquipmentLabel(eq, language)}
-                            </span>
-                          ))}
-                          {room.equipment.length > 3 && (
-                            <Tooltip
-                              title={
-                                <div>
-                                  <div className="font-semibold text-xs mb-1 text-slate-200">{t.otherEquipmentTitle} (+{room.equipment.length - 3}):</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {room.equipment.slice(3).map((eq, idx) => (
-                                      <span key={idx} className="text-[11px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-100">
-                                        {getEquipmentLabel(eq, language)}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              }
-                            >
-                              <span className="text-[11px] text-[#1e40af] dark:text-[#0a84ff] font-semibold cursor-pointer px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-zinc-800 transition-colors">
-                                +{room.equipment.length - 3} {t.otherEquipmentCount}
-                              </span>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </div>
+                      {(() => {
+                        const items = roomEquipment[room.id] ?? [];
+                        return (
+                          <div className="mb-4">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                              {t.equipmentCount} ({items.length}):
+                            </div>
+                            <div className="flex flex-wrap gap-1 items-center">
+                              {items.slice(0, 3).map((eq) => (
+                                <span
+                                  key={eq.id}
+                                  className={`text-[11px] px-1.5 py-0.5 rounded border ${
+                                    isDark
+                                      ? 'bg-white/5 border-white/10 text-zinc-300'
+                                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                                  }`}
+                                >
+                                  {eq.name}
+                                </span>
+                              ))}
+                              {items.length > 3 && (
+                                <Tooltip
+                                  title={
+                                    <div>
+                                      <div className="font-semibold text-xs mb-1 text-slate-200">{t.otherEquipmentTitle} (+{items.length - 3}):</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {items.slice(3).map((eq) => (
+                                          <span key={eq.id} className="text-[11px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-100">
+                                            {eq.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  }
+                                >
+                                  <span className="text-[11px] text-[#1e40af] dark:text-[#0a84ff] font-semibold cursor-pointer px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-zinc-800 transition-colors">
+                                    +{items.length - 3} {t.otherEquipmentCount}
+                                  </span>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Card Footer */}

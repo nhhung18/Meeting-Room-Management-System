@@ -9,6 +9,7 @@ from app.models.room import Room
 from app.repositories.equipment_repository import EquipmentRepository
 from app.repositories.room_repository import RoomRepository
 from app.schemas.equipment import (
+    EquipmentCategoriesResponse,
     EquipmentCreate,
     EquipmentListResponse,
     EquipmentResponse,
@@ -85,6 +86,9 @@ class EquipmentService:
     def list_by_room(self, room_id: int) -> list[EquipmentResponse]:
         items = self._repo.list_by_room(room_id)
         return [self._to_response(i) for i in items]
+
+    def list_categories(self) -> EquipmentCategoriesResponse:
+        return EquipmentCategoriesResponse(categories=self._repo.list_categories())
 
     def update(self, equipment_id: int, dto: EquipmentUpdate) -> EquipmentResponse:
         item = self._repo.get_by_id(equipment_id)

@@ -103,3 +103,12 @@ class EquipmentRepository:
             EquipmentRoomAssignment.equipment_id == equipment_id
         )
         return list(self._db.scalars(stmt).all())
+
+    def list_categories(self) -> list[str]:
+        stmt = (
+            select(EquipmentItem.category)
+            .where(EquipmentItem.deleted_at.is_(None))
+            .distinct()
+            .order_by(EquipmentItem.category)
+        )
+        return list(self._db.scalars(stmt).all())

@@ -28,7 +28,6 @@ import {
   EquipmentItem,
   EquipmentStatus,
   EQUIPMENT_STATUS_CONFIG,
-  STANDARD_EQUIPMENT,
   Room,
 } from '../types';
 import {
@@ -37,6 +36,7 @@ import {
   updateEquipment,
   deleteEquipment,
   getRooms,
+  getEquipmentCategories,
 } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -53,6 +53,7 @@ export const EquipmentManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,9 +90,22 @@ export const EquipmentManagementPage: React.FC = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const cats = await getEquipmentCategories();
+      setCategories(cats);
+    } catch {
+      // non-critical: form still works without pre-loaded categories
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [searchQuery, categoryFilter, statusFilter, roomFilter]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   // Overall metric stats
   const metrics = useMemo(() => {
@@ -106,7 +120,6 @@ export const EquipmentManagementPage: React.FC = () => {
     setEditingItem(null);
     form.resetFields();
     form.setFieldsValue({
-      category: STANDARD_EQUIPMENT[0],
       status: 'FUNCTIONAL',
       room_ids: [],
     });
@@ -120,7 +133,7 @@ export const EquipmentManagementPage: React.FC = () => {
       : (item.room_id ? [item.room_id] : []);
     form.setFieldsValue({
       name: item.name,
-      category: item.category,
+      category: item.category ? [item.category] : [],
       status: item.status,
       room_ids: currentRoomIds,
       serial_number: item.serial_number || '',
@@ -147,11 +160,15 @@ export const EquipmentManagementPage: React.FC = () => {
       const selectedRoomIds: number[] = values.room_ids || [];
       const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id));
       const primaryRoom = selectedRooms[0];
+      // mode="tags" returns string[]; extract single string
+      const categoryValue: string = Array.isArray(values.category)
+        ? (values.category[0] ?? '').trim()
+        : (values.category ?? '').trim();
 
       if (editingItem) {
         await updateEquipment(editingItem.id, {
           name: values.name.trim(),
-          category: values.category,
+          category: categoryValue,
           status: values.status,
           room_ids: selectedRoomIds,
           room_names: selectedRooms.map((r) => r.name),
@@ -164,7 +181,7 @@ export const EquipmentManagementPage: React.FC = () => {
       } else {
         await createEquipment({
           name: values.name.trim(),
-          category: values.category,
+          category: categoryValue,
           status: values.status,
           room_ids: selectedRoomIds,
           room_names: selectedRooms.map((r) => r.name),
@@ -178,6 +195,7 @@ export const EquipmentManagementPage: React.FC = () => {
 
       setModalOpen(false);
       fetchData();
+      fetchCategories();
     } catch (err: any) {
       if (!err?.errorFields) {
         message.error(err.message || 'Error saving equipment');
@@ -269,7 +287,7 @@ export const EquipmentManagementPage: React.FC = () => {
               style={{ width: '100%' }}
               options={[
                 { value: 'ALL', label: language === 'vi' ? 'Tất cả loại thiết bị' : 'All Categories' },
-                ...STANDARD_EQUIPMENT.map((eq) => ({ value: eq, label: eq })),
+                ...categories.map((c) => ({ value: c, label: c })),
               ]}
             />
           </Col>
@@ -488,9 +506,20 @@ export const EquipmentManagementPage: React.FC = () => {
           <Form.Item
             name="category"
             label={<span className="font-medium text-xs text-slate-600 dark:text-zinc-300">{t.equipmentCategoryLabel}</span>}
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: language === 'vi' ? 'Vui lòng chọn hoặc nhập danh mục' : 'Please select or enter a category' }]}
           >
-            <Select options={STANDARD_EQUIPMENT.map((eq) => ({ value: eq, label: eq }))} />
+            <Select
+              mode="tags"
+              maxCount={1}
+              placeholder={language === 'vi' ? 'Chọn hoặc nhập danh mục mới (VD: TV, Máy chiếu)' : 'Select or type a new category'}
+              options={categories.map((c) => ({ value: c, label: c }))}
+              onChange={(val: string[]) => {
+                // mode=tags gives an array; keep only the last entered value as a string
+                if (val.length > 1) {
+                  form.setFieldValue('category', [val[val.length - 1]]);
+                }
+              }}
+            />
           </Form.Item>
 
           <Form.Item
