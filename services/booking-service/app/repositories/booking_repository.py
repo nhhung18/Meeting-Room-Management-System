@@ -95,16 +95,57 @@ class BookingRepository:
         count = self._db.execute(stmt).scalar_one()
         return count > 0
 
-    def find_overdue_confirmed(self, cutoff: datetime) -> list[Booking]:
-        """Trả về các booking CONFIRMED mà start_at + 15min < cutoff (quá hạn check-in)."""
+    def find_overdue_confirmed(self, cutoff: datetime, window_minutes: int = 15) -> list[Booking]:
+        """Trả về CONFIRMED booking mà start_at + window_minutes < cutoff (quá hạn check-in).
+
+        `window_minutes` nên được truyền từ PolicyService để đồng bộ với check-in window.
+        Mặc định 15 phút để tương thích với test cũ không inject policy.
+        """
         from datetime import timedelta
 
-        window = timedelta(minutes=15)
+        window = timedelta(minutes=window_minutes)
         stmt = (
             select(Booking)
             .where(
                 Booking.status == BookingStatus.CONFIRMED,
                 Booking.start_at + window < cutoff,
+                Booking.deleted_at.is_(None),
+            )
+            .options(selectinload(Booking.attendees))
+        )
+        return list(self._db.execute(stmt).scalars().all())
+
+    def find_needing_reminder(self, now: datetime, lead_minutes: int = 15) -> list[Booking]:
+        """CONFIRMED bookings starting within lead_minutes that haven't been reminded yet."""
+        from datetime import timedelta
+
+        window_end = now + timedelta(minutes=lead_minutes)
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.status == BookingStatus.CONFIRMED,
+                Booking.start_at > now,
+                Booking.start_at <= window_end,
+                Booking.reminder_sent_at.is_(None),
+                Booking.deleted_at.is_(None),
+            )
+            .options(selectinload(Booking.attendees))
+        )
+        return list(self._db.execute(stmt).scalars().all())
+
+    def find_needing_daily_reminder(self, now: datetime) -> list[Booking]:
+        """CONFIRMED bookings starting in 23–25h window that haven't received the 1-day reminder."""
+        from datetime import timedelta
+
+        window_start = now + timedelta(hours=23)
+        window_end = now + timedelta(hours=25)
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.status == BookingStatus.CONFIRMED,
+                Booking.start_at >= window_start,
+                Booking.start_at < window_end,
+                Booking.daily_reminder_sent_at.is_(None),
                 Booking.deleted_at.is_(None),
             )
             .options(selectinload(Booking.attendees))

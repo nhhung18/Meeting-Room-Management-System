@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-10-27
+> Cập nhật lần cuối: 2026-11-16
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -17,7 +17,7 @@
 | 9 | room-service skeleton + Nginx route + CI job | ✅ Done | `/api/rooms/health` → 200 |
 | 10 | Room CRUD + equipment + soft delete + status | ✅ Done | Alembic migration, unit + integration tests, Swagger |
 | 11 | Auth0 tenant: API, 3 roles, test users | ⏳ | Manual setup |
-| 12 | JWT validation + RBAC trong services | ✅ Done | libs/common JWT validator, room-service wired; e2e blocked chờ task 11 |
+| 12 | JWT validation + RBAC trong services | ✅ Done | libs/common JWT validator, room-service + booking-service wired; dual-mode (anon khi không set AUTH0_DOMAIN) |
 | 13 | Seed data (`make seed`) | ✅ Done | 11 demo rooms, idempotent; verify Docker manual |
 
 ## Tuần 3–4: Booking Core & Xử lý song song
@@ -52,10 +52,26 @@
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 27 | Test scenarios bắt buộc (theo đề bài) | ⏳ | |
-| 28 | Frontend React + TypeScript: trang đặt phòng | ⏳ | |
-| 29 | Frontend: trang quản lý phòng (admin) | ⏳ | |
+| 27 | Test scenarios bắt buộc (theo đề bài) | ✅ Done | 41 new tests; all 7 scenarios S1–S7 covered; `docs/test-report.md` |
+| 28 | Frontend API layer: HTTP client + mappers + rooms/bookings API + error handling | ✅ Done | 6 modules, 51 unit tests; rooms/bookings call backend qua Vite proxy → Nginx; ApiErrorState covers 0/403/404/409/5xx; nhánh `feat/frontend-api-integration` |
+| 28b | Frontend missing UI: edit booking flow + ApiErrorState wired | ✅ Done | BookingFormPage edit mode (PATCH), edit button on MyBookingsPage, ApiErrorState + empty state wired vào 4 pages; 51 tests pass |
+| 28c | Frontend auth wiring: AuthContext → setTokenProvider + 401 error state | ✅ Done | createTokenProvider() wired vào http.ts; 401 case trong ApiErrorState với vi/en translations; 55 tests pass |
+| 28d | Auth0 real integration: dual-mode AuthProvider + booking-service JWT | ✅ Done | @auth0/auth0-react installed; Auth0AuthProvider + isAuth0Mode; createAuth0TokenProvider; mapAuth0Role; LoginPage real loginWithRedirect; booking-service real JWTValidator; 66 FE tests pass |
+| 29 | Frontend: trang quản lý phòng (admin) | ✅ Done | RoomManagementPage committed (CRUD + error state) |
 | 30 | Frontend: trang lịch sử / báo cáo | ⏳ | |
+
+## Functional Requirements (FR)
+
+| FR | Mô tả | Trạng thái | Ghi chú |
+|---|---|---|---|
+| FR-01 | Auth0 JWT + RBAC 3 roles | 🔄 Partial | libs/common wired; Auth0 tenant chưa config (task 11) |
+| FR-02 | Room CRUD + trạng thái + ảnh | ✅ Done | AVAILABLE/MAINTENANCE/DISABLED; Cloudinary upload; PR #18 |
+| FR-03 | Availability search + room-service snapshots | ✅ Done | GET /api/bookings/rooms/available; floor/capacity/equipment/time filters; room event consumer; 7 integration tests |
+| FR-04 | Booking CRUD + check-in | ✅ Done | Concurrency EXCLUDE constraint; check-in ±window |
+| FR-05 | Admin cấu hình runtime policy (check-in window) | ✅ Done | system_policies table; PolicyService cache 60s; PATCH /api/bookings/policies/{key} |
+| FR-06 | Thông báo async (booking.created, cancelled, reminders) | ✅ Done | 7 event types; outbox pattern; DLQ; 3-email lifecycle (confirmation + 1-day + 15-min check-in alert); room-outbox-relay |
+| FR-07 | Báo cáo quản trị viên | ⏳ | Chưa làm |
+| FR-08 | Nhật ký kiểm toán | ⏳ | Chưa quyết định nơi lưu |
 
 ## Tuần 8: Hoàn thiện & Demo
 
@@ -66,3 +82,10 @@
 | 33 | README hướng dẫn chạy + kiến trúc | ⏳ | |
 | 34 | Demo video | ⏳ | |
 | 35 | Slides thuyết trình | ⏳ | |
+
+## FR requirements
+
+| FR | Item | Trạng thái | Ghi chú |
+|---|---|---|---|
+| FR-02 | 02-4: ARCHIVED → DISABLED | ✅ Done | room-service migration 0002; booking migration 0005; RoomStatus.DISABLED |
+| FR-02 | 02-6: Cloudinary image upload | ✅ Done | `POST /api/rooms/{id}/image`; multipart; validate type/size; migration 0003 adds floor/desc/image_url |

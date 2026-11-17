@@ -34,15 +34,23 @@ class Booking(Base):
     start_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=False)
     end_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=False)
     num_attendees: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    purpose: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
     status: Mapped[str] = mapped_column(
         sa.VARCHAR(20),
         nullable=False,
         server_default="CONFIRMED",
     )
+    booker_email: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     checked_in_at: Mapped[datetime | None] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=True
     )
     auto_cancelled_at: Mapped[datetime | None] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=True
+    )
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=True
+    )
+    daily_reminder_sent_at: Mapped[datetime | None] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -55,9 +63,7 @@ class Booking(Base):
         nullable=False,
         server_default=sa.text("now()"),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        sa.TIMESTAMP(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=True)
 
     # selectin: load attendees cùng lúc với booking, không cần thêm query riêng.
     attendees: Mapped[list["BookingAttendee"]] = relationship(

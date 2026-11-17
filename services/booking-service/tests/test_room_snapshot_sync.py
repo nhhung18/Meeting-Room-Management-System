@@ -26,6 +26,7 @@ _ROOM_PAYLOAD = {
             "name": "Room A",
             "capacity": 10,
             "status": "AVAILABLE",
+            "floor": "Tầng 1",
             "equipment": ["projector"],
             "owner_id": "owner-1",
             "version": 2,
@@ -55,6 +56,7 @@ class TestSyncFromRoomService:
             equipment=["projector"],
             owner_id="owner-1",
             version=2,
+            floor="Tầng 1",
         )
 
     def test_skips_stale_version(self, sync_service, mock_snapshot_repo):

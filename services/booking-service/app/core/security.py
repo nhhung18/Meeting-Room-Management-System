@@ -1,57 +1,61 @@
-"""Security module for booking-service: TokenPayload, current_user, require_admin.
+"""Security module cho booking-service: JWT validation + anonymous dev mode.
 
-Anonymous mode: when AUTH0_DOMAIN is not set (dev/test), current_user returns a
-synthetic Administrator payload so all endpoints work without Auth0.
-Full JWT validation is added in task #12 when Auth0 is configured — no router
-changes needed at that point.
+Pattern giống room-service: JWTValidator singleton từ libs/common.
+Khi AUTH0_DOMAIN không set → trả về anonymous admin (backward compatible).
 """
 
-import os
+from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+import logging
+from functools import lru_cache
 
-_bearer = HTTPBearer(auto_error=False)
+from common.auth import AuthError, JWTValidator, TokenPayload, require_roles
+from fastapi import Depends, Header, HTTPException
+
+from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
-class TokenPayload(BaseModel):
-    """Decoded JWT claims (≈ Spring Security's Authentication principal)."""
-
-    sub: str
-    roles: list[str] = Field(default_factory=list)
-    email: str | None = None
+@lru_cache
+def get_jwt_validator() -> JWTValidator | None:
+    """Singleton — None nếu AUTH0_DOMAIN chưa set (auth disabled)."""
+    settings = get_settings()
+    if not settings.auth0_domain or not settings.auth0_audience:
+        logger.warning("AUTH0_DOMAIN/AUTH0_AUDIENCE not set — auth disabled")
+        return None
+    return JWTValidator(settings.auth0_domain, settings.auth0_audience)
 
 
 def current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    authorization: str | None = Header(None),
+    validator: JWTValidator | None = Depends(get_jwt_validator),
 ) -> TokenPayload:
-    """FastAPI dependency that returns the current authenticated user.
-
-    Dev mode (AUTH0_DOMAIN not set): returns anonymous admin so all endpoints
-    are reachable without a real token.
-    Auth mode: validates the Bearer token (full implementation in task #12).
-    """
-    if not os.environ.get("AUTH0_DOMAIN"):
+    """Dependency: decode JWT và trả về TokenPayload. 401 nếu invalid."""
+    if validator is None:
         return TokenPayload(sub="anonymous", roles=["Administrator"])
 
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if not authorization:
+        raise HTTPException(401, detail="Missing Authorization header")
 
-    # Placeholder — real JWT validation is wired in task #12.
-    # For now, treat any Bearer token as an anonymous admin.
-    return TokenPayload(sub="anonymous", roles=["Administrator"])
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(401, detail="Authorization must be 'Bearer <token>'")
+
+    try:
+        return validator.decode(parts[1])
+    except AuthError as e:
+        raise HTTPException(e.status_code, detail=e.detail) from None
 
 
-def require_admin(user: TokenPayload = Depends(current_user)) -> TokenPayload:
-    """Dependency that ensures the caller has the Administrator role."""
-    if "Administrator" not in user.roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator role required",
-        )
-    return user
+_require_admin_check = require_roles("Administrator")
+
+
+def require_admin(
+    user: TokenPayload = Depends(current_user),
+) -> TokenPayload:
+    """Dependency: chỉ Administrator."""
+    try:
+        return _require_admin_check(user)
+    except AuthError as e:
+        raise HTTPException(e.status_code, detail=e.detail) from None

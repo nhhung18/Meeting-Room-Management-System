@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.models.booking import BookingStatus
 from app.models.outbox_event import OutboxEvent
 from app.repositories.booking_repository import BookingRepository
+from app.services.policy_service import get_policy_service
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,9 @@ def run_once(session: Session) -> int:
     Returns số lượng booking đã bị cancel trong lần chạy này.
     """
     cutoff = datetime.now(UTC)
+    window_minutes = get_policy_service().get_check_in_window_minutes()
     repo = BookingRepository(session)
-    overdue = repo.find_overdue_confirmed(cutoff)
+    overdue = repo.find_overdue_confirmed(cutoff, window_minutes=window_minutes)
 
     if not overdue:
         return 0
@@ -39,15 +41,19 @@ def run_once(session: Session) -> int:
         booking.status = BookingStatus.CANCELLED
         booking.auto_cancelled_at = now
         repo.update(booking)
-        session.add(OutboxEvent(
-            event_type="booking.auto_cancelled",
-            payload=json.dumps({
-                "booking_id": booking.id,
-                "room_id": booking.room_id,
-                "user_id": booking.user_id,
-                "auto_cancelled_at": now.isoformat(),
-            }),
-        ))
+        session.add(
+            OutboxEvent(
+                event_type="booking.auto_cancelled",
+                payload=json.dumps(
+                    {
+                        "booking_id": booking.id,
+                        "room_id": booking.room_id,
+                        "user_id": booking.user_id,
+                        "auto_cancelled_at": now.isoformat(),
+                    }
+                ),
+            )
+        )
         logger.info(
             "auto-cancelled booking",
             extra={"fields": {"booking_id": booking.id, "room_id": booking.room_id}},

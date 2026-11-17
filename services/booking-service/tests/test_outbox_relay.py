@@ -81,6 +81,36 @@ class TestRelayOnce:
         assert count == 0
         assert evt.sent_at is None
 
+    def test_partial_batch_failed_event_stays_unsent(self):
+        """Khi event thứ 2 của 3 fail, relay tiếp tục; evt2 giữ sent_at=None để retry."""
+        from app.workers.outbox_relay import relay_once
+
+        mock_publisher = MagicMock()
+        call_count = 0
+
+        def fail_on_second(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:
+                raise RuntimeError("broker closed")
+
+        mock_publisher.publish.side_effect = fail_on_second
+
+        evt1 = OutboxEvent(event_type="booking.created", payload='{"id":1}')
+        evt2 = OutboxEvent(event_type="booking.created", payload='{"id":2}')
+        evt3 = OutboxEvent(event_type="booking.created", payload='{"id":3}')
+        session = MagicMock()
+        session.execute.return_value.scalars.return_value.all.return_value = [evt1, evt2, evt3]
+
+        with patch("app.workers.outbox_relay.get_publisher", return_value=mock_publisher):
+            count = relay_once(session)
+
+        # Relay continues after failure: evt1 and evt3 succeed; only evt2 (failed) stays unsent
+        assert count == 2
+        assert evt1.sent_at is not None
+        assert evt2.sent_at is None
+        assert evt3.sent_at is not None
+
     def test_publishes_with_request_id_header(self):
         """relay_once passes request_id to publisher."""
         from app.workers.outbox_relay import relay_once

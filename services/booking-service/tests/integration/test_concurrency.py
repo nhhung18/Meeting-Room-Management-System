@@ -23,6 +23,11 @@ PARALLEL = 10
 
 def _book_room_via_testclient(room_id: int, start: str, end: str) -> int:
     """POST a booking via a fresh TestClient context (own DB connection pool)."""
+    from app.core.security import TokenPayload, current_user
+
+    app.dependency_overrides[current_user] = lambda: TokenPayload(
+        sub="integration-test-user", roles=["Employee"]
+    )
     with TestClient(app) as client:
         resp = client.post(
             "/api/bookings/",

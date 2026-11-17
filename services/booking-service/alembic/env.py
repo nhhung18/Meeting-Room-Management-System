@@ -4,13 +4,12 @@ from sqlalchemy import create_engine, pool
 
 from alembic import context
 from app.core.config import get_settings  # nạp DATABASE_URL từ biến môi trường, không hardcode
+from app.models.base import Base  # noqa: E402
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-from app.models.base import Base
 
 target_metadata = Base.metadata
 

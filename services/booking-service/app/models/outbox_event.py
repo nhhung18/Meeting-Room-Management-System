@@ -23,7 +23,5 @@ class OutboxEvent(Base):
         nullable=False,
         server_default=sa.text("now()"),
     )
-    sent_at: Mapped[datetime | None] = mapped_column(
-        sa.TIMESTAMP(timezone=True), nullable=True
-    )
+    sent_at: Mapped[datetime | None] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=True)
     request_id: Mapped[str | None] = mapped_column(sa.VARCHAR(64), nullable=True)

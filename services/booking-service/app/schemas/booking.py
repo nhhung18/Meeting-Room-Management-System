@@ -24,6 +24,7 @@ class BookingCreate(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int = Field(gt=0)
+    purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] = Field(default_factory=list)
 
     @field_validator("start_at", "end_at", mode="after")
@@ -35,9 +36,8 @@ class BookingCreate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingCreate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
 
@@ -46,6 +46,7 @@ class BookingUpdate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     num_attendees: int | None = Field(default=None, gt=0)
+    purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] | None = None
 
     @field_validator("start_at", "end_at", mode="after")
@@ -57,9 +58,8 @@ class BookingUpdate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "BookingUpdate":
-        if self.start_at is not None and self.end_at is not None:
-            if self.end_at <= self.start_at:
-                raise ValueError("end_at must be after start_at")
+        if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
+            raise ValueError("end_at must be after start_at")
         return self
 
 
@@ -77,9 +77,11 @@ class BookingResponse(BaseModel):
     id: int
     room_id: int
     user_id: str
+    booker_email: str | None = None
     start_at: datetime
     end_at: datetime
     num_attendees: int
+    purpose: str | None = None
     status: str
     checked_in_at: datetime | None = None
     auto_cancelled_at: datetime | None = None

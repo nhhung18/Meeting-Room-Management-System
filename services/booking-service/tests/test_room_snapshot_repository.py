@@ -25,6 +25,7 @@ def _make_snapshot(**overrides):
         "name": "Room A",
         "capacity": 10,
         "status": "AVAILABLE",
+        "floor": None,
         "equipment": [],
         "owner_id": None,
         "version": 1,
@@ -53,8 +54,14 @@ class TestUpsert:
     def test_insert_new_snapshot_when_not_exists(self, repo, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
         result = repo.upsert(
-            room_id=1, name="Room A", capacity=10,
-            status="AVAILABLE", equipment=[], owner_id=None, version=1,
+            room_id=1,
+            name="Room A",
+            capacity=10,
+            status="AVAILABLE",
+            floor="Tầng 1",
+            equipment=[],
+            owner_id=None,
+            version=1,
         )
         assert result is not None
         mock_db.add.assert_called_once()
@@ -64,12 +71,19 @@ class TestUpsert:
         existing = _make_snapshot(version=3)
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Room A Updated", capacity=20,
-            status="AVAILABLE", equipment=["projector"], owner_id="mgr1", version=5,
+            room_id=1,
+            name="Room A Updated",
+            capacity=20,
+            status="AVAILABLE",
+            floor="Tầng 2",
+            equipment=["projector"],
+            owner_id="mgr1",
+            version=5,
         )
         assert result is not None
         assert existing.name == "Room A Updated"
         assert existing.capacity == 20
+        assert existing.floor == "Tầng 2"
         assert existing.version == 5
         mock_db.flush.assert_called_once()
 
@@ -77,8 +91,14 @@ class TestUpsert:
         existing = _make_snapshot(version=5, name="Room A")
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Stale Name", capacity=5,
-            status="MAINTENANCE", equipment=[], owner_id=None, version=3,
+            room_id=1,
+            name="Stale Name",
+            capacity=5,
+            status="MAINTENANCE",
+            floor=None,
+            equipment=[],
+            owner_id=None,
+            version=3,
         )
         assert result is None
         assert existing.name == "Room A"  # không thay đổi
@@ -88,15 +108,30 @@ class TestUpsert:
         existing = _make_snapshot(version=5, name="Room A")
         mock_db.execute.return_value.scalar_one_or_none.return_value = existing
         result = repo.upsert(
-            room_id=1, name="Same Version", capacity=5,
-            status="MAINTENANCE", equipment=[], owner_id=None, version=5,
+            room_id=1,
+            name="Same Version",
+            capacity=5,
+            status="MAINTENANCE",
+            floor=None,
+            equipment=[],
+            owner_id=None,
+            version=5,
         )
         assert result is None
         mock_db.flush.assert_not_called()
 
     def test_insert_does_not_commit(self, repo, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        repo.upsert(room_id=2, name="B", capacity=5, status="AVAILABLE", equipment=[], owner_id=None, version=1)
+        repo.upsert(
+            room_id=2,
+            name="B",
+            capacity=5,
+            status="AVAILABLE",
+            floor=None,
+            equipment=[],
+            owner_id=None,
+            version=1,
+        )
         mock_db.commit.assert_not_called()
 
 
@@ -115,4 +150,50 @@ class TestListAvailable:
     def test_filters_by_min_capacity(self, repo, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
         result = repo.list_available(min_capacity=50)
+        assert result == []
+
+
+class TestFindAvailable:
+    def test_find_available_returns_rooms(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        rooms = [_make_snapshot(room_id=1), _make_snapshot(room_id=2)]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = rooms
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+        )
+        assert len(result) == 2
+
+    def test_find_available_filters_by_floor(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            floor="Tầng 1",
+        )
+        assert result == []
+
+    def test_find_available_filters_by_min_capacity(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            min_capacity=20,
+        )
+        assert result == []
+
+    def test_find_available_filters_by_equipment(self, repo, mock_db):
+        from datetime import UTC, datetime
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        result = repo.find_available(
+            start_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+            end_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            equipment=["projector"],
+        )
         assert result == []

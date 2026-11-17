@@ -76,13 +76,23 @@ class TestEventPublisher:
         props_kwargs = mock_module.BasicProperties.call_args.kwargs
         assert props_kwargs["headers"]["X-Request-ID"] == "req-123"
 
-    def test_publish_failure_logs_warning_no_raise(self):
-        """Khi RabbitMQ không available, publish log warning và KHÔNG raise exception."""
-        with patch("app.events.publisher.pika") as mock_pika:
-            mock_pika.URLParameters.side_effect = Exception("connection refused")
+    def test_publish_raises_connection_error_when_channel_unavailable(self):
+        """Khi RabbitMQ không thể kết nối, publish() raise ConnectionError."""
+        with patch("app.events.publisher.pika") as mock_pika_module:
+            mock_pika_module.URLParameters.side_effect = Exception("connection refused")
 
             publisher = EventPublisher("amqp://guest:guest@localhost/")
-            # Không raise — best-effort
+            with pytest.raises(ConnectionError, match="rabbitmq unavailable"):
+                publisher.publish("booking.created", {"booking_id": 1})
+
+    def test_publish_raises_when_broker_rejects_message(self):
+        """Khi basic_publish thất bại, publish() re-raise exception."""
+        publisher = EventPublisher("amqp://guest:guest@localhost/")
+        channel = MagicMock(is_closed=False)
+        channel.basic_publish.side_effect = RuntimeError("broker closed")
+        publisher._connection = MagicMock(is_closed=False)
+        publisher._channel = channel
+        with pytest.raises(RuntimeError):
             publisher.publish("booking.created", {"booking_id": 1})
 
     def test_publish_routes_to_correct_queue(self, mock_pika):

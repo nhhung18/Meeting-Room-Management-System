@@ -1,0 +1,6 @@
+{
+  "name": "MRMS - Hệ thống Quản lý Phòng họp",
+  "description": "Hệ thống quản lý đặt phòng họp thông minh, trực quan và hiện đại dành cho doanh nghiệp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

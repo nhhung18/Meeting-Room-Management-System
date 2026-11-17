@@ -64,8 +64,8 @@ def mock_service(mock_booking_service):
     """Wire mock BookingService into the router via dependency_overrides."""
     from app.api import bookings as bookings_module
 
-    app.dependency_overrides[bookings_module._get_booking_service] = (
-        lambda db=None: mock_booking_service
+    app.dependency_overrides[bookings_module._get_booking_service] = lambda db=None: (
+        mock_booking_service
     )
     yield mock_booking_service
     app.dependency_overrides.pop(bookings_module._get_booking_service, None)

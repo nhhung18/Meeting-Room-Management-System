@@ -38,6 +38,7 @@ class TokenPayload:
     roles: list[str] = field(default_factory=list)
     permissions: list[str] = field(default_factory=list)
     exp: int = 0
+    email: str | None = None
 
 
 class JWTValidator:
@@ -69,6 +70,7 @@ class JWTValidator:
                 roles=payload.get(ROLES_CLAIM, []),
                 permissions=payload.get("permissions", []),
                 exp=payload.get("exp", 0),
+                email=payload.get("email"),
             )
         except jwt.ExpiredSignatureError:
             raise AuthError(401, "Token has expired") from None

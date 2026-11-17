@@ -1,6 +1,6 @@
 from scripts.seed import SEED_ROOMS
 
-VALID_STATUSES = {"AVAILABLE", "MAINTENANCE", "ARCHIVED"}
+VALID_STATUSES = {"AVAILABLE", "MAINTENANCE", "DISABLED"}
 
 
 def test_seed_rooms_not_empty():
@@ -38,3 +38,10 @@ def test_required_fields_present():
     required = {"name", "capacity", "status", "equipment"}
     for r in SEED_ROOMS:
         assert required.issubset(r.keys()), f"{r['name']} missing {required - r.keys()}"
+
+
+def test_all_rooms_have_floor():
+    for r in SEED_ROOMS:
+        assert "floor" in r, f"{r['name']} missing floor"
+        assert isinstance(r["floor"], str), f"{r['name']} floor must be a string"
+        assert len(r["floor"]) > 0, f"{r['name']} floor must not be empty"
