@@ -25,7 +25,7 @@ jobs:
             cd ~/mrms
 
             # Lấy tag mới về
-            git fetch --all --tags
+            git fetch --all --tags --force
             git checkout ${{ github.ref_name }}
 
             # Build và khởi động lại tất cả service, chờ đến khi healthy
