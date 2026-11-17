@@ -91,7 +91,10 @@ export async function uploadFile<T>(path: string, formData: FormData): Promise<T
   let detail = response.statusText || 'Unknown error';
   try {
     const errorBody = await response.json();
-    if (errorBody?.detail) detail = String(errorBody.detail);
+    if (errorBody?.detail !== undefined) {
+      const d = errorBody.detail;
+      detail = typeof d === 'string' ? d : JSON.stringify(d);
+    }
   } catch { /* non-JSON */ }
   throw new ApiError(response.status, detail);
 }

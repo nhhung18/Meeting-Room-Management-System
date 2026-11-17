@@ -104,7 +104,7 @@ def delete_equipment(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/{room_id}/equipment", response_model=list[EquipmentResponse])
+@router.get("/equipment/by-room/{room_id}", response_model=list[EquipmentResponse])
 def list_equipment_by_room(
     room_id: int,
     _user=Depends(current_user),

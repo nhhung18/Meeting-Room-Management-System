@@ -127,7 +127,7 @@ export const getEquipmentList = async (params: EquipmentFilterParams = {}): Prom
 };
 
 export const getEquipmentByRoom = async (roomId: number): Promise<EquipmentItem[]> => {
-  const resp = await request<BackendEquipmentResponse[]>(`/rooms/${roomId}/equipment`);
+  const resp = await request<BackendEquipmentResponse[]>(`/rooms/equipment/by-room/${roomId}`);
   return resp.map(adaptEquipment);
 };
 
