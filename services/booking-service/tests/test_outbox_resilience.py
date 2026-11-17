@@ -53,8 +53,7 @@ class TestOutboxAccumulatesDuringDowntime:
     def test_partial_failure_marks_only_sent_ones(self):
         """If publish fails on 3rd event, first 2 are marked sent, 3rd stays unsent."""
         events = [
-            OutboxEvent(event_type="booking.created", payload=f'{{"id": {i}}}')
-            for i in range(3)
+            OutboxEvent(event_type="booking.created", payload=f'{{"id": {i}}}') for i in range(3)
         ]
         mock_session = MagicMock()
         mock_session.execute.return_value.scalars.return_value.all.return_value = events

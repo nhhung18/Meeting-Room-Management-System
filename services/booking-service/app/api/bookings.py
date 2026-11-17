@@ -170,7 +170,8 @@ def create_booking(
                             "end_at": result.end_at.isoformat(),
                             "purpose": result.purpose,
                             "attendees": [
-                                {"email": a.attendee_email, "name": a.name} for a in result.attendees
+                                {"email": a.attendee_email, "name": a.name}
+                                for a in result.attendees
                             ],
                         }
                     ),

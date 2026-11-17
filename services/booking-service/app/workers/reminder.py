@@ -1,8 +1,10 @@
 """Reminder worker — gửi thông báo nhắc nhở trước khi cuộc họp bắt đầu.
 
 Pattern:
-  run_once(session): scan CONFIRMED bookings sắp bắt đầu (15 phút), ghi outbox event booking.reminder.
-  run_once_daily(session): scan CONFIRMED bookings bắt đầu trong 23–25h, ghi outbox event booking.daily_reminder.
+  run_once(session): scan CONFIRMED bookings sắp bắt đầu (15 phút),
+    ghi outbox event booking.reminder.
+  run_once_daily(session): scan CONFIRMED bookings bắt đầu trong 23–25h,
+    ghi outbox event booking.daily_reminder.
   run_forever(session_factory, interval): loop gọi cả hai run_once* mỗi interval giây.
 """
 
