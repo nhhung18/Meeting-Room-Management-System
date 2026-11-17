@@ -202,9 +202,7 @@ class BookingService:
             )
 
         changes = dto.model_dump(exclude_unset=True)
-        time_or_room_changed = (
-            "start_at" in changes or "end_at" in changes or "room_id" in changes
-        )
+        time_or_room_changed = "start_at" in changes or "end_at" in changes or "room_id" in changes
 
         # Compute new values WITHOUT modifying the booking yet — if we setattr first and
         # then call has_overlap(), SQLAlchemy's autoflush sends the dirty object to

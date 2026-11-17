@@ -5,7 +5,6 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.models.equipment_item import EquipmentItem
-from app.models.room import Room
 from app.repositories.equipment_repository import EquipmentRepository
 from app.repositories.room_repository import RoomRepository
 from app.schemas.equipment import (

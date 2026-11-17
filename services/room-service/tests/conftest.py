@@ -18,9 +18,7 @@ from app.main import app  # noqa: E402
 
 @pytest.fixture
 def employee_user():
-    app.dependency_overrides[current_user] = lambda: TokenPayload(
-        sub="emp1", roles=["Employee"]
-    )
+    app.dependency_overrides[current_user] = lambda: TokenPayload(sub="emp1", roles=["Employee"])
     yield
     app.dependency_overrides.pop(current_user, None)
 

@@ -61,12 +61,15 @@ class TestExpiredJWT:
     def test_expired_token_create_booking_401(self):
         _override_expired()
         with TestClient(app) as client:
-            resp = client.post("/api/bookings/", json={
-                "room_id": 1,
-                "start_at": "2099-01-01T09:00:00+00:00",
-                "end_at": "2099-01-01T10:00:00+00:00",
-                "num_attendees": 2,
-            })
+            resp = client.post(
+                "/api/bookings/",
+                json={
+                    "room_id": 1,
+                    "start_at": "2099-01-01T09:00:00+00:00",
+                    "end_at": "2099-01-01T10:00:00+00:00",
+                    "num_attendees": 2,
+                },
+            )
         assert resp.status_code == 401
 
     def test_expired_token_check_in_401(self):

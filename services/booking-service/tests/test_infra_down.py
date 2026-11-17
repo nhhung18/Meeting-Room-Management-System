@@ -70,21 +70,29 @@ class TestRabbitMQDown:
 
         mock_svc = MagicMock()
         mock_svc.create_booking.return_value = BookingResponse(
-            id=1, room_id=1, user_id="admin1",
+            id=1,
+            room_id=1,
+            user_id="admin1",
             start_at="2099-01-01T09:00:00+00:00",
             end_at="2099-01-01T10:00:00+00:00",
-            num_attendees=2, status="CONFIRMED",
-            checked_in_at=None, auto_cancelled_at=None,
+            num_attendees=2,
+            status="CONFIRMED",
+            checked_in_at=None,
+            auto_cancelled_at=None,
             created_at="2026-01-01T00:00:00+00:00",
             updated_at="2026-01-01T00:00:00+00:00",
-            room_name="Room A", attendees=[],
+            room_name="Room A",
+            attendees=[],
         )
         app.dependency_overrides[_get_booking_service] = lambda: mock_svc
 
-        resp = client.post("/api/bookings/", json={
-            "room_id": 1,
-            "start_at": "2099-01-01T09:00:00+00:00",
-            "end_at": "2099-01-01T10:00:00+00:00",
-            "num_attendees": 2,
-        })
+        resp = client.post(
+            "/api/bookings/",
+            json={
+                "room_id": 1,
+                "start_at": "2099-01-01T09:00:00+00:00",
+                "end_at": "2099-01-01T10:00:00+00:00",
+                "num_attendees": 2,
+            },
+        )
         assert resp.status_code == 201

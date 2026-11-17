@@ -58,9 +58,7 @@ def _set_user(sub: str, roles: list[str]):
 
 
 def _set_manager(sub: str, roles: list[str]):
-    app.dependency_overrides[require_room_manager] = lambda: TokenPayload(
-        sub=sub, roles=roles
-    )
+    app.dependency_overrides[require_room_manager] = lambda: TokenPayload(sub=sub, roles=roles)
 
 
 def _block_manager():
@@ -91,7 +89,10 @@ class TestEmployeeCannotManageRooms:
     def test_employee_can_list_rooms(self, client, mock_service):
         _set_user("emp1", ["Employee"])
         mock_service.list_rooms.return_value = MagicMock(
-            items=[], total=0, limit=20, offset=0,
+            items=[],
+            total=0,
+            limit=20,
+            offset=0,
             model_dump=lambda **kw: {"items": [], "total": 0, "limit": 20, "offset": 0},
         )
         resp = client.get("/api/rooms/")
