@@ -33,16 +33,6 @@ import { getBookings } from '../api/client';
 import { Booking } from '../types';
 
 const { Title, Text } = Typography;
-
-const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=160&auto=format&fit=crop&q=80',
-];
-
 export const ProfilePage: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const { isDark } = useTheme();
@@ -51,7 +41,7 @@ export const ProfilePage: React.FC = () => {
 
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar || PRESET_AVATARS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
@@ -63,7 +53,7 @@ export const ProfilePage: React.FC = () => {
         phone: user.phone || '',
         avatar: user.avatar || '',
       });
-      setSelectedAvatar(user.avatar || PRESET_AVATARS[0]);
+      setSelectedAvatar(user.avatar);
     }
   }, [user, form]);
 
@@ -160,27 +150,6 @@ export const ProfilePage: React.FC = () => {
               >
                 <SafetyCertificateOutlined />
                 <span>{user?.role === 'ADMINISTRATOR' ? t.roleAdmin : user?.role === 'ROOM_MANAGER' ? t.roleManager : t.roleEmployee}</span>
-              </div>
-
-              {/* Preset Avatars Selection */}
-              <div className="pt-4 border-t border-slate-100 dark:border-white/10 text-left">
-                <div className="text-[11px] font-semibold text-slate-400 mb-2 uppercase tracking-wider text-center">
-                  {t.choosePresetAvatar}
-                </div>
-                <div className="flex justify-center items-center gap-2 flex-wrap">
-                  {PRESET_AVATARS.map((url, idx) => (
-                    <button
-                      type="button"
-                      key={idx}
-                      onClick={() => setSelectedAvatar(url)}
-                      className={`relative rounded-full transition-transform hover:scale-110 p-0.5 ${
-                        selectedAvatar === url ? 'ring-2 ring-[#0a84ff] ring-offset-2 ring-offset-transparent' : 'opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <Avatar size={36} src={url} />
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 

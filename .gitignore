@@ -43,3 +43,5 @@ build/
 .superpower/
 
 docs/superpowers
+
+preview_emails/
