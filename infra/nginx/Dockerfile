@@ -13,6 +13,10 @@ ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
 ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
 ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
 
+# Thiếu biến thì build fail ngay, không để sinh ra bản frontend dùng mock auth
+RUN [ -n "$VITE_AUTH0_DOMAIN" ] && [ -n "$VITE_AUTH0_CLIENT_ID" ] && [ -n "$VITE_AUTH0_AUDIENCE" ] \
+    || (echo "Thiếu VITE_AUTH0_DOMAIN / VITE_AUTH0_CLIENT_ID / VITE_AUTH0_AUDIENCE trong .env" >&2 && exit 1)
+
 RUN npm run build
 
 # Stage 2: Nginx phục vụ static files + API gateway

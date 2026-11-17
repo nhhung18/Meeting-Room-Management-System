@@ -139,6 +139,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
 
+  // Production build không bao giờ được dùng mock auth: thiếu cấu hình Auth0 thì dừng lại.
+  if (import.meta.env.PROD) {
+    return (
+      <div role="alert" style={{ padding: 24, fontFamily: 'sans-serif' }}>
+        Ứng dụng chưa được cấu hình đăng nhập Auth0. Liên hệ quản trị viên.
+      </div>
+    );
+  }
+
   return <MockAuthProvider>{children}</MockAuthProvider>;
 };
 
