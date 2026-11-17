@@ -18,9 +18,8 @@
 **/.ruff_cache/
 **/.mypy_cache/
 
-# Frontend (chưa build)
-frontend/
-node_modules/
+# node_modules ở mọi cấp
+**/node_modules/
 
 # Editor / OS
 .vscode/
