@@ -151,7 +151,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   let detail: string = response.statusText || 'Unknown error';
   try {
     const errorBody = await response.json();
-    if (errorBody?.detail) detail = String(errorBody.detail);
+    if (errorBody?.detail !== undefined) {
+      const d = errorBody.detail;
+      detail = typeof d === 'string' ? d : JSON.stringify(d);
+    }
   } catch {
     // non-JSON error body — keep statusText
   }

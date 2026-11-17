@@ -58,7 +58,6 @@ function adaptEquipment(raw: BackendEquipmentResponse): EquipmentItem {
     status: raw.status as EquipmentItem['status'],
     serial_number: raw.serial_number ?? undefined,
     notes: raw.notes ?? undefined,
-    rooms: raw.rooms,
     room_ids,
     room_names,
     room_id: room_ids[0] ?? null,
