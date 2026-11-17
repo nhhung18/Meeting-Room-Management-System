@@ -9,7 +9,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from app.core.security import TokenPayload, current_user  # noqa: E402
+from app.core.security import TokenPayload, current_user, get_jwt_validator  # noqa: E402
 from app.db.session import database_is_healthy, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services import policy_service as policy_service_module  # noqa: E402
@@ -59,6 +59,19 @@ def manager_user():
     )
     yield
     app.dependency_overrides.pop(current_user, None)
+
+
+@pytest.fixture
+def auth_required():
+    """Bật chế độ auth thật trong tests: get_jwt_validator trả về mock non-None.
+
+    Khi validator khác None, current_user sẽ từ chối request không có
+    Authorization header (401). Dùng fixture này cho các test kiểm tra
+    unauthenticated access.
+    """
+    app.dependency_overrides[get_jwt_validator] = lambda: MagicMock()
+    yield
+    app.dependency_overrides.pop(get_jwt_validator, None)
 
 
 # --- DB mock fixture ---
