@@ -133,7 +133,7 @@ class TestSearchAvailable:
         assert data["total"] == 0
         assert data["items"] == []
 
-    def test_search_no_auth_401(self, client, mock_repo):
+    def test_search_no_auth_401(self, client, auth_required, mock_repo):
         resp = client.get(
             "/api/bookings/rooms/available",
             params={"start_at": _START, "end_at": _END},
