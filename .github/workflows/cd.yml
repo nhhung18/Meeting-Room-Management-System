@@ -1,0 +1,48 @@
+name: CD — deploy on version tag
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: deploy
+          key: ${{ secrets.VM_SSH_KEY }}
+          # script_stop: dừng ngay khi một lệnh lỗi (tương đương set -e)
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/mrms
+
+            # Lấy tag mới về
+            git fetch --all --tags
+            git checkout ${{ github.ref_name }}
+
+            # Build và khởi động lại tất cả service, chờ đến khi healthy
+            docker compose up --build -d --wait
+
+            # Chạy migrations (cả hai service)
+            docker compose exec -T booking-service alembic upgrade head
+            docker compose exec -T room-service alembic upgrade head
+
+            # Dọn image cũ không còn dùng để tiết kiệm disk
+            docker image prune -f
+
+      - name: Notify deploy result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Deploy ${{ github.ref_name }} thành công"
+          else
+            echo "❌ Deploy ${{ github.ref_name }} thất bại — xem log ở trên"
+          fi
