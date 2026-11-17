@@ -26,10 +26,10 @@
 .idea/
 .DS_Store
 
-# Secrets
-.env
-.env.*
-!.env.example
+# Secrets (mọi cấp: gốc, frontend/, services/*/ đều không được vào image)
+**/.env
+**/.env.*
+!**/.env.example
 
 # Docs
 *.docx
