@@ -57,11 +57,12 @@ async def request_context(request: Request, call_next):
 app.include_router(health.router)
 app.include_router(health.router, prefix=settings.api_prefix, include_in_schema=False)
 
-# Room CRUD — chỉ mount với prefix để Swagger hiển thị đúng path.
+# Equipment management — phải đăng ký TRƯỚC rooms.router vì rooms có route
+# động /{room_id} sẽ match /equipment nếu đăng ký sau.
+app.include_router(equipment.router, prefix=settings.api_prefix)
+
+# Room CRUD — sau equipment để static /equipment route thắng /{room_id}.
 app.include_router(rooms.router, prefix=settings.api_prefix)
 
 # Room image upload — Cloudinary (FR-02-6)
 app.include_router(room_image.router, prefix=settings.api_prefix)
-
-# Equipment management
-app.include_router(equipment.router, prefix=settings.api_prefix)
