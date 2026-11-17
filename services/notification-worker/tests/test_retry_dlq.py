@@ -16,11 +16,13 @@ def _make_session_mock():
 
 def _make_message(event_type: str, payload: dict, x_death_count: int = 0) -> MagicMock:
     """Create mock IncomingMessage with optional x-death retry count."""
-    body = json.dumps({
-        "event_id": "evt-retry-test",
-        "event_type": event_type,
-        "payload": payload,
-    }).encode()
+    body = json.dumps(
+        {
+            "event_id": "evt-retry-test",
+            "event_type": event_type,
+            "payload": payload,
+        }
+    ).encode()
 
     msg = MagicMock()
     msg.body = body
@@ -72,8 +74,10 @@ class TestRetryDLQ:
 
         msg = _make_message("booking.created", {"booking_id": 1})
 
-        with patch("app.worker.SessionLocal", _make_session_mock()), \
-             patch("app.worker.get_email_sender", return_value=MagicMock()):
+        with (
+            patch("app.worker.SessionLocal", _make_session_mock()),
+            patch("app.worker.get_email_sender", return_value=MagicMock()),
+        ):
             await handle_message(msg)
 
         msg.ack.assert_called_once()
@@ -88,8 +92,10 @@ class TestRetryDLQ:
         mock_sender.send_booking_created.side_effect = Exception("smtp error")
         msg = _make_message("booking.created", {"booking_id": 1}, x_death_count=0)
 
-        with patch("app.worker.SessionLocal", _make_session_mock()), \
-             patch("app.worker.get_email_sender", return_value=mock_sender):
+        with (
+            patch("app.worker.SessionLocal", _make_session_mock()),
+            patch("app.worker.get_email_sender", return_value=mock_sender),
+        ):
             await handle_message(msg)
 
         msg.reject.assert_called_once_with(requeue=True)
@@ -104,8 +110,10 @@ class TestRetryDLQ:
         mock_sender.send_booking_created.side_effect = Exception("smtp error")
         msg = _make_message("booking.created", {"booking_id": 1}, x_death_count=3)
 
-        with patch("app.worker.SessionLocal", _make_session_mock()), \
-             patch("app.worker.get_email_sender", return_value=mock_sender):
+        with (
+            patch("app.worker.SessionLocal", _make_session_mock()),
+            patch("app.worker.get_email_sender", return_value=mock_sender),
+        ):
             await handle_message(msg)
 
         msg.reject.assert_called_once_with(requeue=False)
@@ -122,8 +130,10 @@ class TestRetryDLQ:
         msg = _make_message("booking.created", {"booking_id": 1})
 
         mock_sender = MagicMock()
-        with patch("app.worker.SessionLocal", session_factory), \
-             patch("app.worker.get_email_sender", return_value=mock_sender):
+        with (
+            patch("app.worker.SessionLocal", session_factory),
+            patch("app.worker.get_email_sender", return_value=mock_sender),
+        ):
             await handle_message(msg)
 
         msg.ack.assert_called_once()

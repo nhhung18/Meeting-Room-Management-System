@@ -40,14 +40,18 @@ async def test_valid_message_logged(caplog):
 
     from app.worker import handle_message
 
-    msg = _make_message({
-        "event_id": "evt-test-001",
-        "event_type": "booking.created",
-        "payload": {"booking_id": "abc-123", "attendees": []},
-    })
+    msg = _make_message(
+        {
+            "event_id": "evt-test-001",
+            "event_type": "booking.created",
+            "payload": {"booking_id": "abc-123", "attendees": []},
+        }
+    )
 
-    with patch("app.worker.SessionLocal", _make_session_mock()), \
-         patch("app.worker.get_email_sender", return_value=MagicMock()):
+    with (
+        patch("app.worker.SessionLocal", _make_session_mock()),
+        patch("app.worker.get_email_sender", return_value=MagicMock()),
+    ):
         with caplog.at_level(logging.INFO, logger="worker"):
             await handle_message(msg)
 
@@ -80,8 +84,10 @@ async def test_request_id_propagated(caplog):
         captured_ids.append(request_id_ctx.get(""))
         return original_info(msg_text, *args, **kwargs)
 
-    with patch("app.worker.SessionLocal", _make_session_mock()), \
-         patch("app.worker.get_email_sender", return_value=MagicMock()):
+    with (
+        patch("app.worker.SessionLocal", _make_session_mock()),
+        patch("app.worker.get_email_sender", return_value=MagicMock()),
+    ):
         with patch.object(logging.getLogger("worker"), "info", side_effect=capturing_info):
             await handle_message(msg)
 

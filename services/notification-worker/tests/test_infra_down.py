@@ -12,11 +12,13 @@ import pytest
 
 
 def _make_message(event_type: str = "booking.created") -> MagicMock:
-    body = json.dumps({
-        "event_id": "evt-infra-test",
-        "event_type": event_type,
-        "payload": {"booking_id": 1},
-    }).encode()
+    body = json.dumps(
+        {
+            "event_id": "evt-infra-test",
+            "event_type": event_type,
+            "payload": {"booking_id": 1},
+        }
+    ).encode()
 
     msg = MagicMock()
     msg.body = body
@@ -39,8 +41,10 @@ class TestDBDown:
 
         msg = _make_message()
 
-        with patch("app.worker.SessionLocal", session_factory), \
-             patch("app.worker.get_email_sender", return_value=MagicMock()):
+        with (
+            patch("app.worker.SessionLocal", session_factory),
+            patch("app.worker.get_email_sender", return_value=MagicMock()),
+        ):
             await handle_message(msg)
 
         msg.reject.assert_called_once_with(requeue=True)
@@ -59,8 +63,10 @@ class TestDBDown:
         msg = _make_message()
         msg.headers = {"x-death": [{"count": 3, "queue": "notifications"}]}
 
-        with patch("app.worker.SessionLocal", session_factory), \
-             patch("app.worker.get_email_sender", return_value=MagicMock()):
+        with (
+            patch("app.worker.SessionLocal", session_factory),
+            patch("app.worker.get_email_sender", return_value=MagicMock()),
+        ):
             await handle_message(msg)
 
         msg.reject.assert_called_once_with(requeue=False)
@@ -73,9 +79,13 @@ class TestRabbitMQDown:
         """RabbitMQ unavailable → connect_robust raises ConnectionError."""
         from app.worker import run_worker
 
-        with patch("app.worker.aio_pika.connect_robust",
-                    new_callable=AsyncMock,
-                    side_effect=ConnectionError("Connection refused")), \
-             patch("app.worker.configure_logging"):
+        with (
+            patch(
+                "app.worker.aio_pika.connect_robust",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("Connection refused"),
+            ),
+            patch("app.worker.configure_logging"),
+        ):
             with pytest.raises(ConnectionError, match="Connection refused"):
                 await run_worker()

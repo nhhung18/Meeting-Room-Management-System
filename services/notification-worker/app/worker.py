@@ -20,6 +20,7 @@ _email_sender = None
 def _init_db() -> None:
     global SessionLocal
     from app.db import get_session_factory
+
     SessionLocal = get_session_factory()
 
 
@@ -27,6 +28,7 @@ def get_email_sender():
     global _email_sender
     if _email_sender is None:
         from app.email_sender import EmailSender
+
         s = get_settings()
         _email_sender = EmailSender(
             s.smtp_host, s.smtp_port, s.smtp_user, s.smtp_password, s.smtp_from_email
@@ -72,6 +74,7 @@ async def handle_message(message: aio_pika.IncomingMessage) -> None:
 
         # Idempotency check
         from app.models import ProcessedEvent
+
         with SessionLocal() as session:
             existing = session.get(ProcessedEvent, event_id)
             if existing:

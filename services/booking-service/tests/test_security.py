@@ -27,6 +27,7 @@ class TestAnonymousMode:
     def _clear_caches(self):
         from app.core import security as sec
         from app.core.config import get_settings
+
         sec.get_jwt_validator.cache_clear()
         get_settings.cache_clear()
 
@@ -102,6 +103,7 @@ class TestAuthEnabledMode:
     def _set_auth_env_and_clear(self, monkeypatch):
         from app.core import security as sec
         from app.core.config import get_settings
+
         monkeypatch.setenv("AUTH0_DOMAIN", "test.auth0.com")
         monkeypatch.setenv("AUTH0_AUDIENCE", "https://mrms.api")
         sec.get_jwt_validator.cache_clear()
@@ -110,6 +112,7 @@ class TestAuthEnabledMode:
     def _clear_caches(self):
         from app.core import security as sec
         from app.core.config import get_settings
+
         sec.get_jwt_validator.cache_clear()
         get_settings.cache_clear()
 

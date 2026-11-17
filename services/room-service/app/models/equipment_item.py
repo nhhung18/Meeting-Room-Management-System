@@ -12,9 +12,7 @@ class EquipmentItem(Base):
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(sa.VARCHAR(255), nullable=False)
     category: Mapped[str] = mapped_column(sa.VARCHAR(100), nullable=False)
-    status: Mapped[str] = mapped_column(
-        sa.VARCHAR(50), nullable=False, server_default="FUNCTIONAL"
-    )
+    status: Mapped[str] = mapped_column(sa.VARCHAR(50), nullable=False, server_default="FUNCTIONAL")
     serial_number: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     created_at: Mapped[sa.DateTime] = mapped_column(
@@ -56,6 +54,4 @@ class EquipmentRoomAssignment(Base):
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("now()")
     )
 
-    equipment: Mapped["EquipmentItem"] = relationship(
-        "EquipmentItem", back_populates="assignments"
-    )
+    equipment: Mapped["EquipmentItem"] = relationship("EquipmentItem", back_populates="assignments")

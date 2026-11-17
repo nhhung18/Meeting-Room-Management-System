@@ -8,12 +8,14 @@ import pytest
 
 def _make_message(event_type: str, event_id: str = "evt-001", payload: dict | None = None):
     """Tạo mock aio_pika.IncomingMessage."""
-    body = json.dumps({
-        "event_id": event_id,
-        "event_type": event_type,
-        "timestamp": "2099-01-01T09:00:00+00:00",
-        "payload": payload or {},
-    }).encode()
+    body = json.dumps(
+        {
+            "event_id": event_id,
+            "event_type": event_type,
+            "timestamp": "2099-01-01T09:00:00+00:00",
+            "payload": payload or {},
+        }
+    ).encode()
     msg = MagicMock()
     msg.body = body
     msg.headers = {}

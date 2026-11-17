@@ -46,8 +46,7 @@ class EquipmentRepository:
             stmt = stmt.where(EquipmentItem.status == status)
         if q:
             stmt = stmt.where(
-                EquipmentItem.name.ilike(f"%{q}%")
-                | EquipmentItem.serial_number.ilike(f"%{q}%")
+                EquipmentItem.name.ilike(f"%{q}%") | EquipmentItem.serial_number.ilike(f"%{q}%")
             )
         if room_id == -1:  # UNASSIGNED
             assigned_ids = select(EquipmentRoomAssignment.equipment_id)
@@ -93,9 +92,7 @@ class EquipmentRepository:
         self._db.flush()
 
         for room_id in room_ids:
-            self._db.add(
-                EquipmentRoomAssignment(equipment_id=equipment_id, room_id=room_id)
-            )
+            self._db.add(EquipmentRoomAssignment(equipment_id=equipment_id, room_id=room_id))
         self._db.flush()
 
     def get_room_ids_for_equipment(self, equipment_id: int) -> list[int]:

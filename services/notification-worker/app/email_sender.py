@@ -156,9 +156,7 @@ def _html_wrapper(
         "max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;"
         "overflow:hidden;border:1px solid #e5e7eb;"
     )
-    header_td_style = (
-        "background-color:#ffffff;padding:20px 32px;border-bottom:1px solid #e5e7eb;"
-    )
+    header_td_style = "background-color:#ffffff;padding:20px 32px;border-bottom:1px solid #e5e7eb;"
     brand_title_style = (
         "font-size:16px;font-weight:700;color:#111827;letter-spacing:-0.2px;vertical-align:middle;"
     )
@@ -168,8 +166,7 @@ def _html_wrapper(
         "text-transform:uppercase;"
     )
     footer_td_style = (
-        "background-color:#fafafa;border-top:1px solid #e5e7eb;"
-        "padding:18px 32px;text-align:center;"
+        "background-color:#fafafa;border-top:1px solid #e5e7eb;padding:18px 32px;text-align:center;"
     )
 
     return f"""<!DOCTYPE html>
@@ -321,22 +318,28 @@ class EmailSender:
         booker_row = _row("Người đặt phòng:", booker) if booker else ""
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title=meeting_title,
                 subtitle="Yêu cầu đặt phòng họp của bạn đã được xác nhận thành công.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Thời gian:", time_text),
                 _row("Phòng họp:", room),
                 purpose_row,
                 booker_row,
                 _row("Người tham gia:", _format_attendees(attendees)),
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "<strong>Lưu ý:</strong> Vui lòng check-in trong vòng 15 phút kể từ giờ "
                 "bắt đầu để giữ phòng. Đặt phòng sẽ tự động hủy nếu quá thời gian quy định."
-            )}
+            )
+        }
         """
         self._send(
             list(to_set),
@@ -353,17 +356,23 @@ class EmailSender:
         subject = f"[MRMS] Đặt phòng đã bị hủy — #{booking_id}"
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title="Đặt phòng đã bị hủy",
                 subtitle="Lịch đặt phòng họp dưới đây đã được hủy trên hệ thống.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Phòng họp:", room),
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Phòng họp đã được giải phóng và sẵn sàng cho các thành viên khác đăng ký sử dụng."
-            )}
+            )
+        }
         """
         self._send(to, subject, _html_wrapper(content, header_label="HỦY ĐẶT PHÒNG"))
 
@@ -377,18 +386,22 @@ class EmailSender:
         checked_time = _format_datetime(payload.get("checked_in_at"))
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title="Check-in thành công",
                 subtitle="Bạn đã hoàn tất check-in. Phòng họp đã sẵn sàng cho cuộc họp của bạn.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Phòng họp:", room),
                 _row("Thời gian check-in:", checked_time),
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
-                "Phòng họp đã sẵn sàng. Chúc bạn và đồng nghiệp có một buổi họp hiệu quả!"
-            )}
+            )
+        }
+            {
+            _notice_box("Phòng họp đã sẵn sàng. Chúc bạn và đồng nghiệp có một buổi họp hiệu quả!")
+        }
         """
         self._send(to, subject, _html_wrapper(content, header_label="CHECK-IN THÀNH CÔNG"))
 
@@ -402,19 +415,25 @@ class EmailSender:
         cancelled_time = _format_datetime(payload.get("auto_cancelled_at"))
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title="Đặt phòng bị hủy do quá hạn check-in",
                 subtitle="Hệ thống đã tự động hủy đặt phòng theo quy định.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Phòng họp:", room),
                 _row("Thời điểm hủy:", cancelled_time),
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Không có lượt check-in nào được ghi nhận trong vòng 15 phút sau giờ bắt đầu. "
                 "Phòng đã được tự động hoàn trả lại hệ thống."
-            )}
+            )
+        }
         """
         self._send(to, subject, _html_wrapper(content, header_label="TỰ ĐỘNG HỦY"))
 
@@ -438,25 +457,29 @@ class EmailSender:
         time_text = _format_time_range(payload.get("start_at"), payload.get("end_at"))
 
         purpose_row = _row("Mục đích:", purpose) if purpose else ""
-        attendee_row = (
-            _row("Người tham gia:", _format_attendees(attendees)) if attendees else ""
-        )
+        attendee_row = _row("Người tham gia:", _format_attendees(attendees)) if attendees else ""
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title=meeting_title,
                 subtitle="Thông tin lịch họp của bạn đã được cập nhật lại trên hệ thống.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Thời gian mới:", time_text),
                 _row("Phòng họp:", room),
                 purpose_row,
                 attendee_row,
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Vui lòng kiểm tra lại thời gian và địa điểm mới để tham dự cuộc họp đúng giờ."
-            )}
+            )
+        }
         """
         self._send(
             list(to_set),
@@ -486,20 +509,26 @@ class EmailSender:
         purpose_row = _row("Mục đích:", purpose) if purpose else ""
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title=meeting_title,
                 subtitle="Cuộc họp của bạn sẽ bắt đầu trong khoảng 15 phút tới.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Thời gian bắt đầu:", start_time),
                 _row("Phòng họp:", room),
                 purpose_row,
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "<strong>Nhắc nhở:</strong> Vui lòng check-in trong vòng 15 phút kể từ "
                 "giờ bắt đầu. Đặt phòng sẽ bị hủy tự động nếu không có lượt check-in đúng giờ."
-            )}
+            )
+        }
         """
         self._send(
             list(to_set),
@@ -529,20 +558,26 @@ class EmailSender:
         purpose_row = _row("Mục đích:", purpose) if purpose else ""
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title=meeting_title,
                 subtitle="Thông báo nhắc lịch họp được lên kế hoạch cho ngày mai.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Thời gian:", time_text),
                 _row("Phòng họp:", room),
                 purpose_row,
                 _row("Người tham gia:", _format_attendees(attendees)),
                 _row("Mã đặt phòng:", f"#{booking_id}", is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Vui lòng chuẩn bị trước tài liệu cuộc họp và check-in trong vòng 15 phút đầu giờ."
-            )}
+            )
+        }
         """
         self._send(
             list(to_set),
@@ -569,28 +604,32 @@ class EmailSender:
         purpose_row = _row("Mục đích:", payload["purpose"]) if payload.get("purpose") else ""
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title="Bạn được mời tham dự cuộc họp",
                 subtitle=f"{booker_name} mời bạn tham gia cuộc họp.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Mã đặt phòng:", f"#{booking_id}"),
                 _row("Phòng họp:", room),
                 _row("Thời gian:", time_text),
                 purpose_row if purpose_row else "",
                 _row("Người tổ chức:", booker_name, is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Vui lòng kiểm tra lịch của bạn và chuẩn bị tài liệu cần thiết cho cuộc họp."
-            )}
+            )
+        }
         """
         self._send(to_list, subject, _html_wrapper(content, header_label="LỜI MỜI"))
 
     def send_room_maintenance(self, payload: dict) -> None:
         recipient = (
-            payload.get("owner_email")
-            or payload.get("booker_email")
-            or payload.get("user_email")
+            payload.get("owner_email") or payload.get("booker_email") or payload.get("user_email")
         )
         to = [recipient] if recipient else []
 
@@ -598,18 +637,24 @@ class EmailSender:
         subject = f"[MRMS] {room} — Thông báo bảo trì"
 
         content = f"""
-            {_meeting_header(
+            {
+            _meeting_header(
                 title=f"Bảo trì {room}",
                 subtitle="Thông báo cập nhật trạng thái hoạt động của cơ sở vật chất.",
-            )}
-            {_info_table(
+            )
+        }
+            {
+            _info_table(
                 _row("Phòng họp:", room),
                 _row("Trạng thái:", "Đang bảo trì (MAINTENANCE)"),
                 _row("Thời điểm:", _format_datetime(datetime.now()), is_last=True),
-            )}
-            {_notice_box(
+            )
+        }
+            {
+            _notice_box(
                 "Các yêu cầu đặt phòng mới cho phòng này tạm thời bị khóa cho đến khi "
                 "hoàn tất bảo trì kỹ thuật và chuyển về trạng thái sẵn sàng (Available)."
-            )}
+            )
+        }
         """
         self._send(to, subject, _html_wrapper(content, header_label="BẢO TRÌ PHÒNG"))

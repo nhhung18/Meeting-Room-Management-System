@@ -83,4 +83,3 @@ class TestUploadRoomImage:
             files={"file": ("photo.jpg", io.BytesIO(FAKE_IMAGE), "image/jpeg")},
         )
         assert resp.status_code == 502
-
