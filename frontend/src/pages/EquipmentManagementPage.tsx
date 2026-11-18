@@ -672,11 +672,12 @@ export const EquipmentManagementPage: React.FC = () => {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
-        width={520}
+        width={480}
+        style={{ maxWidth: '95vw' }}
         centered
         styles={{
-          body: { backgroundColor: isDark ? '#18181b' : '#ffffff' },
-          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff', padding: '16px 20px' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', padding: '14px 20px 10px' },
         }}
       >
         <Form
@@ -795,11 +796,12 @@ export const EquipmentManagementPage: React.FC = () => {
         open={catModalOpen}
         onCancel={() => setCatModalOpen(false)}
         footer={null}
-        width={440}
+        width={400}
+        style={{ maxWidth: '95vw' }}
         centered
         styles={{
-          body: { backgroundColor: isDark ? '#18181b' : '#ffffff' },
-          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff', padding: '16px 20px' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', padding: '14px 20px 10px' },
         }}
       >
         <Form
@@ -824,7 +826,7 @@ export const EquipmentManagementPage: React.FC = () => {
             <Input.TextArea rows={2} placeholder={language === 'vi' ? 'Mô tả ngắn về loại thiết bị...' : 'Short description of this equipment type...'} />
           </Form.Item>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2">
             <Button onClick={() => setCatModalOpen(false)}>{t.cancel}</Button>
             <Button
               type="primary"
