@@ -14,6 +14,8 @@ import {
   App,
   Spin,
   Empty,
+  Tabs,
+  Table,
 } from 'antd';
 import {
   PlusOutlined,
@@ -26,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import {
   EquipmentItem,
+  EquipmentCategory,
   EquipmentStatus,
   EQUIPMENT_STATUS_CONFIG,
   Room,
@@ -37,6 +40,10 @@ import {
   deleteEquipment,
   getRooms,
   getEquipmentCategories,
+  getEquipmentCategoriesFull,
+  createEquipmentCategory,
+  updateEquipmentCategory,
+  deleteEquipmentCategory,
 } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -50,10 +57,20 @@ export const EquipmentManagementPage: React.FC = () => {
   const { t, language } = useLanguage();
   const { message } = App.useApp();
 
+  const [activeTab, setActiveTab] = useState<string>('equipment');
+
   const [loading, setLoading] = useState(true);
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+
+  // Category tab state
+  const [catLoading, setCatLoading] = useState(false);
+  const [categoryList, setCategoryList] = useState<EquipmentCategory[]>([]);
+  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<EquipmentCategory | null>(null);
+  const [catSubmitting, setCatSubmitting] = useState(false);
+  const [catForm] = Form.useForm();
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,12 +116,87 @@ export const EquipmentManagementPage: React.FC = () => {
     }
   };
 
+  const fetchCategoryList = async () => {
+    try {
+      setCatLoading(true);
+      const cats = await getEquipmentCategoriesFull();
+      setCategoryList(cats);
+    } catch (err: any) {
+      message.error(err.message || 'Error fetching categories');
+    } finally {
+      setCatLoading(false);
+    }
+  };
+
+  const handleOpenCreateCategory = () => {
+    setEditingCategory(null);
+    catForm.resetFields();
+    setCatModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: EquipmentCategory) => {
+    setEditingCategory(cat);
+    catForm.setFieldsValue({ name: cat.name, description: cat.description || '' });
+    setCatModalOpen(true);
+  };
+
+  const handleDeleteCategory = async (cat: EquipmentCategory) => {
+    try {
+      await deleteEquipmentCategory(cat.id);
+      message.success(t.deleteCategorySuccess);
+      fetchCategoryList();
+      fetchCategories();
+    } catch (err: any) {
+      const detail = err.message || '';
+      if (detail.toLowerCase().includes('in use') || detail.toLowerCase().includes('still use')) {
+        message.error(t.categoryInUseError);
+      } else {
+        message.error(detail || 'Error deleting category');
+      }
+    }
+  };
+
+  const handleCatFormSubmit = async () => {
+    try {
+      const values = await catForm.validateFields();
+      setCatSubmitting(true);
+      if (editingCategory) {
+        await updateEquipmentCategory(editingCategory.id, {
+          name: values.name.trim(),
+          description: values.description?.trim() || undefined,
+        });
+        message.success(t.updateCategorySuccess);
+      } else {
+        await createEquipmentCategory({
+          name: values.name.trim(),
+          description: values.description?.trim() || undefined,
+        });
+        message.success(t.addCategorySuccess);
+      }
+      setCatModalOpen(false);
+      fetchCategoryList();
+      fetchCategories();
+    } catch (err: any) {
+      if (!err?.errorFields) {
+        const detail = err.message || '';
+        if (detail.includes('409') || detail.toLowerCase().includes('already exists')) {
+          message.error(language === 'vi' ? 'Loại thiết bị này đã tồn tại' : 'This category already exists');
+        } else {
+          message.error(detail || 'Error saving category');
+        }
+      }
+    } finally {
+      setCatSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [searchQuery, categoryFilter, statusFilter, roomFilter]);
 
   useEffect(() => {
     fetchCategories();
+    fetchCategoryList();
   }, []);
 
   // Overall metric stats
@@ -205,6 +297,62 @@ export const EquipmentManagementPage: React.FC = () => {
     }
   };
 
+  // Category tab columns
+  const categoryColumns = [
+    {
+      title: t.categoryName,
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string) => <span className="font-semibold">{name}</span>,
+    },
+    {
+      title: t.categoryCountLabel,
+      dataIndex: 'equipment_count',
+      key: 'equipment_count',
+      width: 130,
+      render: (count: number) => (
+        <Tag color={count > 0 ? 'blue' : 'default'} className="font-mono">
+          {count}
+        </Tag>
+      ),
+    },
+    {
+      title: language === 'vi' ? 'Mô tả' : 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      render: (desc: string | null) => (
+        <span className="text-slate-500 dark:text-zinc-400 text-sm">{desc || '—'}</span>
+      ),
+    },
+    {
+      title: language === 'vi' ? 'Thao tác' : 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_: unknown, cat: EquipmentCategory) => (
+        <div className="flex gap-2">
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEditCategory(cat)}
+            style={{ borderRadius: 6 }}
+          >
+            {language === 'vi' ? 'Sửa' : 'Edit'}
+          </Button>
+          <Popconfirm
+            title={t.deleteCategoryConfirmTitle}
+            description={t.deleteCategoryConfirmDesc}
+            okText={t.confirm}
+            cancelText={t.cancel}
+            okType="danger"
+            onConfirm={() => handleDeleteCategory(cat)}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} />
+          </Popconfirm>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4 max-w-full">
       {/* Page Header */}
@@ -218,20 +366,64 @@ export const EquipmentManagementPage: React.FC = () => {
           </Text>
         </div>
 
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleOpenCreate}
-          style={{
-            backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-            borderColor: isDark ? '#0a84ff' : '#1e40af',
-            borderRadius: 8,
-            fontWeight: 600,
-          }}
-        >
-          {t.addNewEquipmentBtn}
-        </Button>
+        {activeTab === 'equipment' ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreate}
+            style={{
+              backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+              borderColor: isDark ? '#0a84ff' : '#1e40af',
+              borderRadius: 8,
+              fontWeight: 600,
+            }}
+          >
+            {t.addNewEquipmentBtn}
+          </Button>
+        ) : (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreateCategory}
+            style={{
+              backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+              borderColor: isDark ? '#0a84ff' : '#1e40af',
+              borderRadius: 8,
+              fontWeight: 600,
+            }}
+          >
+            {t.addCategoryBtn}
+          </Button>
+        )}
       </div>
+
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'equipment', label: t.equipmentTabList },
+          { key: 'categories', label: t.equipmentTabCategories },
+        ]}
+        style={{ marginBottom: 0 }}
+      />
+
+      {/* ===== TAB: Categories ===== */}
+      {activeTab === 'categories' && (
+        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'}`}>
+          <Table
+            dataSource={categoryList}
+            columns={categoryColumns}
+            rowKey="id"
+            loading={catLoading}
+            pagination={false}
+            locale={{ emptyText: language === 'vi' ? 'Chưa có loại thiết bị nào' : 'No categories yet' }}
+          />
+        </div>
+      )}
+
+      {/* ===== TAB: Equipment list (all existing content below) ===== */}
+      {activeTab === 'equipment' && <>
 
       {/* Metrics Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -332,9 +524,6 @@ export const EquipmentManagementPage: React.FC = () => {
             description={language === 'vi' ? 'Không tìm thấy thiết bị phù hợp' : 'No equipment found matching criteria'}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" onClick={handleOpenCreate} style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af' }}>
-              {t.addNewEquipmentBtn}
-            </Button>
           </Empty>
         </div>
       ) : (
@@ -471,7 +660,9 @@ export const EquipmentManagementPage: React.FC = () => {
         </Row>
       )}
 
-      {/* Create / Edit Modal */}
+      </> /* end equipment tab */}
+
+      {/* Create / Edit Equipment Modal */}
       <Modal
         title={
           <span className="font-semibold text-slate-800 dark:text-white">
@@ -587,6 +778,65 @@ export const EquipmentManagementPage: React.FC = () => {
               }}
             >
               {editingItem ? t.saveChangesSubmitBtn : t.confirm}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Create / Edit Category Modal */}
+      <Modal
+        title={
+          <span className="font-semibold text-slate-800 dark:text-white">
+            {editingCategory
+              ? (language === 'vi' ? 'Chỉnh sửa loại thiết bị' : 'Edit Category')
+              : t.addCategoryBtn}
+          </span>
+        }
+        open={catModalOpen}
+        onCancel={() => setCatModalOpen(false)}
+        footer={null}
+        width={440}
+        centered
+        styles={{
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
+        }}
+      >
+        <Form
+          form={catForm}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={handleCatFormSubmit}
+          className="pt-2"
+        >
+          <Form.Item
+            name="name"
+            label={<span className="font-medium text-xs text-slate-600 dark:text-zinc-300">{t.categoryName}</span>}
+            rules={[{ required: true, message: language === 'vi' ? 'Vui lòng nhập tên loại' : 'Please enter category name' }]}
+          >
+            <Input placeholder={language === 'vi' ? 'VD: Máy chiếu, Màn hình, Loa...' : 'e.g. Projector, Display, Speaker...'} />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label={<span className="font-medium text-xs text-slate-600 dark:text-zinc-300">{t.categoryDescription}</span>}
+          >
+            <Input.TextArea rows={2} placeholder={language === 'vi' ? 'Mô tả ngắn về loại thiết bị...' : 'Short description of this equipment type...'} />
+          </Form.Item>
+
+          <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2">
+            <Button onClick={() => setCatModalOpen(false)}>{t.cancel}</Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={catSubmitting}
+              style={{
+                backgroundColor: isDark ? '#0a84ff' : '#1e40af',
+                borderColor: isDark ? '#0a84ff' : '#1e40af',
+                borderRadius: 8,
+              }}
+            >
+              {editingCategory ? t.saveChangesSubmitBtn : t.confirm}
             </Button>
           </div>
         </Form>

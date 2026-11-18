@@ -635,9 +635,6 @@ export const MyBookingsPage: React.FC = () => {
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description={language === 'vi' ? t.emptyBookings : 'No bookings found'}
                   >
-                    <Button type="primary" onClick={() => navigate('/rooms')} style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af' }}>
-                      {t.bookNow}
-                    </Button>
                   </Empty>
                 ),
               }}
@@ -706,7 +703,7 @@ export const MyBookingsPage: React.FC = () => {
                 </div>
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
                   <EnvironmentOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-                  <span>{language === 'vi' ? 'Phòng họp BlueOC Tech' : 'BlueOC Tech Meeting Room'}</span>
+                  <span>{language === 'vi' ? 'Phòng họp' : 'Meeting Room'}</span>
                 </div>
               </div>
               <Tag

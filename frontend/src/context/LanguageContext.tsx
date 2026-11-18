@@ -330,6 +330,20 @@ export interface Translations {
   updateEquipmentSuccess: string;
   deleteEquipmentSuccess: string;
 
+  // Equipment Category Management
+  equipmentTabList: string;
+  equipmentTabCategories: string;
+  addCategoryBtn: string;
+  categoryName: string;
+  categoryDescription: string;
+  addCategorySuccess: string;
+  updateCategorySuccess: string;
+  deleteCategorySuccess: string;
+  deleteCategoryConfirmTitle: string;
+  deleteCategoryConfirmDesc: string;
+  categoryInUseError: string;
+  categoryCountLabel: string;
+
   // Profile Management
   myProfile: string;
   profileSubtitle: string;
@@ -476,7 +490,7 @@ const translations: Record<Language, Translations> = {
     roleLabel: 'Vai trò',
     restoreDemo: 'Khôi phục dữ liệu demo',
     restoreDemoConfirmTitle: 'Khôi phục dữ liệu mẫu ban đầu?',
-    restoreDemoConfirmContent: 'Hệ thống sẽ đặt lại toàn bộ phòng và booking về trạng thái demo mặc định của BlueOC Tech.',
+    restoreDemoConfirmContent: 'Hệ thống sẽ đặt lại toàn bộ phòng và booking về trạng thái demo mặc định.',
     lightMode: 'Giao diện Sáng',
     darkMode: 'Giao diện Tối',
     switchLang: 'Chuyển sang Tiếng Anh',
@@ -561,7 +575,7 @@ const translations: Record<Language, Translations> = {
 
     // Room List Page
     roomListTitle: 'Danh sách phòng họp',
-    roomListSubtitle: 'Hệ thống phòng họp thông minh BlueOC Tech — tìm kiếm, lọc theo thiết bị và đặt chỗ nhanh',
+    roomListSubtitle: 'Hệ thống phòng họp thông minh — tìm kiếm, lọc theo thiết bị và đặt chỗ nhanh',
     filterSearchPlaceholder: 'Tìm tên phòng, thiết bị, vị trí...',
     filterCapacityAll: 'Sức chứa: Tất cả',
     filterEquipmentLabel: 'Thiết bị:',
@@ -585,7 +599,7 @@ const translations: Record<Language, Translations> = {
     roomUnderMaintenanceBtn: 'Đang bảo trì',
     loadingRooms: 'Đang tải danh sách phòng họp...',
     noRoomsFound: 'Không tìm thấy phòng họp nào phù hợp với bộ lọc',
-    defaultRoomFloor: 'Tầng 3 - Tòa nhà BlueOC Tech',
+    defaultRoomFloor: 'Tầng 3 - Tòa nhà',
 
     // Room Detail Page
     backToRoomList: 'Quay lại danh sách phòng',
@@ -620,7 +634,7 @@ const translations: Record<Language, Translations> = {
 
     // Booking Form Page
     bookingFormTitle: 'Đặt phòng họp mới',
-    bookingFormSubtitle: 'Điền thông tin khung giờ, mục đích và người tham dự để xác nhận phòng hội nghị BlueOC Tech',
+    bookingFormSubtitle: 'Điền thông tin khung giờ, mục đích và người tham dự để xác nhận phòng hội nghị',
     fieldRoom: 'Phòng họp',
     fieldRoomPlaceholder: 'Chọn phòng họp...',
     fieldDate: 'Ngày họp',
@@ -663,7 +677,7 @@ const translations: Record<Language, Translations> = {
 
     // My Bookings Page
     myBookingsTitle: 'Lịch họp của tôi',
-    myBookingsSubtitle: 'Theo dõi, quản lý và thực hiện điểm danh check-in các cuộc họp của bạn tại BlueOC Tech',
+    myBookingsSubtitle: 'Theo dõi, quản lý và thực hiện điểm danh check-in các cuộc họp của bạn',
     tabAll: 'Tất cả',
     tabUpcoming: 'Sắp tới',
     tabCheckedIn: 'Đã check-in',
@@ -710,7 +724,7 @@ const translations: Record<Language, Translations> = {
     fieldCapacityNumber: 'Sức chứa (người)',
     fieldStatus: 'Trạng thái',
     fieldLocationFloor: 'Vị trí / Tầng',
-    fieldLocationFloorPlaceholder: 'Ví dụ: Tầng 3 - Tòa nhà BlueOC Tech',
+    fieldLocationFloorPlaceholder: 'Ví dụ: Tầng 3 - Tòa nhà',
     fieldManagerInCharge: 'Quản lý phụ trách',
     fieldManagerInChargePlaceholder: 'Ví dụ: Trần Thị Mai',
     fieldAvailableEquipment: 'Thiết bị sẵn có',
@@ -787,6 +801,20 @@ const translations: Record<Language, Translations> = {
     addEquipmentSuccess: 'Đã thêm thiết bị mới thành công',
     updateEquipmentSuccess: 'Đã cập nhật thông tin thiết bị',
     deleteEquipmentSuccess: 'Đã xóa thiết bị thành công',
+
+    // Equipment Category Management
+    equipmentTabList: 'Danh sách thiết bị',
+    equipmentTabCategories: 'Loại thiết bị',
+    addCategoryBtn: 'Thêm loại mới',
+    categoryName: 'Tên loại thiết bị',
+    categoryDescription: 'Mô tả (tùy chọn)',
+    addCategorySuccess: 'Đã thêm loại thiết bị mới',
+    updateCategorySuccess: 'Đã cập nhật loại thiết bị',
+    deleteCategorySuccess: 'Đã xóa loại thiết bị',
+    deleteCategoryConfirmTitle: 'Xác nhận xóa loại thiết bị?',
+    deleteCategoryConfirmDesc: 'Hành động này không thể hoàn tác.',
+    categoryInUseError: 'Không thể xóa: vẫn còn thiết bị thuộc loại này',
+    categoryCountLabel: 'Số thiết bị',
 
     // Profile Management
     myProfile: 'Hồ sơ cá nhân',
@@ -932,7 +960,7 @@ const translations: Record<Language, Translations> = {
     roleLabel: 'Role',
     restoreDemo: 'Reset Demo Data',
     restoreDemoConfirmTitle: 'Reset to demo default data?',
-    restoreDemoConfirmContent: 'The system will reset all rooms and bookings to default BlueOC Tech demo state.',
+    restoreDemoConfirmContent: 'The system will reset all rooms and bookings to default demo state.',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
     switchLang: 'Chuyển sang Tiếng Việt',
@@ -1017,7 +1045,7 @@ const translations: Record<Language, Translations> = {
 
     // Room List Page
     roomListTitle: 'Meeting Rooms',
-    roomListSubtitle: 'BlueOC Tech intelligent meeting spaces — search, filter by equipment, and book instantly',
+    roomListSubtitle: 'Intelligent meeting spaces — search, filter by equipment, and book instantly',
     filterSearchPlaceholder: 'Search room name, equipment, floor...',
     filterCapacityAll: 'Capacity: All',
     filterEquipmentLabel: 'Equipment:',
@@ -1041,7 +1069,7 @@ const translations: Record<Language, Translations> = {
     roomUnderMaintenanceBtn: 'Under Maintenance',
     loadingRooms: 'Loading meeting rooms...',
     noRoomsFound: 'No rooms match your filter criteria',
-    defaultRoomFloor: '3rd Floor - BlueOC Tech Tower',
+    defaultRoomFloor: '3rd Floor - Tower',
 
     // Room Detail Page
     backToRoomList: 'Back to Room List',
@@ -1076,7 +1104,7 @@ const translations: Record<Language, Translations> = {
 
     // Booking Form Page
     bookingFormTitle: 'Book a Meeting Room',
-    bookingFormSubtitle: 'Specify schedule, purpose, and attendee list to confirm your BlueOC Tech conference room',
+    bookingFormSubtitle: 'Specify schedule, purpose, and attendee list to confirm your conference room',
     fieldRoom: 'Meeting Room',
     fieldRoomPlaceholder: 'Select a room...',
     fieldDate: 'Meeting Date',
@@ -1119,7 +1147,7 @@ const translations: Record<Language, Translations> = {
 
     // My Bookings Page
     myBookingsTitle: 'My Bookings',
-    myBookingsSubtitle: 'Track, manage, and complete attendance check-in for your meetings at BlueOC Tech',
+    myBookingsSubtitle: 'Track, manage, and complete attendance check-in for your meetings ',
     tabAll: 'All',
     tabUpcoming: 'Upcoming',
     tabCheckedIn: 'Checked In',
@@ -1166,7 +1194,7 @@ const translations: Record<Language, Translations> = {
     fieldCapacityNumber: 'Capacity (Attendees)',
     fieldStatus: 'Status',
     fieldLocationFloor: 'Location / Floor',
-    fieldLocationFloorPlaceholder: 'e.g., 3rd Floor - BlueOC Tech Tower',
+    fieldLocationFloorPlaceholder: 'e.g., 3rd Floor - Tower',
     fieldManagerInCharge: 'Manager In Charge',
     fieldManagerInChargePlaceholder: 'e.g., Tran Thi Mai',
     fieldAvailableEquipment: 'Available Equipment',
@@ -1243,6 +1271,20 @@ const translations: Record<Language, Translations> = {
     addEquipmentSuccess: 'Successfully added new equipment',
     updateEquipmentSuccess: 'Equipment information updated',
     deleteEquipmentSuccess: 'Successfully deleted equipment',
+
+    // Equipment Category Management
+    equipmentTabList: 'Equipment List',
+    equipmentTabCategories: 'Categories',
+    addCategoryBtn: 'Add Category',
+    categoryName: 'Category Name',
+    categoryDescription: 'Description (optional)',
+    addCategorySuccess: 'Category added successfully',
+    updateCategorySuccess: 'Category updated successfully',
+    deleteCategorySuccess: 'Category deleted successfully',
+    deleteCategoryConfirmTitle: 'Delete this category?',
+    deleteCategoryConfirmDesc: 'This action cannot be undone.',
+    categoryInUseError: 'Cannot delete: equipment items still use this category',
+    categoryCountLabel: 'Equipment count',
 
     // Profile Management
     myProfile: 'My Profile',
