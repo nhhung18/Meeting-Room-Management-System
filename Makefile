@@ -29,7 +29,7 @@ ps: ## Trạng thái các container
 	docker compose ps
 
 test: ## Chạy test của booking-service
-	cd $(BOOKING) && python -m pytest
+	cd $(BOOKING) && .venv-local/bin/python -m pytest -v
 
 lint: ## Kiểm tra code style
 	cd $(BOOKING) && ruff check . && ruff format --check .

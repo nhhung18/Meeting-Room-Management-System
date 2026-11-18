@@ -51,3 +51,31 @@ class EquipmentListResponse(BaseModel):
 
 class EquipmentCategoriesResponse(BaseModel):
     categories: list[str]
+
+
+# --- Equipment Category CRUD schemas ---
+
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str | None = Field(None)
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None)
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    equipment_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryListResponse(BaseModel):
+    items: list[CategoryResponse]
+    total: int

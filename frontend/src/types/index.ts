@@ -65,6 +65,15 @@ export interface BookingPolicyConfig {
 
 export type EquipmentStatus = 'FUNCTIONAL' | 'UNDER_REPAIR' | 'DECOMMISSIONED';
 
+export interface EquipmentCategory {
+  id: number;
+  name: string;
+  description?: string | null;
+  equipment_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EquipmentItem {
   id: string;
   name: string;

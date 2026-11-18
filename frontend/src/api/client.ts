@@ -182,6 +182,29 @@ export const getEquipmentCategories = async (): Promise<string[]> => {
   return resp.categories;
 };
 
+export const getEquipmentCategoriesFull = async (): Promise<import('../types').EquipmentCategory[]> => {
+  const resp = await request<{ items: import('../types').EquipmentCategory[]; total: number }>('/rooms/equipment-categories');
+  return resp.items;
+};
+
+export const createEquipmentCategory = async (data: { name: string; description?: string }): Promise<import('../types').EquipmentCategory> => {
+  return request<import('../types').EquipmentCategory>('/rooms/equipment-categories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateEquipmentCategory = async (id: number, data: { name?: string; description?: string }): Promise<import('../types').EquipmentCategory> => {
+  return request<import('../types').EquipmentCategory>(`/rooms/equipment-categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteEquipmentCategory = async (id: number): Promise<void> => {
+  await request<void>(`/rooms/equipment-categories/${id}`, { method: 'DELETE' });
+};
+
 // ==================== USER ACCOUNTS & RBAC SERVICE ====================
 
 export const getStoredUsers = (): UserAccount[] => {

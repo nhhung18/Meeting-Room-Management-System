@@ -282,7 +282,7 @@ export const RoomDetailPage: React.FC = () => {
                   {room.name}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {room.floor || 'Khu hội nghị BlueOC Tech'}
+                  {room.floor || 'Khu hội nghị'}
                 </span>
               </div>
             )}

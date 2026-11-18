@@ -8,12 +8,17 @@ from sqlalchemy.orm import Session
 from app.core.security import current_user, require_room_manager
 from app.db.session import get_db
 from app.schemas.equipment import (
+    CategoryCreate,
+    CategoryListResponse,
+    CategoryResponse,
+    CategoryUpdate,
     EquipmentCategoriesResponse,
     EquipmentCreate,
     EquipmentListResponse,
     EquipmentResponse,
     EquipmentUpdate,
 )
+from app.services.category_service import CategoryService
 from app.services.equipment_service import EquipmentService
 
 logger = logging.getLogger(__name__)
@@ -23,6 +28,10 @@ router = APIRouter(tags=["equipment"])
 
 def _get_service(db: Session = Depends(get_db)) -> EquipmentService:
     return EquipmentService(db)
+
+
+def _get_category_service(db: Session = Depends(get_db)) -> CategoryService:
+    return CategoryService(db)
 
 
 @router.get("/equipment", response_model=EquipmentListResponse)
@@ -49,9 +58,10 @@ def list_equipment(
 @router.get("/equipment/categories", response_model=EquipmentCategoriesResponse)
 def list_equipment_categories(
     _user=Depends(current_user),
-    service: EquipmentService = Depends(_get_service),
+    cat_service: CategoryService = Depends(_get_category_service),
 ) -> EquipmentCategoriesResponse:
-    return service.list_categories()
+    result = cat_service.list_all()
+    return EquipmentCategoriesResponse(categories=[item.name for item in result.items])
 
 
 @router.get("/equipment/{equipment_id}", response_model=EquipmentResponse)
@@ -120,3 +130,66 @@ def list_equipment_by_room(
     service: EquipmentService = Depends(_get_service),
 ) -> list[EquipmentResponse]:
     return service.list_by_room(room_id)
+
+
+# --- Equipment Categories CRUD ---
+
+@router.get("/equipment-categories", response_model=CategoryListResponse)
+def list_categories(
+    _user=Depends(current_user),
+    cat_service: CategoryService = Depends(_get_category_service),
+) -> CategoryListResponse:
+    return cat_service.list_all()
+
+
+@router.post(
+    "/equipment-categories",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_category(
+    body: CategoryCreate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_room_manager),
+    cat_service: CategoryService = Depends(_get_category_service),
+) -> CategoryResponse:
+    try:
+        result = cat_service.create(body)
+        db.commit()
+        return result
+    except CategoryService.DuplicateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.patch("/equipment-categories/{category_id}", response_model=CategoryResponse)
+def update_category(
+    category_id: int,
+    body: CategoryUpdate,
+    db: Session = Depends(get_db),
+    _user=Depends(require_room_manager),
+    cat_service: CategoryService = Depends(_get_category_service),
+) -> CategoryResponse:
+    try:
+        result = cat_service.update(category_id, body)
+        db.commit()
+        return result
+    except CategoryService.NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CategoryService.DuplicateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.delete("/equipment-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_room_manager),
+    cat_service: CategoryService = Depends(_get_category_service),
+) -> None:
+    try:
+        cat_service.delete(category_id)
+        db.commit()
+    except CategoryService.NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CategoryService.InUseError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
