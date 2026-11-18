@@ -107,7 +107,7 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
   };
 
   const switchRole = (_role: UserRole) => {
-    // In Auth0 mode, roles come from the token — switching is a no-op
+    // In Auth0 mode, roles come from the token — switching is a no-ops
   };
 
   const updateProfile = (data: Partial<User>) => {
