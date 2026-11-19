@@ -33,7 +33,7 @@ import {
   ApartmentOutlined,
 } from '@ant-design/icons';
 import { UserAccount, UserRole } from '../types';
-import { getUserAccounts, updateUserRole, toggleUserStatus, createUserAccount } from '../api/client';
+import { getUserAccounts, updateUserRole, toggleUserStatus, createUserAccount } from '../api/users';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -101,13 +101,8 @@ export const UserManagementPage: React.FC = () => {
   }, [users]);
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    if (!currentUser) return;
     try {
-      await updateUserRole(userId, newRole, {
-        id: currentUser.id,
-        name: currentUser.name,
-        role: currentUser.role,
-      });
+      await updateUserRole(userId, newRole);
       message.success(t.changeRoleSuccess);
       fetchUsers();
     } catch (err: any) {
@@ -116,13 +111,10 @@ export const UserManagementPage: React.FC = () => {
   };
 
   const handleToggleStatus = async (userId: string) => {
-    if (!currentUser) return;
+    const target = users.find((u) => u.id === userId);
+    if (!target) return;
     try {
-      await toggleUserStatus(userId, {
-        id: currentUser.id,
-        name: currentUser.name,
-        role: currentUser.role,
-      });
+      await toggleUserStatus(userId, target.status);
       message.success(t.toggleStatusSuccess);
       fetchUsers();
     } catch (err: any) {
@@ -131,25 +123,18 @@ export const UserManagementPage: React.FC = () => {
   };
 
   const handleCreateUser = async (values: any) => {
-    if (!currentUser) return;
     try {
       setSubmitting(true);
-      await createUserAccount(
-        {
-          name: values.name.trim(),
-          email: values.email.trim().toLowerCase(),
-          role: values.role,
-          department: values.department.trim(),
-          phone: values.phone?.trim() || '',
-          status: 'ACTIVE',
-          avatar: values.avatar?.trim() || `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?w=120&auto=format&fit=crop&q=80`,
-        },
-        {
-          id: currentUser.id,
-          name: currentUser.name,
-          role: currentUser.role,
-        }
-      );
+      await createUserAccount({
+        id: `local_${Date.now()}`,
+        name: values.name.trim(),
+        email: values.email.trim().toLowerCase(),
+        role: values.role,
+        department: values.department.trim(),
+        phone: values.phone?.trim() || '',
+        status: 'ACTIVE',
+        avatar: values.avatar?.trim() || undefined,
+      });
       message.success(t.createUserSuccess);
       setDrawerOpen(false);
       form.resetFields();

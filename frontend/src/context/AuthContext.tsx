@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { getStoredUsers, patchUserAccountById } from '../api/client';
+import { getStoredUsers } from '../api/client';
+import { updateUserProfile } from '../api/users';
 import { setTokenProvider } from '../api/http';
 import {
   AuthContext,
@@ -93,13 +94,13 @@ const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...data, name: data.name ? cleanUserName(data.name) : prev.name };
-      // Sync profile changes back to the unified accounts store
-      patchUserAccountById(updated.id, {
+      // Sync profile changes to backend (fire-and-forget in mock mode)
+      updateUserProfile(updated.id, {
         name: updated.name,
         department: updated.department,
         phone: updated.phone,
         avatar: updated.avatar,
-      });
+      }).catch(() => { /* ignore — dev mock mode may not have this user in DB */ });
       return updated;
     });
   };
