@@ -52,6 +52,7 @@ class AuditLogRepository:
         if q:
             pattern = f"%{q}%"
             from sqlalchemy import or_
+
             filter_q = or_(
                 AuditLog.actor_name.ilike(pattern),
                 AuditLog.target_name.ilike(pattern),
@@ -85,8 +86,10 @@ class AuditLogRepository:
                 pass
 
         total = self.db.execute(count_stmt).scalar_one()
-        items = self.db.execute(
-            stmt.order_by(AuditLog.timestamp.desc()).limit(limit).offset(offset)
-        ).scalars().all()
+        items = (
+            self.db.execute(stmt.order_by(AuditLog.timestamp.desc()).limit(limit).offset(offset))
+            .scalars()
+            .all()
+        )
 
         return list(items), total

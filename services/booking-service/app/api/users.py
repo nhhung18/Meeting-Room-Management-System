@@ -37,8 +37,12 @@ def list_users(
 ):
     repo = UserProfileRepository(db)
     items, total = repo.list_all(
-        q=q, role=role, status=status_filter, department=department,
-        limit=limit, offset=offset,
+        q=q,
+        role=role,
+        status=status_filter,
+        department=department,
+        limit=limit,
+        offset=offset,
     )
     return UserListResponse(
         items=[UserProfileResponse.model_validate(u) for u in items],
@@ -56,12 +60,20 @@ def create_user(
     if repo.get(body.id) or repo.get_by_email(body.email):
         raise HTTPException(status_code=409, detail="User already exists")
     user = repo.upsert(
-        body.id, body.email, body.name,
-        role=body.role, status=body.status,
-        department=body.department, phone=body.phone, avatar=body.avatar,
+        body.id,
+        body.email,
+        body.name,
+        role=body.role,
+        status=body.status,
+        department=body.department,
+        phone=body.phone,
+        avatar=body.avatar,
     )
     write_audit(
-        db, _actor.sub, _actor.roles, "USER_CREATED",
+        db,
+        _actor.sub,
+        _actor.roles,
+        "USER_CREATED",
         actor_name=_actor.email or _actor.sub,
         target_id=user.id,
         target_name=user.name,
@@ -129,7 +141,10 @@ def update_user(
         details = "Cập nhật thông tin"
 
     write_audit(
-        db, _actor.sub, _actor.roles, action,
+        db,
+        _actor.sub,
+        _actor.roles,
+        action,
         actor_name=_actor.email or _actor.sub,
         target_id=user_id,
         target_name=updated.name,

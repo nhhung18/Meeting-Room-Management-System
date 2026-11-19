@@ -51,14 +51,14 @@ class UserProfileRepository:
         if department:
             stmt = stmt.where(UserProfile.department == department)
 
-        total = self._db.execute(
-            select(func.count()).select_from(stmt.subquery())
-        ).scalar_one()
+        total = self._db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
 
         items = list(
             self._db.execute(
                 stmt.order_by(UserProfile.created_at.desc()).limit(limit).offset(offset)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         return items, total
 
