@@ -69,7 +69,6 @@ export const DashboardPage: React.FC = () => {
   );
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [showMyBookingsOnly, setShowMyBookingsOnly] = useState(false);
 
   const handleOpenBookingPreview = (b: Booking, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -310,32 +309,6 @@ export const DashboardPage: React.FC = () => {
               {t.myScheduleBtn}
             </Button>
 
-            {user?.role === 'ROOM_MANAGER' && (
-              <>
-                <Button
-                  onClick={() => navigate('/room-management')}
-                  style={{
-                    height: 40, borderRadius: 8, fontWeight: 500,
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
-                    color: isDark ? '#ffffff' : '#334155',
-                  }}
-                >
-                  {language === 'vi' ? 'Quản lý phòng' : 'Manage Rooms'}
-                </Button>
-                <Button
-                  onClick={() => navigate('/equipment')}
-                  style={{
-                    height: 40, borderRadius: 8, fontWeight: 500,
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
-                    color: isDark ? '#ffffff' : '#334155',
-                  }}
-                >
-                  {language === 'vi' ? 'Quản lý thiết bị' : 'Manage Equipment'}
-                </Button>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -494,41 +467,35 @@ export const DashboardPage: React.FC = () => {
             <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
               isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
             }`}>
-              <div className="text-xs text-slate-400 mb-2">
+              <div className="text-xs text-slate-400 mb-1">
                 <span className="font-medium uppercase tracking-wider text-[11px]">
                   {language === 'vi' ? 'Thiết bị' : 'Equipment'}
                 </span>
               </div>
-              <div className="flex items-center gap-3 flex-1">
-                <PieChart width={64} height={64}>
+              <div className="flex items-center justify-center flex-1">
+                <PieChart width={110} height={110}>
                   <Pie
                     data={[
-                      { value: equipmentStats.functional || 0.01, fill: '#30d158' },
-                      { value: equipmentStats.underRepair || 0.01, fill: '#ffd60a' },
-                      { value: equipmentStats.decommissioned || 0.01, fill: '#ff453a' },
+                      { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: '#30d158' },
+                      { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: '#ffd60a' },
+                      { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: '#ff453a' },
                     ]}
-                    cx={28} cy={28} innerRadius={18} outerRadius={30}
+                    cx={51} cy={51} innerRadius={30} outerRadius={48}
                     dataKey="value" strokeWidth={0}
                   >
                     {[{ fill: '#30d158' }, { fill: '#ffd60a' }, { fill: '#ff453a' }].map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />
                     ))}
                   </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: isDark ? '#2c2c2e' : '#fff',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`,
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
                 </PieChart>
-                <div className="text-[11px] space-y-1 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#30d158]" />{language === 'vi' ? 'Hoạt động' : 'OK'}</span>
-                    <span className="font-bold font-mono text-[#30d158]">{equipmentStats.functional}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffd60a]" />{language === 'vi' ? 'Đang sửa' : 'Repair'}</span>
-                    <span className="font-bold font-mono text-amber-500">{equipmentStats.underRepair}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff453a]" />{language === 'vi' ? 'Ngừng dùng' : 'Decom'}</span>
-                    <span className="font-bold font-mono text-red-500">{equipmentStats.decommissioned}</span>
-                  </div>
-                </div>
               </div>
             </div>
           ) : (
@@ -556,43 +523,6 @@ export const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Manager: 3 stat nhỏ + shortcuts */}
-      {user?.role === 'ROOM_MANAGER' && (
-        <Row gutter={[12, 12]}>
-          <Col xs={8}>
-            <div className={`p-3 rounded-xl border text-center transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
-            }`}>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 mb-1">
-                {language === 'vi' ? 'Phòng bảo trì' : 'Maintenance'}
-              </div>
-              <div className="text-xl font-bold font-mono text-amber-500">
-                {rooms.filter((r) => r.status === 'MAINTENANCE').length}
-              </div>
-            </div>
-          </Col>
-          <Col xs={8}>
-            <div className={`p-3 rounded-xl border text-center transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
-            }`}>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 mb-1">
-                {language === 'vi' ? 'Thiết bị hỏng' : 'Under Repair'}
-              </div>
-              <div className="text-xl font-bold font-mono text-amber-500">{equipmentStats.underRepair}</div>
-            </div>
-          </Col>
-          <Col xs={8}>
-            <div className={`p-3 rounded-xl border text-center transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
-            }`}>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-red-500 mb-1">
-                {language === 'vi' ? 'Ngừng sử dụng' : 'Decommissioned'}
-              </div>
-              <div className="text-xl font-bold font-mono text-red-500">{equipmentStats.decommissioned}</div>
-            </div>
-          </Col>
-        </Row>
-      )}
 
       {/* Admin: Top 3 phòng được đặt nhiều nhất tuần */}
       {user?.role === 'ADMINISTRATOR' && topRooms.length > 0 && (
@@ -619,40 +549,19 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* 3. LỊCH HỌP THEO NGÀY */}
-      <div>
-        {user?.role === 'EMPLOYEE' && (
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={() => setShowMyBookingsOnly((v) => !v)}
-              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                showMyBookingsOnly
-                  ? isDark
-                    ? 'bg-[#0a84ff]/20 border-[#0a84ff]/40 text-[#0a84ff]'
-                    : 'bg-blue-50 border-blue-200 text-[#1e40af]'
-                  : isDark
-                  ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
-                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <CalendarOutlined />
-              {language === 'vi' ? 'Chỉ của tôi' : 'Mine only'}
-            </button>
-          </div>
-        )}
-        <BookingCalendar
-          bookings={showMyBookingsOnly ? bookings.filter((b) => b.user_id === user?.id) : bookings}
-          currentDate={calendarDate}
-          onCurrentDateChange={setCalendarDate}
-          viewMode="day"
-          showViewModeSelector={false}
-          hideEmptyHours
-          showDayHeader={false}
-          onBookingClick={handleOpenBookingPreview}
-          showRoomName
-          loading={loading}
-          currentUserId={user?.id}
-        />
-      </div>
+      <BookingCalendar
+        bookings={bookings}
+        currentDate={calendarDate}
+        onCurrentDateChange={setCalendarDate}
+        viewMode="day"
+        showViewModeSelector={false}
+        hideEmptyHours
+        showDayHeader={false}
+        onBookingClick={handleOpenBookingPreview}
+        showRoomName
+        loading={loading}
+        currentUserId={user?.id}
+      />
 
       <BookingPreviewModal
         booking={previewBooking}
