@@ -6,6 +6,7 @@ import time
 
 import pika
 
+from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.room_snapshot_repository import RoomSnapshotRepository
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,19 @@ logger = logging.getLogger(__name__)
 _ROOM_EVENTS_QUEUE = "room_events"
 
 
-def handle_room_event(event: dict, repo: RoomSnapshotRepository) -> None:
+_EVENT_TO_AUDIT = {
+    "room.created": "ROOM_CREATED",
+    "room.updated": "ROOM_UPDATED",
+    "room.deleted": "ROOM_DELETED",
+    "room.maintenance_started": "ROOM_MAINTENANCE_TOGGLED",
+}
+
+
+def handle_room_event(
+    event: dict,
+    repo: RoomSnapshotRepository,
+    audit_repo: AuditLogRepository | None = None,
+) -> None:
     """Process a single room lifecycle event and update the snapshot table."""
     event_type = event.get("event_type", "")
     payload = event.get("payload", {})
@@ -33,6 +46,20 @@ def handle_room_event(event: dict, repo: RoomSnapshotRepository) -> None:
         repo.delete_by_room_id(payload["room_id"])
     else:
         logger.debug("room_event_consumer: ignoring unknown event_type=%s", event_type)
+        return
+
+    action_type = _EVENT_TO_AUDIT.get(event_type)
+    if action_type and audit_repo is not None:
+        actor_id = payload.get("actor_id", "room-service")
+        audit_repo.create(
+            actor_id=actor_id,
+            action_type=action_type,
+            actor_name=payload.get("actor_name", actor_id),
+            actor_role="ROOM_MANAGER",
+            target_id=str(payload.get("room_id", "")),
+            target_name=payload.get("name"),
+            details=event_type,
+        )
 
 
 def run_forever(session_factory, rabbitmq_url: str, interval_reconnect: int = 5) -> None:
@@ -51,7 +78,8 @@ def run_forever(session_factory, rabbitmq_url: str, interval_reconnect: int = 5)
                     event = json.loads(body)
                     with session_factory() as session:
                         repo = RoomSnapshotRepository(session)
-                        handle_room_event(event, repo)
+                        audit_repo = AuditLogRepository(session)
+                        handle_room_event(event, repo, audit_repo)
                         session.commit()
                     ch.basic_ack(delivery_tag=method.delivery_tag)
                 except Exception:

@@ -24,6 +24,7 @@ class BookingCreate(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int = Field(gt=0)
+    title: str | None = Field(default=None, max_length=255)
     purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] = Field(default_factory=list)
 
@@ -46,6 +47,7 @@ class BookingUpdate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     num_attendees: int | None = Field(default=None, gt=0)
+    title: str | None = Field(default=None, max_length=255)
     purpose: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] | None = None
 
@@ -81,6 +83,7 @@ class BookingResponse(BaseModel):
     start_at: datetime
     end_at: datetime
     num_attendees: int
+    title: str | None = None
     purpose: str | None = None
     status: str
     checked_in_at: datetime | None = None

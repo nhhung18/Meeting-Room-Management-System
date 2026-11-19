@@ -5,6 +5,7 @@ Dùng write_audit() ngay trước db.commit() để entry và data chính cùng 
 
 from __future__ import annotations
 
+from common.request_id import request_id_ctx
 from sqlalchemy.orm import Session
 
 from app.repositories.audit_log_repository import AuditLogRepository
@@ -35,6 +36,7 @@ def write_audit(
     details: str | None = None,
 ) -> None:
     """Thêm 1 AuditLog entry vào session (chưa commit)."""
+    rid = request_id_ctx.get("-")
     AuditLogRepository(db).create(
         actor_id=actor_id,
         actor_name=actor_name or actor_id,
@@ -43,4 +45,5 @@ def write_audit(
         target_id=str(target_id) if target_id is not None else None,
         target_name=target_name,
         details=details,
+        request_id=rid if rid != "-" else None,
     )
