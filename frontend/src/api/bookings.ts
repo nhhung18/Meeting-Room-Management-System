@@ -8,6 +8,7 @@ export interface BookingWriteInput {
   start_at: string;
   end_at: string;
   num_attendees: number;
+  title?: string;
   purpose?: string;
   attendees?: Pick<Attendee, 'attendee_email' | 'name'>[];
 }
@@ -64,6 +65,7 @@ export async function createBooking(data: BookingWriteInput): Promise<Booking> {
     start_at: toTzAwareIso(data.start_at),
     end_at: toTzAwareIso(data.end_at),
     num_attendees: data.num_attendees,
+    title: data.title ?? null,
     purpose: data.purpose ?? null,
     attendees: (data.attendees ?? []).map(toAttendeeInput),
   };

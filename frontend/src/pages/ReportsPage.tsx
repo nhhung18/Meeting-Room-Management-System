@@ -47,6 +47,7 @@ import {
 } from 'recharts';
 import { Booking, Room, BookingStatus, BOOKING_STATUS_CONFIG, getBookingStatusLabel } from '../types';
 import { getBookings, getRooms } from '../api/client';
+import { getReportStats, ReportStatsResponse } from '../api/reports';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useBreakpoint } from '../hooks/useBreakpoint';
@@ -66,8 +67,10 @@ export const ReportsPage: React.FC = () => {
   const { isMobile } = useBreakpoint();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [statsData, setStatsData] = useState<ReportStatsResponse | null>(null);
   const [activeTab, setActiveTab] = useState<string>('stats');
 
   // Filter states for History Table
@@ -83,11 +86,11 @@ export const ReportsPage: React.FC = () => {
   // Time range for Stats tab ('7days' | '30days' | 'quarter')
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | 'quarter'>('7days');
 
-  const fetchData = async () => {
+  const fetchHistoryData = async () => {
     try {
       setLoading(true);
       const [bookingsRes, roomsRes] = await Promise.all([
-        getBookings(),
+        getBookings({ limit: 100 }),
         getRooms(),
       ]);
       setBookings(bookingsRes.items);
@@ -100,9 +103,32 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
+  const fetchStatsData = async (range: '7days' | '30days' | 'quarter') => {
+    try {
+      setStatsLoading(true);
+      let daysAgo = 7;
+      if (range === '30days') daysAgo = 30;
+      if (range === 'quarter') daysAgo = 90;
+      const endDate = dayjs().format('YYYY-MM-DD');
+      const startDate = dayjs().subtract(daysAgo, 'day').format('YYYY-MM-DD');
+      const data = await getReportStats(startDate, endDate);
+      setStatsData(data);
+    } catch (err: any) {
+      if (err?.status === 401) return;
+      message.error(err.message || (language === 'vi' ? 'Lỗi khi tải thống kê báo cáo' : 'Error loading report stats'));
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchData();
+    fetchHistoryData();
+    fetchStatsData(timeRange);
   }, []);
+
+  useEffect(() => {
+    fetchStatsData(timeRange);
+  }, [timeRange]);
 
   // Filtered bookings for History tab
   const historyBookings = useMemo(() => {
@@ -140,109 +166,58 @@ export const ReportsPage: React.FC = () => {
     });
   }, [bookings, searchQuery, statusFilter, roomFilter, dateRange]);
 
-  // Bookings filtered by timeRange for Stats Tab
-  const statsBookings = useMemo(() => {
-    const now = dayjs();
-    let daysAgo = 7;
-    if (timeRange === '30days') daysAgo = 30;
-    if (timeRange === 'quarter') daysAgo = 90;
-
-    const threshold = now.subtract(daysAgo, 'day').startOf('day');
-    return bookings.filter((b) => dayjs(b.start_at).isAfter(threshold));
-  }, [bookings, timeRange]);
-
-  // Aggregate KPI metrics for Stats Tab
+  // Aggregate KPI metrics for Stats Tab — from backend API
   const statsMetrics = useMemo(() => {
-    const total = statsBookings.length;
-    const checkedIn = statsBookings.filter((b) => b.status === 'CHECKED_IN').length;
-    const cancelled = statsBookings.filter((b) => b.status === 'CANCELLED').length;
-    const confirmed = statsBookings.filter((b) => b.status === 'CONFIRMED').length;
-
-    const onTimeRate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
-    const cancelRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
-
-    const roomCounts: Record<string, number> = {};
-    statsBookings.forEach((b) => {
-      const roomKey = b.room_name || (language === 'vi' ? 'Phòng họp' : 'Meeting Room');
-      roomCounts[roomKey] = (roomCounts[roomKey] || 0) + 1;
-    });
-
-    let topRoomName = t.noDataAvailable;
-    let maxCount = 0;
-    Object.entries(roomCounts).forEach(([name, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        topRoomName = `${name} (${count} ${language === 'vi' ? 'lượt' : 'times'})`;
-      }
-    });
-
+    if (!statsData) return null;
+    const topRoom = statsData.top_rooms[0];
+    const topRoomName = topRoom
+      ? `${topRoom.room_name} (${topRoom.total} ${language === 'vi' ? 'lượt' : 'times'})`
+      : t.noDataAvailable;
     return {
-      totalBookings: total,
-      checkedIn,
-      cancelled,
-      confirmed,
-      onTimeRate,
-      cancelRate,
+      totalBookings: statsData.total,
+      checkedIn: statsData.checked_in,
+      cancelled: statsData.cancelled,
+      confirmed: statsData.confirmed,
+      onTimeRate: statsData.on_time_rate,
+      cancelRate: statsData.cancel_rate,
       topRoomName,
     };
-  }, [statsBookings, language, t]);
+  }, [statsData, language, t]);
 
-  // Chart 1: Daily booking distribution (Bar Chart)
+  // Chart 1: Daily booking distribution (Bar Chart) — from backend API
   const chartDailyData = useMemo(() => {
-    const daysMap: Record<string, { confirmed: number; checkedIn: number; cancelled: number }> = {};
-
-    for (let i = 6; i >= 0; i--) {
-      const d = dayjs().subtract(i, 'day').format('DD/MM');
-      daysMap[d] = { confirmed: 0, checkedIn: 0, cancelled: 0 };
-    }
-
-    statsBookings.forEach((b) => {
-      const d = dayjs(b.start_at).format('DD/MM');
-      if (daysMap[d]) {
-        if (b.status === 'CONFIRMED') daysMap[d].confirmed += 1;
-        if (b.status === 'CHECKED_IN') daysMap[d].checkedIn += 1;
-        if (b.status === 'CANCELLED') daysMap[d].cancelled += 1;
-      }
-    });
-
-    return Object.entries(daysMap).map(([name, data]) => ({
-      name,
-      [t.barConfirmed]: data.confirmed,
-      [t.barCheckedIn]: data.checkedIn,
-      [t.barCancelled]: data.cancelled,
+    if (!statsData) return [];
+    return statsData.daily_stats.map((d) => ({
+      name: dayjs(d.date).format('DD/MM'),
+      [t.barConfirmed]: d.total - d.checked_in - d.cancelled,
+      [t.barCheckedIn]: d.checked_in,
+      [t.barCancelled]: d.cancelled,
     }));
-  }, [statsBookings, t]);
+  }, [statsData, t]);
 
-  // Chart 2: Status distribution (Pie Chart)
+  // Chart 2: Status distribution (Pie Chart) — from backend API
   const chartStatusData = useMemo(() => {
-    const confirmed = statsBookings.filter((b) => b.status === 'CONFIRMED').length;
-    const checkedIn = statsBookings.filter((b) => b.status === 'CHECKED_IN').length;
-    const cancelled = statsBookings.filter((b) => b.status === 'CANCELLED').length;
-
-    return [
-      { name: t.barConfirmed, value: confirmed || 3, color: '#1e5bef' },
-      { name: t.barCheckedIn, value: checkedIn || 4, color: '#52c41a' },
-      { name: t.barCancelled, value: cancelled || 1, color: '#ff4d4f' },
+    if (!statsData) return [
+      { name: t.barConfirmed, value: 0, color: '#1e5bef' },
+      { name: t.barCheckedIn, value: 0, color: '#52c41a' },
+      { name: t.barCancelled, value: 0, color: '#ff4d4f' },
     ];
-  }, [statsBookings, t]);
+    return [
+      { name: t.barConfirmed, value: statsData.confirmed || 0, color: '#1e5bef' },
+      { name: t.barCheckedIn, value: statsData.checked_in || 0, color: '#52c41a' },
+      { name: t.barCancelled, value: statsData.cancelled || 0, color: '#ff4d4f' },
+    ];
+  }, [statsData, t]);
 
-  // Chart 3: Top 5 most booked rooms (Horizontal Bar Chart)
+  // Chart 3: Top 5 most booked rooms — from backend API
   const chartTopRoomsData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    rooms.forEach((r) => {
-      counts[r.name] = 0;
-    });
-
-    statsBookings.forEach((b) => {
-      const roomKey = b.room_name || (language === 'vi' ? 'Phòng họp' : 'Meeting Room');
-      counts[roomKey] = (counts[roomKey] || 0) + 1;
-    });
-
-    return Object.entries(counts)
-      .map(([room, count]) => ({ room, count, [t.metricBookingsCount]: count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [rooms, statsBookings, t]);
+    if (!statsData) return [];
+    return statsData.top_rooms.map((r) => ({
+      room: r.room_name,
+      count: r.total,
+      [t.metricBookingsCount]: r.total,
+    }));
+  }, [statsData, t]);
 
   // History table columns
   const historyColumns: ColumnsType<Booking> = [
@@ -314,7 +289,11 @@ export const ReportsPage: React.FC = () => {
           </Text>
         </div>
 
-        <Button icon={<ReloadOutlined />} onClick={fetchData} style={{ borderRadius: 8 }}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => { fetchHistoryData(); fetchStatsData(timeRange); }}
+          style={{ borderRadius: 8 }}
+        >
           {t.refreshData}
         </Button>
       </div>
@@ -354,7 +333,7 @@ export const ReportsPage: React.FC = () => {
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiTotalBookings}</span>}
-                    value={statsMetrics.totalBookings}
+                    value={statsMetrics?.totalBookings ?? '--'}
                     valueStyle={{ color: '#00c2e8', fontWeight: 700, fontSize: '22px' }}
                     prefix={<CalendarOutlined style={{ fontSize: 16, marginRight: 6, color: '#00c2e8' }} />}
                   />
@@ -366,8 +345,8 @@ export const ReportsPage: React.FC = () => {
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiOnTimeRate}</span>}
-                    value={statsMetrics.onTimeRate}
-                    suffix="%"
+                    value={statsMetrics?.onTimeRate ?? '--'}
+                    suffix={statsMetrics ? "%" : ""}
                     valueStyle={{ color: '#30d158', fontWeight: 700, fontSize: '22px' }}
                     prefix={<CheckCircleOutlined style={{ fontSize: 16, marginRight: 6, color: '#30d158' }} />}
                   />
@@ -379,8 +358,8 @@ export const ReportsPage: React.FC = () => {
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiCancelRate}</span>}
-                    value={statsMetrics.cancelRate}
-                    suffix="%"
+                    value={statsMetrics?.cancelRate ?? '--'}
+                    suffix={statsMetrics ? "%" : ""}
                     valueStyle={{ color: '#ff453a', fontWeight: 700, fontSize: '22px' }}
                     prefix={<CloseCircleOutlined style={{ fontSize: 16, marginRight: 6, color: '#ff453a' }} />}
                   />
@@ -396,7 +375,7 @@ export const ReportsPage: React.FC = () => {
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <TrophyOutlined style={{ fontSize: 16, color: '#ffd60a' }} />
                     <span className="font-bold text-sm truncate">
-                      {statsMetrics.topRoomName}
+                      {statsMetrics?.topRoomName ?? '--'}
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-400 dark:text-zinc-400 mt-1 truncate">{t.kpiMostPopularRoomSub}</div>

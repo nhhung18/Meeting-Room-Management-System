@@ -56,7 +56,8 @@ interface BookingFormValues {
   start_time: string;
   end_time: string;
   num_attendees: number;
-  purpose: string;
+  title: string;
+  purpose?: string;
   attendees?: Array<{ name: string; attendee_email: string }>;
 }
 
@@ -127,6 +128,7 @@ export const BookingFormPage: React.FC = () => {
           start_time: startD.format('HH:mm'),
           end_time: endD.format('HH:mm'),
           num_attendees: existing.num_attendees,
+          title: existing.title || '',
           purpose: existing.purpose || '',
           attendees: existing.attendees?.map((att) => ({
             name: att.name,
@@ -355,6 +357,7 @@ export const BookingFormPage: React.FC = () => {
           start_at: startAt,
           end_at: endAt,
           num_attendees: values.num_attendees,
+          title: values.title || undefined,
           purpose: values.purpose || undefined,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
@@ -369,6 +372,7 @@ export const BookingFormPage: React.FC = () => {
           start_at: startAt,
           end_at: endAt,
           num_attendees: values.num_attendees,
+          title: values.title || undefined,
           purpose: values.purpose || undefined,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
@@ -615,17 +619,25 @@ export const BookingFormPage: React.FC = () => {
               </Form.Item>
             </Col>
 
-            {/* Mục đích cuộc họp */}
+            {/* Tiêu đề cuộc họp */}
             <Col xs={24} sm={12}>
               <Form.Item
-                label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldPurpose}</span>}
-                name="purpose"
-                rules={[{ required: true, message: t.errRequiredPurpose }]}
+                label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldTitle}</span>}
+                name="title"
+                rules={[{ required: true, message: language === 'vi' ? 'Vui lòng nhập tiêu đề cuộc họp' : 'Please enter a meeting title' }]}
               >
-                <Input size="large" placeholder={t.fieldPurposePlaceholder} />
+                <Input size="large" placeholder={t.fieldTitlePlaceholder} maxLength={255} />
               </Form.Item>
             </Col>
           </Row>
+
+          {/* Nội dung / Mô tả */}
+          <Form.Item
+            label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldPurpose}</span>}
+            name="purpose"
+          >
+            <Input.TextArea size="large" placeholder={t.fieldPurposePlaceholder} rows={2} maxLength={500} />
+          </Form.Item>
 
           <Divider style={{ margin: '14px 0 20px 0', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0' }} />
 
@@ -710,6 +722,9 @@ export const BookingFormPage: React.FC = () => {
               {t.summaryTitle}
             </span>
             <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+              <Descriptions.Item label={t.fieldTitle}>
+                {watchedValues?.title || '--'}
+              </Descriptions.Item>
               <Descriptions.Item label={t.summaryRoom}>
                 <strong className="text-[#1e40af] dark:text-[#0a84ff]">{selectedRoom?.name || t.unselected}</strong>
               </Descriptions.Item>

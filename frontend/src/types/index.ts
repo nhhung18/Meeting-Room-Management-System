@@ -135,6 +135,7 @@ export interface Booking {
   updated_at: string;
   room_name: string | null;
   attendees: Attendee[];
+  title?: string;
   purpose?: string;
 }
 

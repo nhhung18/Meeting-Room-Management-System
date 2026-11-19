@@ -172,6 +172,8 @@ export interface Translations {
   fieldEndTime: string;
   fieldEndTimePlaceholder: string;
   fieldAttendeesCount: string;
+  fieldTitle: string;
+  fieldTitlePlaceholder: string;
   fieldPurpose: string;
   fieldPurposePlaceholder: string;
   optionalAttendeesTitle: string;
@@ -644,8 +646,10 @@ const translations: Record<Language, Translations> = {
     fieldEndTime: 'Kết thúc',
     fieldEndTimePlaceholder: 'Chọn giờ kết thúc (vd: 17:30)',
     fieldAttendeesCount: 'Số lượng tham dự',
-    fieldPurpose: 'Mục đích / Tiêu đề cuộc họp',
-    fieldPurposePlaceholder: 'Ví dụ: Sprint Planning, Họp điều hành...',
+    fieldTitle: 'Tiêu đề cuộc họp',
+    fieldTitlePlaceholder: 'Ví dụ: Sprint Planning, Họp điều hành Q4...',
+    fieldPurpose: 'Nội dung / Mô tả chi tiết',
+    fieldPurposePlaceholder: 'Mô tả nội dung, agenda cuộc họp...',
     optionalAttendeesTitle: 'Thành viên tham dự (Optional)',
     optionalAttendeesSub: 'Thêm email đồng nghiệp để gửi thư mời và thông báo phòng họp',
     attendeeNamePlaceholder: 'Họ và tên người tham gia',
@@ -1114,8 +1118,10 @@ const translations: Record<Language, Translations> = {
     fieldEndTime: 'End Time',
     fieldEndTimePlaceholder: 'Select end time (e.g. 17:30)',
     fieldAttendeesCount: 'Attendee Count',
-    fieldPurpose: 'Meeting Purpose / Title',
-    fieldPurposePlaceholder: 'e.g., Sprint Planning, Executive Review...',
+    fieldTitle: 'Meeting Title',
+    fieldTitlePlaceholder: 'e.g., Sprint Planning, Q4 Executive Review...',
+    fieldPurpose: 'Description / Details',
+    fieldPurposePlaceholder: 'Meeting agenda, notes, or details...',
     optionalAttendeesTitle: 'Additional Attendees (Optional)',
     optionalAttendeesSub: 'Add colleague emails to send automated invites and room notifications',
     attendeeNamePlaceholder: 'Full name of attendee',
