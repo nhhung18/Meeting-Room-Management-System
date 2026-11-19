@@ -55,6 +55,7 @@ def _make_booking(
     booking.start_at = start_at or (now + timedelta(hours=1))
     booking.end_at = end_at or (now + timedelta(hours=2))
     booking.num_attendees = num_attendees
+    booking.title = None
     booking.purpose = None
     booking.attendees = attendees if attendees is not None else []
     booking.checked_in_at = None
