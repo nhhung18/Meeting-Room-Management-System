@@ -30,10 +30,14 @@ export type AuditActionType =
   | 'USER_ROLE_CHANGED'
   | 'USER_STATUS_TOGGLED'
   | 'USER_CREATED'
+  | 'USER_UPDATED'
   | 'ROOM_CREATED'
   | 'ROOM_UPDATED'
   | 'ROOM_MAINTENANCE_TOGGLED'
   | 'ROOM_FORCE_RELEASED'
+  | 'BOOKING_CREATED'
+  | 'BOOKING_CANCELLED'
+  | 'BOOKING_CHECKED_IN'
   | 'BOOKING_FORCE_CANCELLED'
   | 'POLICY_CONFIG_UPDATED'
   | 'EQUIPMENT_ALLOCATED';
@@ -52,13 +56,14 @@ export interface AuditLogEntry {
 }
 
 export interface BookingPolicyConfig {
-  max_advance_days: number;           // Max days in advance to book (default 14)
-  max_duration_minutes: number;       // Max single meeting duration (default 180)
-  min_duration_minutes: number;       // Min duration (default 15)
-  enable_auto_release_no_show: boolean; // Enable auto-cancellation if no check-in
-  auto_release_grace_minutes: number;  // Grace minutes before auto-cancellation (default 15)
-  buffer_minutes_between_meetings: number; // Buffer time between bookings (default 0)
-  min_cancel_notice_minutes: number;  // Notice required to cancel (default 30)
+  max_advance_days: number;
+  max_duration_minutes: number;
+  min_duration_minutes: number;
+  enable_auto_release_no_show: boolean;
+  auto_release_grace_minutes: number;
+  buffer_minutes_between_meetings: number;
+  min_cancel_notice_minutes: number;
+  check_in_window_minutes: number;
   updated_at: string;
   updated_by_name: string;
 }

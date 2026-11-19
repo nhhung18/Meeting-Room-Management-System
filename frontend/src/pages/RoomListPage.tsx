@@ -15,6 +15,7 @@ import {
   Popconfirm,
   Modal,
   App,
+  Empty,
 } from 'antd';
 import {
   SearchOutlined,
@@ -33,7 +34,6 @@ import { Room, RoomStatus, ROOM_STATUS_CONFIG, getRoomStatusLabel } from '../typ
 import { getRooms, deleteRoom, forceReleaseRoom, toggleRoomMaintenance, getEquipmentByRoom, getEquipmentCategories } from '../api/client';
 import type { EquipmentItem } from '../types';
 import { ApiErrorState } from '../components/ApiErrorState';
-import { EmptyRoomState } from '../components/EmptyRoomState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -158,11 +158,7 @@ export const RoomListPage: React.FC = () => {
     }
     try {
       setReleasing(true);
-      const res = await forceReleaseRoom(selectedReleaseRoom.id, releaseReason.trim(), {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-      });
+      const res = await forceReleaseRoom(selectedReleaseRoom.id, releaseReason.trim());
       message.success(
         language === 'vi'
           ? `Đã cưỡng chế giải phóng phòng ${res.room.name}. Đã hủy ${res.cancelledBookingsCount} lịch liên quan.`
@@ -187,7 +183,6 @@ export const RoomListPage: React.FC = () => {
         selectedMaintenanceRoom.id,
         !isCurrentlyMaintenance,
         maintenanceReason.trim(),
-        { id: user.id, name: user.name, role: user.role }
       );
       message.success(t.maintenanceStatusUpdated);
       setMaintenanceModalOpen(false);
@@ -352,23 +347,31 @@ export const RoomListPage: React.FC = () => {
           <Spin size="large" description={t.loadingRooms} />
         </div>
       ) : rooms.length === 0 ? (
-        <EmptyRoomState
-          title={t.emptyRooms || t.noRoomsFound}
-          description={
-            language === 'vi'
-              ? hasActiveFilters
-                ? 'Không có phòng họp nào khớp với bộ lọc hoặc từ khóa tìm kiếm hiện tại. Bạn có thể thử đặt lại bộ lọc để xem toàn bộ phòng.'
-                : 'Hiện tại hệ thống chưa có phòng họp nào khả dụng. Vui lòng liên hệ ban quản lý để thêm phòng mới.'
-              : hasActiveFilters
-                ? 'No rooms match your active filters or search terms. Try resetting your filters to see all rooms.'
-                : 'There are currently no meeting rooms registered in the system. Please contact the administrator.'
-          }
-          isDark={isDark}
-          primaryActionLabel={hasActiveFilters ? t.clearFilters : undefined}
-          onPrimaryAction={hasActiveFilters ? handleResetFilters : undefined}
-          secondaryActionLabel={t.refreshData}
-          onSecondaryAction={fetchRoomList}
-        />
+        <div className={`p-10 rounded-2xl border text-center ${isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'}`}>
+          <Empty
+            description={
+              language === 'vi'
+                ? hasActiveFilters
+                  ? 'Không có phòng họp nào khớp với bộ lọc hoặc từ khóa tìm kiếm hiện tại. Bạn có thể thử đặt lại bộ lọc để xem toàn bộ phòng.'
+                  : 'Hiện tại hệ thống chưa có phòng họp nào khả dụng. Vui lòng liên hệ ban quản lý để thêm phòng mới.'
+                : hasActiveFilters
+                  ? 'No rooms match your active filters or search terms. Try resetting your filters to see all rooms.'
+                  : 'There are currently no meeting rooms registered in the system. Please contact the administrator.'
+            }
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          >
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {hasActiveFilters && (
+                <Button type="primary" onClick={handleResetFilters}>
+                  {t.clearFilters}
+                </Button>
+              )}
+              <Button icon={<ReloadOutlined />} onClick={fetchRoomList}>
+                {t.refreshData}
+              </Button>
+            </div>
+          </Empty>
+        </div>
       ) : (
         <>
           {/* Card View Grid: 3 cols desktop, 2 tablet, 1 mobile */}

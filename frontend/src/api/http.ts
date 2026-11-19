@@ -18,6 +18,11 @@ export function setTokenProvider(provider: TokenProvider | null): void {
   tokenProvider = provider;
 }
 
+// Dispatched whenever a 401 is confirmed (after retry). Listeners can call logout + navigate.
+export function dispatchUnauthorized(): void {
+  window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -80,9 +85,9 @@ export async function uploadFile<T>(path: string, formData: FormData): Promise<T
       } catch (err) {
         throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
       }
-      if (response.status === 401) throw new ApiError(401, 'Phiên đăng nhập hết hạn');
+      if (response.status === 401) { dispatchUnauthorized(); throw new ApiError(401, 'Phiên đăng nhập hết hạn'); }
     } else {
-      throw new ApiError(401, 'Phiên đăng nhập hết hạn');
+      dispatchUnauthorized(); throw new ApiError(401, 'Phiên đăng nhập hết hạn');
     }
   }
 
@@ -135,9 +140,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
         throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
       }
       if (response.status === 401) {
+        dispatchUnauthorized();
         throw new ApiError(401, 'Phiên đăng nhập hết hạn');
       }
     } else {
+      dispatchUnauthorized();
       throw new ApiError(401, 'Phiên đăng nhập hết hạn');
     }
   }

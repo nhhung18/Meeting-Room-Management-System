@@ -119,11 +119,7 @@ export const RoomManagementPage: React.FC = () => {
     }
     try {
       setReleasing(true);
-      const res = await forceReleaseRoom(selectedReleaseRoom.id, releaseReason.trim(), {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-      });
+      const res = await forceReleaseRoom(selectedReleaseRoom.id, releaseReason.trim());
       message.success(
         language === 'vi'
           ? `Đã cưỡng chế giải phóng phòng ${res.room.name}. Đã hủy ${res.cancelledBookingsCount} lịch liên quan.`
@@ -148,11 +144,6 @@ export const RoomManagementPage: React.FC = () => {
         selectedMaintenanceRoom.id,
         !isCurrentlyMaintenance,
         maintenanceReason.trim(),
-        {
-          id: user.id,
-          name: user.name,
-          role: user.role,
-        }
       );
       message.success(t.maintenanceStatusUpdated);
       setMaintenanceModalOpen(false);

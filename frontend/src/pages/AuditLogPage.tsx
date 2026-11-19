@@ -28,7 +28,8 @@ import {
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { AuditLogEntry, AuditActionType } from '../types';
-import { getAuditLogs, exportAuditLogsToCsv } from '../api/client';
+import { getAuditLogs } from '../api/auditLogs';
+import { exportAuditLogsToCsv } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useBreakpoint } from '../hooks/useBreakpoint';
@@ -96,6 +97,14 @@ export const AuditLogPage: React.FC = () => {
         return <Tag color="orange">{language === 'vi' ? 'Khóa/Mở tài khoản' : 'Status Toggled'}</Tag>;
       case 'USER_CREATED':
         return <Tag color="green">{language === 'vi' ? 'Tạo người dùng' : 'User Created'}</Tag>;
+      case 'USER_UPDATED':
+        return <Tag color="geekblue">{language === 'vi' ? 'Cập nhật người dùng' : 'User Updated'}</Tag>;
+      case 'BOOKING_CREATED':
+        return <Tag color="green">{language === 'vi' ? 'Đặt phòng' : 'Booking Created'}</Tag>;
+      case 'BOOKING_CANCELLED':
+        return <Tag color="orange">{language === 'vi' ? 'Hủy đặt phòng' : 'Booking Cancelled'}</Tag>;
+      case 'BOOKING_CHECKED_IN':
+        return <Tag color="lime">{language === 'vi' ? 'Check-in' : 'Checked In'}</Tag>;
       case 'ROOM_FORCE_RELEASED':
         return <Tag color="red">{language === 'vi' ? 'Giải phóng cưỡng chế' : 'Force Released'}</Tag>;
       case 'ROOM_MAINTENANCE_TOGGLED':

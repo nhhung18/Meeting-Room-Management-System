@@ -562,6 +562,7 @@ export const DEFAULT_BOOKING_POLICIES: BookingPolicyConfig = {
   auto_release_grace_minutes: 15,
   buffer_minutes_between_meetings: 0,
   min_cancel_notice_minutes: 30,
+  check_in_window_minutes: 15,
   updated_at: '2026-03-01T08:00:00Z',
   updated_by_name: 'Nguyễn Văn An (Admin)',
 };

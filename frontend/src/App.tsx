@@ -67,6 +67,24 @@ const CallbackPage: React.FC = () => {
   );
 };
 
+const AuthGuard: React.FC = () => {
+  const { logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = () => {
+      if (isAuthenticated) {
+        logout();
+        navigate('/login', { replace: true });
+      }
+    };
+    window.addEventListener('auth:unauthorized', handler);
+    return () => window.removeEventListener('auth:unauthorized', handler);
+  }, [logout, navigate, isAuthenticated]);
+
+  return null;
+};
+
 const AppContent: React.FC = () => {
   const { isDark } = useTheme();
   const { language } = useLanguage();
@@ -206,6 +224,7 @@ const AppContent: React.FC = () => {
       <AntApp>
         <BrowserRouter>
           <AuthProvider>
+            <AuthGuard />
             <Routes>
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
