@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict
 
 UserRole = Literal["EMPLOYEE", "ROOM_MANAGER", "ADMINISTRATOR"]
 UserStatus = Literal["ACTIVE", "SUSPENDED"]
