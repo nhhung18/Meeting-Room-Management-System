@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.audit import write_audit
 from app.core.config import get_settings
 from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
@@ -262,6 +263,16 @@ def update_booking(
                 ),
             )
         )
+        write_audit(
+            db, user.sub, user.roles, "BOOKING_CREATED",
+            actor_name=user.email or user.sub,
+            target_id=result.id,
+            target_name=result.room_name,
+            details=(
+                f"Đặt phòng từ {result.start_at.strftime('%H:%M')}"
+                f" đến {result.end_at.strftime('%H:%M')} — {result.purpose or ''}"
+            ),
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -302,6 +313,13 @@ def cancel_booking(
                 ),
             )
         )
+        write_audit(
+            db, user.sub, user.roles, "BOOKING_CANCELLED",
+            actor_name=user.email or user.sub,
+            target_id=result.id,
+            target_name=result.room_name,
+            details=f"Hủy booking #{result.id}",
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -338,6 +356,13 @@ def check_in_booking(
                     }
                 ),
             )
+        )
+        write_audit(
+            db, user.sub, user.roles, "BOOKING_CHECKED_IN",
+            actor_name=user.email or user.sub,
+            target_id=result.id,
+            target_name=result.room_name,
+            details=f"Check-in booking #{result.id}",
         )
         db.commit()
         return result

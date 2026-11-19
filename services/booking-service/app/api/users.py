@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.audit import write_audit
 from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
 from app.repositories.user_profile_repository import UserProfileRepository
@@ -59,6 +60,13 @@ def create_user(
         role=body.role, status=body.status,
         department=body.department, phone=body.phone, avatar=body.avatar,
     )
+    write_audit(
+        db, _actor.sub, _actor.roles, "USER_CREATED",
+        actor_name=_actor.email or _actor.sub,
+        target_id=user.id,
+        target_name=user.name,
+        details=f"Tạo tài khoản {user.email} với vai trò {user.role}",
+    )
     db.commit()
     logger.info("user created", extra={"fields": {"user_id": user.id, "email": user.email}})
     return UserProfileResponse.model_validate(user)
@@ -107,7 +115,26 @@ def update_user(
     user = repo.get(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    updated = repo.update(user, body.model_dump(exclude_none=True))
+    changes = body.model_dump(exclude_none=True)
+    updated = repo.update(user, changes)
+
+    if "role" in changes:
+        action = "USER_ROLE_CHANGED"
+        details = f"Đổi vai trò → {changes['role']}"
+    elif "status" in changes:
+        action = "USER_STATUS_TOGGLED"
+        details = f"Đổi trạng thái → {changes['status']}"
+    else:
+        action = "USER_UPDATED"
+        details = "Cập nhật thông tin"
+
+    write_audit(
+        db, _actor.sub, _actor.roles, action,
+        actor_name=_actor.email or _actor.sub,
+        target_id=user_id,
+        target_name=updated.name,
+        details=details,
+    )
     db.commit()
     logger.info("user updated", extra={"fields": {"user_id": user_id}})
     return UserProfileResponse.model_validate(updated)

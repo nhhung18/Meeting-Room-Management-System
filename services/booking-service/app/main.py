@@ -3,7 +3,7 @@ import time
 
 from fastapi import FastAPI, Request
 
-from app.api import bookings, health, policies, users
+from app.api import audit_logs, bookings, health, policies, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_request_id
@@ -52,3 +52,4 @@ app.include_router(health.router, prefix=settings.api_prefix, include_in_schema=
 app.include_router(bookings.router, prefix=settings.api_prefix)
 app.include_router(policies.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
+app.include_router(audit_logs.router, prefix=settings.api_prefix)
