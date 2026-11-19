@@ -190,14 +190,14 @@ export const getEquipmentCategoriesFull = async (): Promise<import('../types').E
 export const createEquipmentCategory = async (data: { name: string; description?: string }): Promise<import('../types').EquipmentCategory> => {
   return request<import('../types').EquipmentCategory>('/rooms/equipment-categories', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: data,
   });
 };
 
 export const updateEquipmentCategory = async (id: number, data: { name?: string; description?: string }): Promise<import('../types').EquipmentCategory> => {
   return request<import('../types').EquipmentCategory>(`/rooms/equipment-categories/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify(data),
+    body: data,
   });
 };
 

@@ -65,6 +65,7 @@ export const DashboardPage: React.FC = () => {
   );
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [showMyBookingsOnly, setShowMyBookingsOnly] = useState(false);
 
   const handleOpenBookingPreview = (b: Booking, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,6 +109,8 @@ export const DashboardPage: React.FC = () => {
 
     const todayCheckedInCount = todayBookings.filter((b) => b.status === 'CHECKED_IN').length;
 
+    const myTodayBookings = todayBookings.filter((b) => b.user_id === user?.id).length;
+
     const totalWorkingHours = (availableRoomsCount || 1) * 10;
     const bookedHours = todayBookings.reduce((sum, b) => {
       const start = dayjs(b.start_at);
@@ -122,9 +125,18 @@ export const DashboardPage: React.FC = () => {
       availableRooms: availableRoomsCount,
       todayTotalBookings: todayBookings.length,
       todayCheckedIn: todayCheckedInCount,
+      myTodayBookings,
       utilizationRate: utilizationRate > 0 ? utilizationRate : 42,
     };
-  }, [rooms, bookings]);
+  }, [rooms, bookings, user?.id]);
+
+  // Booking sắp tới có thể check-in ngay (chỉ hiện cho Employee)
+  const checkInReadyBooking = useMemo(() => {
+    if (user?.role !== 'EMPLOYEE') return null;
+    return bookings.find(
+      (b) => b.user_id === user.id && b.status === 'CONFIRMED' && isCheckInEligible(b.start_at)
+    ) ?? null;
+  }, [bookings, user]);
 
   // Upcoming 4 confirmed bookings of current user (or all if admin)
   const upcomingBookings = useMemo(() => {
@@ -251,26 +263,84 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. TOP ROW: 4 STAT METRICS (High Information Density, Tabular Figures) */}
-      <Row gutter={[12, 12]}>
-        {/* Metric 1: Phòng hoạt động */}
-        <Col xs={12} sm={12} lg={6}>
-          <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-            isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="font-medium uppercase tracking-wider text-[11px]">{t.statActiveRooms}</span>
-              <AppstoreOutlined className="text-sky-500 text-sm" />
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
-              {stats.availableRooms}{' '}
-              <span className="text-xs font-normal text-slate-400">/ {rooms.length} {t.totalRoomsUnit}</span>
-            </div>
-            <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-              <span>{t.statActiveRoomsSub}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#30d158]" />
+      {/* Quick check-in banner — chỉ hiện cho Employee khi có booking sắp bắt đầu */}
+      {checkInReadyBooking && (
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
+          isDark
+            ? 'bg-emerald-950/40 border-emerald-700/50'
+            : 'bg-emerald-50 border-emerald-200'
+        }`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#30d158] animate-pulse shrink-0" />
+            <div className="min-w-0">
+              <span className="font-semibold text-sm text-emerald-700 dark:text-emerald-300">
+                {language === 'vi' ? 'Phòng họp sắp bắt đầu' : 'Meeting starting soon'}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
+                {checkInReadyBooking.room_name} · {dayjs(checkInReadyBooking.start_at).format('HH:mm')}
+              </span>
             </div>
           </div>
+          <Button
+            type="primary"
+            size="small"
+            icon={<CheckOutlined />}
+            loading={checkingInId === checkInReadyBooking.id}
+            onClick={() => handleCheckIn(checkInReadyBooking.id)}
+            style={{
+              backgroundColor: '#30d158',
+              borderColor: '#30d158',
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            {t.checkInNow}
+          </Button>
+        </div>
+      )}
+
+      {/* 2. TOP ROW: 4 STAT METRICS (High Information Density, Tabular Figures) */}
+      <Row gutter={[12, 12]}>
+        {/* Metric 1: Phòng hoạt động (admin/manager) hoặc Booking của tôi hôm nay (employee) */}
+        <Col xs={12} sm={12} lg={6}>
+          {user?.role === 'EMPLOYEE' ? (
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">
+                  {language === 'vi' ? 'Booking của tôi hôm nay' : 'My Bookings Today'}
+                </span>
+                <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+                {stats.myTodayBookings}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <span>{language === 'vi' ? 'Phòng đã đặt trong ngày' : 'Rooms booked today'}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1e40af] dark:bg-[#0a84ff]" />
+              </div>
+            </div>
+          ) : (
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statActiveRooms}</span>
+                <AppstoreOutlined className="text-sky-500 text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+                {stats.availableRooms}{' '}
+                <span className="text-xs font-normal text-slate-400">/ {rooms.length} {t.totalRoomsUnit}</span>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <span>{t.statActiveRoomsSub}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#30d158]" />
+              </div>
+            </div>
+          )}
         </Col>
 
         {/* Metric 2: Booking hôm nay */}
@@ -337,20 +407,41 @@ export const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 3. LỊCH HỌP THEO NGÀY (Đồng bộ Google Calendar Day View với Chi tiết phòng) */}
-      <BookingCalendar
-        bookings={bookings}
-        currentDate={calendarDate}
-        onCurrentDateChange={setCalendarDate}
-        viewMode="day"
-        showViewModeSelector={false}
-        hideEmptyHours
-        showDayHeader={false}
-        onBookingClick={handleOpenBookingPreview}
-        showRoomName
-        loading={loading}
-        currentUserId={user?.id}
-      />
+      {/* 3. LỊCH HỌP THEO NGÀY */}
+      <div>
+        {user?.role === 'EMPLOYEE' && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setShowMyBookingsOnly((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                showMyBookingsOnly
+                  ? isDark
+                    ? 'bg-[#0a84ff]/20 border-[#0a84ff]/40 text-[#0a84ff]'
+                    : 'bg-blue-50 border-blue-200 text-[#1e40af]'
+                  : isDark
+                  ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
+                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <CalendarOutlined />
+              {language === 'vi' ? 'Chỉ của tôi' : 'Mine only'}
+            </button>
+          </div>
+        )}
+        <BookingCalendar
+          bookings={showMyBookingsOnly ? bookings.filter((b) => b.user_id === user?.id) : bookings}
+          currentDate={calendarDate}
+          onCurrentDateChange={setCalendarDate}
+          viewMode="day"
+          showViewModeSelector={false}
+          hideEmptyHours
+          showDayHeader={false}
+          onBookingClick={handleOpenBookingPreview}
+          showRoomName
+          loading={loading}
+          currentUserId={user?.id}
+        />
+      </div>
 
       <BookingPreviewModal
         booking={previewBooking}

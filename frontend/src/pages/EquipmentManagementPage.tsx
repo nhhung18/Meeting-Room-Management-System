@@ -204,8 +204,8 @@ export const EquipmentManagementPage: React.FC = () => {
     const total = equipment.length;
     const functional = equipment.filter((e) => e.status === 'FUNCTIONAL').length;
     const underRepair = equipment.filter((e) => e.status === 'UNDER_REPAIR').length;
-    const unassigned = equipment.filter((e) => !e.room_id).length;
-    return { total, functional, underRepair, unassigned };
+    const decommissioned = equipment.filter((e) => e.status === 'DECOMMISSIONED').length;
+    return { total, functional, underRepair, decommissioned };
   }, [equipment]);
 
   const handleOpenCreate = () => {
@@ -225,7 +225,7 @@ export const EquipmentManagementPage: React.FC = () => {
       : (item.room_id ? [item.room_id] : []);
     form.setFieldsValue({
       name: item.name,
-      category: item.category ? [item.category] : [],
+      category: item.category ?? '',
       status: item.status,
       room_ids: currentRoomIds,
       serial_number: item.serial_number || '',
@@ -252,10 +252,7 @@ export const EquipmentManagementPage: React.FC = () => {
       const selectedRoomIds: number[] = values.room_ids || [];
       const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id));
       const primaryRoom = selectedRooms[0];
-      // mode="tags" returns string[]; extract single string
-      const categoryValue: string = Array.isArray(values.category)
-        ? (values.category[0] ?? '').trim()
-        : (values.category ?? '').trim();
+      const categoryValue: string = (values.category ?? '').trim();
 
       if (editingItem) {
         await updateEquipment(editingItem.id, {
@@ -400,7 +397,11 @@ export const EquipmentManagementPage: React.FC = () => {
       {/* Tabs */}
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          if (key === 'categories') fetchCategoryList();
+          if (key === 'equipment') fetchData();
+        }}
         items={[
           { key: 'equipment', label: t.equipmentTabList },
           { key: 'categories', label: t.equipmentTabCategories },
@@ -451,8 +452,8 @@ export const EquipmentManagementPage: React.FC = () => {
         <div className={`p-3.5 rounded-xl border ${
           isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
         }`}>
-          <div className="text-[11px] font-semibold text-cyan-500 uppercase tracking-wider">{language === 'vi' ? 'Trong kho dự phòng' : 'In Storage'}</div>
-          <div className="text-xl font-bold text-cyan-500 mt-1 font-mono">{metrics.unassigned}</div>
+          <div className="text-[11px] font-semibold text-red-500 uppercase tracking-wider">{language === 'vi' ? 'Ngừng sử dụng' : 'Decommissioned'}</div>
+          <div className="text-xl font-bold text-red-500 mt-1 font-mono">{metrics.decommissioned}</div>
         </div>
       </div>
 
@@ -577,13 +578,6 @@ export const EquipmentManagementPage: React.FC = () => {
                         <EnvironmentOutlined style={{ fontSize: 11 }} />
                         {t.unassignedStorage}
                       </div>
-                    ) : assignedIds.length === 1 ? (
-                      <div className={`text-[11px] px-2 py-1.5 rounded-lg border flex items-center gap-1.5 ${
-                        isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50/50 border-blue-100'
-                      }`}>
-                        <EnvironmentOutlined className="text-[#1e40af] dark:text-[#0a84ff] shrink-0" style={{ fontSize: 11 }} />
-                        <span className="truncate font-medium text-slate-700 dark:text-zinc-200">{assignedNames[0]}</span>
-                      </div>
                     ) : (
                       <div className={`text-[11px] px-2 py-1.5 rounded-lg border ${
                         isDark ? 'bg-cyan-950/20 border-cyan-800/30' : 'bg-cyan-50/60 border-cyan-100'
@@ -673,11 +667,11 @@ export const EquipmentManagementPage: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         footer={null}
         width={480}
-        style={{ maxWidth: '95vw' }}
+        style={{ maxWidth: '96vw' }}
         centered
         styles={{
-          body: { backgroundColor: isDark ? '#18181b' : '#ffffff', padding: '16px 20px' },
-          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', padding: '14px 20px 10px' },
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff', maxHeight: '80vh', overflowY: 'auto' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
         }}
       >
         <Form
@@ -701,16 +695,12 @@ export const EquipmentManagementPage: React.FC = () => {
             rules={[{ required: true, message: language === 'vi' ? 'Vui lòng chọn hoặc nhập danh mục' : 'Please select or enter a category' }]}
           >
             <Select
-              mode="tags"
-              maxCount={1}
+              showSearch
               placeholder={language === 'vi' ? 'Chọn hoặc nhập danh mục mới (VD: TV, Máy chiếu)' : 'Select or type a new category'}
-              options={categories.map((c) => ({ value: c, label: c }))}
-              onChange={(val: string[]) => {
-                // mode=tags gives an array; keep only the last entered value as a string
-                if (val.length > 1) {
-                  form.setFieldValue('category', [val[val.length - 1]]);
-                }
-              }}
+              options={categoryList.map((c) => ({ value: c.name, label: c.name }))}
+              filterOption={(input, option) =>
+                (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
             />
           </Form.Item>
 
@@ -796,12 +786,12 @@ export const EquipmentManagementPage: React.FC = () => {
         open={catModalOpen}
         onCancel={() => setCatModalOpen(false)}
         footer={null}
-        width={400}
-        style={{ maxWidth: '95vw' }}
+        width={380}
+        style={{ maxWidth: '96vw' }}
         centered
         styles={{
-          body: { backgroundColor: isDark ? '#18181b' : '#ffffff', padding: '16px 20px' },
-          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', padding: '14px 20px 10px' },
+          body: { backgroundColor: isDark ? '#18181b' : '#ffffff' },
+          header: { backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0' },
         }}
       >
         <Form

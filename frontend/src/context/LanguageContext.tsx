@@ -851,7 +851,7 @@ const translations: Record<Language, Translations> = {
     errGenericTitle: 'Đã xảy ra lỗi',
     errUnauthorizedTitle: 'Phiên đăng nhập hết hạn',
     errUnauthorizedHint: 'Token xác thực hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại.',
-    emptyRooms: 'Chưa có phòng họp nào phù hợp',
+    emptyRooms: 'Không tìm thấy phòng họp nào',
     emptyBookings: 'Chưa có lịch họp nào',
 
     // Multi-room Shared Equipment
