@@ -41,7 +41,7 @@ export const ProfilePage: React.FC = () => {
 
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar);
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar ?? '');
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export const ProfilePage: React.FC = () => {
         phone: user.phone || '',
         avatar: user.avatar || '',
       });
-      setSelectedAvatar(user.avatar);
+      setSelectedAvatar(user.avatar ?? '');
     }
   }, [user, form]);
 

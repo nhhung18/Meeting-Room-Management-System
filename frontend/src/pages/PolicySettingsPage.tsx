@@ -26,7 +26,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { BookingPolicyConfig } from '../types';
-import { getBookingPolicies, updateBookingPolicies, resetBookingPolicies } from '../api/client';
+import { getBookingPolicies, updateBookingPolicies, resetBookingPolicies } from '../api/policies';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -68,14 +68,9 @@ export const PolicySettingsPage: React.FC = () => {
   }, []);
 
   const handleSave = async (values: BookingPolicyConfig) => {
-    if (!currentUser) return;
     try {
       setSaving(true);
-      const updated = await updateBookingPolicies(values, {
-        id: currentUser.id,
-        name: currentUser.name,
-        role: currentUser.role,
-      });
+      const updated = await updateBookingPolicies(values);
       setPolicyData(updated);
       message.success(t.savePolicySuccess);
     } catch (err: any) {
@@ -86,14 +81,9 @@ export const PolicySettingsPage: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (!currentUser) return;
     try {
       setSaving(true);
-      const reset = await resetBookingPolicies({
-        id: currentUser.id,
-        name: currentUser.name,
-        role: currentUser.role,
-      });
+      const reset = await resetBookingPolicies();
       setPolicyData(reset);
       form.setFieldsValue(reset);
       message.success(t.resetPolicySuccess);

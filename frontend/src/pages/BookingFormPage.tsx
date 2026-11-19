@@ -31,7 +31,8 @@ import {
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { Room, BookingPolicyConfig, Booking } from '../types';
-import { getRooms, createBooking, getBookingById, updateBooking, getBookingPolicies, getBookings } from '../api/client';
+import { getRooms, createBooking, getBookingById, updateBooking, getBookings } from '../api/client';
+import { getBookingPolicies } from '../api/policies';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';

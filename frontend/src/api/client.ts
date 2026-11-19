@@ -6,13 +6,10 @@ import {
   EquipmentItem,
   UserAccount,
   AuditLogEntry,
-  BookingPolicyConfig,
   UserRole,
   AuditActionType,
 } from '../types';
 import {
-  INITIAL_ROOMS,
-  generateInitialBookings,
   INITIAL_USER_ACCOUNTS,
   INITIAL_AUDIT_LOGS,
   DEFAULT_BOOKING_POLICIES,
@@ -27,8 +24,6 @@ export * from './bookings';
 
 dayjs.extend(isBetween);
 
-const ROOMS_STORAGE_KEY = 'mrms_rooms_v1';
-const BOOKINGS_STORAGE_KEY = 'mrms_bookings_v1';
 const EQUIPMENT_STORAGE_KEY = 'mrms_equipment_v1'; // kept to clear legacy data
 const USERS_STORAGE_KEY = 'mrms_users_accounts_v1';
 const AUDIT_LOGS_STORAGE_KEY = 'mrms_audit_logs_v1';
@@ -65,38 +60,6 @@ function adaptEquipment(raw: BackendEquipmentResponse): EquipmentItem {
     updated_at: raw.updated_at,
   } as unknown as EquipmentItem;
 }
-
-// Initialize LocalStorage with mock data if not present
-const getStoredRooms = (): Room[] => {
-  try {
-    const raw = localStorage.getItem(ROOMS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Error reading rooms from storage', e);
-  }
-  localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(INITIAL_ROOMS));
-  return INITIAL_ROOMS;
-};
-
-const saveStoredRooms = (rooms: Room[]): void => {
-  localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(rooms));
-};
-
-const getStoredBookings = (): Booking[] => {
-  try {
-    const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Error reading bookings from storage', e);
-  }
-  const initial = generateInitialBookings();
-  localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(initial));
-  return initial;
-};
-
-const saveStoredBookings = (bookings: Booking[]): void => {
-  localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-};
 
 // Simulated network delay (for mock-only services below)
 const delay = (ms: number = 150) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -458,181 +421,49 @@ export const exportAuditLogsToCsv = (logs: AuditLogEntry[]): void => {
   document.body.removeChild(link);
 };
 
-// ==================== BOOKING POLICY SERVICE ====================
-
-const getStoredPolicies = (): BookingPolicyConfig => {
-  try {
-    const raw = localStorage.getItem(POLICIES_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Error reading policies from storage', e);
-  }
-  localStorage.setItem(POLICIES_STORAGE_KEY, JSON.stringify(DEFAULT_BOOKING_POLICIES));
-  return DEFAULT_BOOKING_POLICIES;
-};
-
-const saveStoredPolicies = (policies: BookingPolicyConfig): void => {
-  localStorage.setItem(POLICIES_STORAGE_KEY, JSON.stringify(policies));
-};
-
-export const getBookingPolicies = async (): Promise<BookingPolicyConfig> => {
-  await delay();
-  return getStoredPolicies();
-};
-
-export const updateBookingPolicies = async (
-  newPolicy: BookingPolicyConfig,
-  actor: { id: string; name: string; role: UserRole }
-): Promise<BookingPolicyConfig> => {
-  await delay();
-  const updated: BookingPolicyConfig = {
-    ...newPolicy,
-    updated_at: new Date().toISOString(),
-    updated_by_name: `${actor.name} (${actor.role})`,
-  };
-  saveStoredPolicies(updated);
-
-  await logAuditEvent({
-    actor_id: actor.id,
-    actor_name: actor.name,
-    actor_role: actor.role,
-    action_type: 'POLICY_CONFIG_UPDATED',
-    target_id: 'policy_system',
-    target_name: 'Quy định đặt phòng toàn hệ thống',
-    details: `Cập nhật cấu hình: Đặt trước tối đa ${updated.max_advance_days} ngày, Thời lượng tối đa ${updated.max_duration_minutes} phút, Tự hủy sau ${updated.auto_release_grace_minutes} phút trễ check-in`,
-  });
-
-  return updated;
-};
-
-export const resetBookingPolicies = async (
-  actor: { id: string; name: string; role: UserRole }
-): Promise<BookingPolicyConfig> => {
-  await delay();
-  const resetConfig: BookingPolicyConfig = {
-    ...DEFAULT_BOOKING_POLICIES,
-    updated_at: new Date().toISOString(),
-    updated_by_name: `${actor.name} (${actor.role})`,
-  };
-  saveStoredPolicies(resetConfig);
-
-  await logAuditEvent({
-    actor_id: actor.id,
-    actor_name: actor.name,
-    actor_role: actor.role,
-    action_type: 'POLICY_CONFIG_UPDATED',
-    target_id: 'policy_system',
-    target_name: 'Quy định đặt phòng toàn hệ thống',
-    details: 'Khôi phục quy định đặt phòng về thông số mặc định của hệ thống',
-  });
-
-  return resetConfig;
-};
-
 // ==================== GLOBAL ROOM ADMIN OVERRIDE ====================
 
 export const forceReleaseRoom = async (
   roomId: number,
-  reason: string,
-  actor: { id: string; name: string; role: UserRole }
+  _reason: string,
 ): Promise<{ room: Room; cancelledBookingsCount: number }> => {
-  await delay();
-  const rooms = getStoredRooms();
-  const roomIndex = rooms.findIndex((r) => r.id === roomId);
-  if (roomIndex === -1) {
-    const err: any = new Error('Phòng không tồn tại');
-    err.status = 404;
-    throw err;
-  }
+  // Cancel all active bookings for the room (admin can cancel any booking)
+  const [confirmed, checkedIn] = await Promise.all([
+    request<{ items: Booking[]; total: number }>('/bookings/', {
+      params: { room_id: roomId, status: 'CONFIRMED', limit: 100 },
+    }),
+    request<{ items: Booking[]; total: number }>('/bookings/', {
+      params: { room_id: roomId, status: 'CHECKED_IN', limit: 100 },
+    }),
+  ]);
 
-  const room = rooms[roomIndex];
-  const bookings = getStoredBookings();
-  const now = dayjs();
+  const toCancel = [...confirmed.items, ...checkedIn.items];
+  await Promise.all(
+    toCancel.map((b) => request<Booking>(`/bookings/${b.id}/cancel`, { method: 'POST' }))
+  );
 
-  // Find active/ongoing confirmed bookings for this room right now
-  let cancelledCount = 0;
-  const updatedBookings = bookings.map((b) => {
-    if (b.room_id === roomId && (b.status === 'CONFIRMED' || b.status === 'CHECKED_IN')) {
-      const start = dayjs(b.start_at);
-      const end = dayjs(b.end_at);
-      // If ongoing or upcoming today
-      if (now.isBetween(start, end, null, '[]') || (start.isSame(now, 'day') && start.isAfter(now))) {
-        cancelledCount++;
-        return {
-          ...b,
-          status: 'CANCELLED' as const,
-          purpose: b.purpose ? `${b.purpose} [Cưỡng chế hủy bởi Admin: ${reason}]` : `[Cưỡng chế hủy bởi Admin: ${reason}]`,
-          updated_at: new Date().toISOString(),
-        };
-      }
-    }
-    return b;
+  // Set room to AVAILABLE
+  const room = await request<Room>(`/rooms/${roomId}`, {
+    method: 'PATCH',
+    body: { status: 'AVAILABLE' },
   });
 
-  saveStoredBookings(updatedBookings);
-
-  // Ensure room is available
-  if (room.status !== 'AVAILABLE') {
-    room.status = 'AVAILABLE';
-    rooms[roomIndex] = room;
-    saveStoredRooms(rooms);
-  }
-
-  await logAuditEvent({
-    actor_id: actor.id,
-    actor_name: actor.name,
-    actor_role: actor.role,
-    action_type: 'ROOM_FORCE_RELEASED',
-    target_id: roomId,
-    target_name: room.name,
-    details: `Admin cưỡng chế giải phóng phòng. Lý do: ${reason}. Đã hủy ${cancelledCount} lịch liên quan.`,
-  });
-
-  return { room, cancelledBookingsCount: cancelledCount };
+  return { room, cancelledBookingsCount: toCancel.length };
 };
 
 export const toggleRoomMaintenance = async (
   roomId: number,
   maintenance: boolean,
-  reason: string,
-  actor: { id: string; name: string; role: UserRole }
+  _reason: string,
 ): Promise<Room> => {
-  await delay();
-  const rooms = getStoredRooms();
-  const index = rooms.findIndex((r) => r.id === roomId);
-  if (index === -1) {
-    const err: any = new Error('Phòng không tồn tại');
-    err.status = 404;
-    throw err;
-  }
-
-  const newStatus = maintenance ? 'MAINTENANCE' : 'AVAILABLE';
-  rooms[index] = {
-    ...rooms[index],
-    status: newStatus,
-    updated_at: new Date().toISOString(),
-  };
-  saveStoredRooms(rooms);
-
-  await logAuditEvent({
-    actor_id: actor.id,
-    actor_name: actor.name,
-    actor_role: actor.role,
-    action_type: 'ROOM_MAINTENANCE_TOGGLED',
-    target_id: roomId,
-    target_name: rooms[index].name,
-    details: maintenance
-      ? `Chuyển sang ĐANG BẢO TRÌ. Lý do: ${reason || 'Bảo trì định kỳ'}`
-      : `Hoàn tất bảo trì, đưa phòng trở lại hoạt động. Ghi chú: ${reason || 'Đã kiểm tra kỹ thuật'}`,
+  return request<Room>(`/rooms/${roomId}`, {
+    method: 'PATCH',
+    body: { status: maintenance ? 'MAINTENANCE' : 'AVAILABLE' },
   });
-
-  return rooms[index];
 };
 
 export const resetMockDataToDefault = (): void => {
-  localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(INITIAL_ROOMS));
-  localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(generateInitialBookings()));
-  localStorage.removeItem(EQUIPMENT_STORAGE_KEY); // equipment migrated to real DB
+  localStorage.removeItem(EQUIPMENT_STORAGE_KEY);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USER_ACCOUNTS));
   localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(INITIAL_AUDIT_LOGS));
   localStorage.setItem(POLICIES_STORAGE_KEY, JSON.stringify(DEFAULT_BOOKING_POLICIES));
