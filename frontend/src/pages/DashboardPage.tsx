@@ -35,9 +35,8 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
 } from 'recharts';
-import { Room, Booking, EquipmentItem } from '../types';
+import { Room, Booking, EquipmentItem, EQUIPMENT_STATUS_CONFIG } from '../types';
 import { getRooms, getBookings, checkInBooking, isCheckInEligible, getEquipmentList } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { BookingCalendar, BookingPreviewModal } from '../components/BookingCalendar';
@@ -62,6 +61,7 @@ export const DashboardPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
+  const [systemUpcomingCheckInCount, setSystemUpcomingCheckInCount] = useState(0);
 
   // Anchor date and preview modal state for the shared Day-View calendar
   const [calendarDate, setCalendarDate] = useState<dayjs.Dayjs>(() =>
@@ -81,15 +81,24 @@ export const DashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
       const isManagerOrAdmin = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
-      const [roomsRes, bookingsRes, eqRes] = await Promise.all([
+      const now = dayjs();
+      const [roomsRes, bookingsRes, eqRes, confirmedRes] = await Promise.all([
         getRooms(),
         getBookings(),
         isManagerOrAdmin ? getEquipmentList({}) : Promise.resolve([]),
+        isManagerOrAdmin
+          ? getBookings({ status: 'CONFIRMED', limit: 100 })
+          : Promise.resolve({ items: [], total: 0, limit: 0, offset: 0 }),
       ]);
       setRooms(roomsRes.items);
       setBookings(bookingsRes.items);
       setEquipment(Array.isArray(eqRes) ? eqRes : []);
+      if (isManagerOrAdmin) {
+        const upcomingCount = confirmedRes.items.filter((b) => dayjs(b.start_at).isAfter(now)).length;
+        setSystemUpcomingCheckInCount(upcomingCount);
+      }
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Không thể tải dữ liệu trang tổng quan' : 'Failed to load dashboard data'),
@@ -236,6 +245,7 @@ export const DashboardPage: React.FC = () => {
       message.success(t.checkInSuccess);
       await fetchData();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || t.checkInFailed);
     } finally {
       setCheckingInId(null);
@@ -268,7 +278,7 @@ export const DashboardPage: React.FC = () => {
                   : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}>
                 <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
-                <span>{dayjs().format(language === 'vi' ? 'dddd, [ngày] DD/MM/YYYY' : 'dddd, MMMM D, YYYY')}</span>
+                <span>{(() => { const s = dayjs().format(language === 'vi' ? 'dddd, [ngày] DD/MM/YYYY' : 'dddd, MMMM D, YYYY'); return s.charAt(0).toUpperCase() + s.slice(1); })()}</span>
               </span>
             </div>
 
@@ -351,29 +361,105 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 2. TOP ROW: 4 STAT METRICS (High Information Density, Tabular Figures) */}
-      <Row gutter={[12, 12]}>
-        {/* Metric 1: Phòng hoạt động (admin/manager) hoặc Booking của tôi hôm nay (employee) */}
-        <Col xs={12} sm={12} lg={6}>
-          {user?.role === 'EMPLOYEE' ? (
+      {/* 2. TOP ROW STAT METRICS */}
+      {user?.role === 'EMPLOYEE' ? (
+        /* Employee: 3 cards */
+        <Row gutter={[12, 12]}>
+          {/* E-Card 1: Phòng trống ngay */}
+          <Col xs={24} sm={8}>
             <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
               isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
             }`}>
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                 <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Booking của tôi hôm nay' : 'My Bookings Today'}
+                  {language === 'vi' ? 'Phòng trống ngay bây giờ' : 'Rooms Available Now'}
+                </span>
+                <EnvironmentOutlined className="text-sky-500 text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-sky-400">
+                {stats.availableNowCount}{' '}
+                <span className="text-xs font-normal text-slate-400">/ {rooms.length}</span>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                <span>{language === 'vi' ? 'Có thể đặt ngay' : 'Ready to book'}</span>
+              </div>
+            </div>
+          </Col>
+
+          {/* E-Card 2: Lịch của tôi hôm nay */}
+          <Col xs={24} sm={8}>
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">
+                  {language === 'vi' ? 'Lịch của tôi hôm nay' : 'My Schedule Today'}
                 </span>
                 <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
               </div>
               <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
                 {stats.myTodayBookings}
               </div>
-              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
                 <span>{language === 'vi' ? 'Phòng đã đặt trong ngày' : 'Rooms booked today'}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1e40af] dark:bg-[#0a84ff]" />
               </div>
             </div>
-          ) : (
+          </Col>
+
+          {/* E-Card 3: Chờ check-in — hiện count + nút nếu có booking eligible */}
+          <Col xs={24} sm={8}>
+            <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
+              checkInReadyBooking
+                ? isDark ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-emerald-50 border-emerald-200'
+                : isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">
+                  {language === 'vi' ? 'Chờ check-in' : 'Pending Check-in'}
+                </span>
+                <CheckCircleOutlined className="text-[#30d158] text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158] flex-1">
+                {stats.myPendingCheckIn}
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                {checkInReadyBooking ? (
+                  <>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
+                      {checkInReadyBooking.room_name} · {dayjs(checkInReadyBooking.start_at).format('HH:mm')}
+                    </span>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CheckOutlined />}
+                      loading={checkingInId === checkInReadyBooking.id}
+                      onClick={() => handleCheckIn(checkInReadyBooking.id)}
+                      style={{
+                        backgroundColor: '#30d158',
+                        borderColor: '#30d158',
+                        borderRadius: 6,
+                        fontWeight: 600,
+                        fontSize: 11,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {t.checkInNow}
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-[11px] text-slate-400">
+                    {language === 'vi' ? 'Không có booking cần check-in' : 'No pending check-in'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Col>
+        </Row>
+      ) : (
+        /* Manager / Admin: 4 cards */
+        <Row gutter={[12, 12]}>
+          {/* Card 1: Phòng hoạt động */}
+          <Col xs={12} sm={12} lg={6}>
             <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
               isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
             }`}>
@@ -385,143 +471,108 @@ export const DashboardPage: React.FC = () => {
                 {stats.availableRooms}{' '}
                 <span className="text-xs font-normal text-slate-400">/ {rooms.length} {t.totalRoomsUnit}</span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
                 <span>{t.statActiveRoomsSub}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#30d158]" />
               </div>
             </div>
-          )}
-        </Col>
+          </Col>
 
-        {/* Metric 2: Booking hôm nay */}
-        <Col xs={12} sm={12} lg={6}>
-          <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-            isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="font-medium uppercase tracking-wider text-[11px]">{t.statTodayBookings}</span>
-              <CalendarOutlined className="text-amber-500 text-sm" />
+          {/* Card 2: Booking hôm nay (tổng) */}
+          <Col xs={12} sm={12} lg={6}>
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statTodayBookings}</span>
+                <CalendarOutlined className="text-amber-500 text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-slate-800 dark:text-white">
+                {stats.todayTotalBookings}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                <span>{t.statTodayBookingsSub}</span>
+              </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-slate-800 dark:text-white">
-              {stats.todayTotalBookings}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-              <span>{t.statTodayBookingsSub}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ffd60a]" />
-            </div>
-          </div>
-        </Col>
+          </Col>
 
-        {/* Metric 3: Chờ check-in (employee) | Đã check-in hôm nay (others) */}
-        <Col xs={12} sm={12} lg={6}>
-          <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-            isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="font-medium uppercase tracking-wider text-[11px]">
-                {user?.role === 'EMPLOYEE'
-                  ? (language === 'vi' ? 'Chờ check-in' : 'Pending Check-in')
-                  : t.statCheckedIn}
-              </span>
-              <CheckCircleOutlined className="text-[#30d158] text-sm" />
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158]">
-              {user?.role === 'EMPLOYEE' ? stats.myPendingCheckIn : stats.todayCheckedIn}{' '}
-              <span className="text-xs font-normal text-slate-400">
-                / {user?.role === 'EMPLOYEE' ? stats.myTodayBookings || 1 : stats.todayTotalBookings || 1}
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-              <span>
-                {user?.role === 'EMPLOYEE'
-                  ? (language === 'vi' ? 'Booking của tôi chưa check-in' : 'My unconfirmed bookings')
-                  : t.statCheckedInSub}
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#30d158]" />
-            </div>
-          </div>
-        </Col>
-
-        {/* Metric 4: Phòng trống hiện tại (employee) | Donut thiết bị (manager) | Tỷ lệ sử dụng (admin) */}
-        <Col xs={12} sm={12} lg={6}>
-          {user?.role === 'EMPLOYEE' ? (
+          {/* Card 3: Check-in sắp tới của tất cả booking (real data) */}
+          <Col xs={12} sm={12} lg={6}>
             <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
               isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
             }`}>
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                 <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Phòng trống ngay bây giờ' : 'Rooms Available Now'}
+                  {language === 'vi' ? 'Check-in sắp tới' : 'Upcoming Check-ins'}
                 </span>
-                <EnvironmentOutlined className="text-sky-500 text-sm" />
+                <CheckCircleOutlined className="text-[#30d158] text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-sky-600 dark:text-sky-400">
-                {stats.availableNowCount}{' '}
-                <span className="text-xs font-normal text-slate-400">/ {rooms.length}</span>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158]">
+                {systemUpcomingCheckInCount}
               </div>
-              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                <span>{language === 'vi' ? 'Có thể đặt ngay' : 'Ready to book'}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                <span>{language === 'vi' ? 'Booking đã xác nhận, chưa check-in' : 'Confirmed, not yet checked in'}</span>
               </div>
             </div>
-          ) : user?.role === 'ROOM_MANAGER' ? (
-            <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="text-xs text-slate-400 mb-1">
-                <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Thiết bị' : 'Equipment'}
-                </span>
+          </Col>
+
+          {/* Card 4: Donut thiết bị (manager) | Tỷ lệ sử dụng (admin) */}
+          <Col xs={12} sm={12} lg={6}>
+            {user?.role === 'ROOM_MANAGER' ? (
+              <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
+                isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+              }`}>
+                <div className="text-xs text-slate-400 mb-1">
+                  <span className="font-medium uppercase tracking-wider text-[11px]">
+                    {language === 'vi' ? 'Thiết bị' : 'Equipment'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center flex-1">
+                  <PieChart width={110} height={110}>
+                    <Pie
+                      data={[
+                        { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
+                        { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
+                        { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
+                      ]}
+                      cx={51} cy={51} innerRadius={30} outerRadius={48}
+                      dataKey="value" strokeWidth={0}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: isDark ? '#2c2c2e' : '#fff',
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`,
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                  </PieChart>
+                </div>
               </div>
-              <div className="flex items-center justify-center flex-1">
-                <PieChart width={110} height={110}>
-                  <Pie
-                    data={[
-                      { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: '#30d158' },
-                      { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: '#ffd60a' },
-                      { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: '#ff453a' },
-                    ]}
-                    cx={51} cy={51} innerRadius={30} outerRadius={48}
-                    dataKey="value" strokeWidth={0}
-                  >
-                    {[{ fill: '#30d158' }, { fill: '#ffd60a' }, { fill: '#ff453a' }].map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? '#2c2c2e' : '#fff',
-                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`,
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
+            ) : (
+              <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+                isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-medium uppercase tracking-wider text-[11px]">{t.statUtilization}</span>
+                  <ThunderboltOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+                  {stats.utilizationRate}%
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                  <Progress
+                    percent={stats.utilizationRate}
+                    showInfo={false}
+                    strokeColor={isDark ? '#0a84ff' : '#1e40af'}
+                    railColor={isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9'}
+                    size={['100%', 4]}
                   />
-                </PieChart>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statUtilization}</span>
-                <ThunderboltOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
-              </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
-                {stats.utilizationRate}%
-              </div>
-              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <Progress
-                  percent={stats.utilizationRate}
-                  showInfo={false}
-                  strokeColor={isDark ? '#0a84ff' : '#1e40af'}
-                  railColor={isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9'}
-                  size={['100%', 4]}
-                />
-              </div>
-            </div>
-          )}
-        </Col>
-      </Row>
+            )}
+          </Col>
+        </Row>
+      )}
 
 
       {/* Admin: Top 3 phòng được đặt nhiều nhất tuần */}
@@ -609,14 +660,6 @@ export const DashboardPage: React.FC = () => {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={t.noUpcomingMeetings}
             >
-              <Button
-                type="primary"
-                size="small"
-                onClick={() => navigate('/rooms')}
-                style={{ borderRadius: 8, backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af' }}
-              >
-                {t.bookNow}
-              </Button>
             </Empty>
           </div>
         ) : (

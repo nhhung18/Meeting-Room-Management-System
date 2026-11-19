@@ -67,6 +67,7 @@ export const AuditLogPage: React.FC = () => {
       });
       setLogs(data);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Lỗi khi tải nhật ký hoạt động' : 'Error loading audit logs'),

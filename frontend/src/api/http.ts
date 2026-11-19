@@ -23,6 +23,11 @@ export function dispatchUnauthorized(): void {
   window.dispatchEvent(new CustomEvent('auth:unauthorized'));
 }
 
+// Returns true when an error is a confirmed 401 — AuthGuard handles the redirect silently.
+export function isUnauthorized(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;

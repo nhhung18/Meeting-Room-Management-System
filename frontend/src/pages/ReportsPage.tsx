@@ -93,6 +93,7 @@ export const ReportsPage: React.FC = () => {
       setBookings(bookingsRes.items);
       setRooms(roomsRes.items);
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || (language === 'vi' ? 'Lỗi khi tải dữ liệu báo cáo' : 'Error loading report data'));
     } finally {
       setLoading(false);
