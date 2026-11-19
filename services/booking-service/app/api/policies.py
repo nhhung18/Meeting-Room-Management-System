@@ -120,7 +120,10 @@ def update_config(
         get_policy_service().invalidate(key)
 
     write_audit(
-        db, user.sub, user.roles, "POLICY_CONFIG_UPDATED",
+        db,
+        user.sub,
+        user.roles,
+        "POLICY_CONFIG_UPDATED",
         actor_name=user.email or user.sub,
         details=f"Cập nhật {len(updates)} chính sách: {', '.join(updates.keys())}",
     )
@@ -156,7 +159,10 @@ def update_policy(
     repo = SystemPolicyRepository(db)
     policy = repo.upsert(key, body.value, updated_by=user.sub)
     write_audit(
-        db, user.sub, user.roles, "POLICY_CONFIG_UPDATED",
+        db,
+        user.sub,
+        user.roles,
+        "POLICY_CONFIG_UPDATED",
         actor_name=user.email or user.sub,
         target_name=key,
         details=f"{key} = {body.value}",

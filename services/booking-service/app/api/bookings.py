@@ -264,7 +264,10 @@ def update_booking(
             )
         )
         write_audit(
-            db, user.sub, user.roles, "BOOKING_CREATED",
+            db,
+            user.sub,
+            user.roles,
+            "BOOKING_CREATED",
             actor_name=user.email or user.sub,
             target_id=result.id,
             target_name=result.room_name,
@@ -314,7 +317,10 @@ def cancel_booking(
             )
         )
         write_audit(
-            db, user.sub, user.roles, "BOOKING_CANCELLED",
+            db,
+            user.sub,
+            user.roles,
+            "BOOKING_CANCELLED",
             actor_name=user.email or user.sub,
             target_id=result.id,
             target_name=result.room_name,
@@ -358,7 +364,10 @@ def check_in_booking(
             )
         )
         write_audit(
-            db, user.sub, user.roles, "BOOKING_CHECKED_IN",
+            db,
+            user.sub,
+            user.roles,
+            "BOOKING_CHECKED_IN",
             actor_name=user.email or user.sub,
             target_id=result.id,
             target_name=result.room_name,

@@ -134,6 +134,7 @@ def list_equipment_by_room(
 
 # --- Equipment Categories CRUD ---
 
+
 @router.get("/equipment-categories", response_model=CategoryListResponse)
 def list_categories(
     _user=Depends(current_user),
