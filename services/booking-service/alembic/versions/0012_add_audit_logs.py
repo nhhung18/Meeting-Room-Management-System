@@ -11,6 +11,7 @@ Dữ liệu chỉ được thêm (append-only), không bao giờ xóa (audit tra
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0012"
