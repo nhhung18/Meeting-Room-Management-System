@@ -416,6 +416,7 @@ export const RoomFormPage: React.FC = () => {
       setImagePreviewUrl(null);
       message.success(language === 'vi' ? 'Đã xóa ảnh phòng' : 'Room image removed');
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err?.message || (language === 'vi' ? 'Lỗi khi xóa ảnh' : 'Failed to remove image'));
     } finally {
       setDeletingImage(false);
@@ -462,6 +463,7 @@ export const RoomFormPage: React.FC = () => {
       );
       navigate('/rooms');
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (err?.errorFields) return;
       message.error(err?.message || (language === 'vi' ? 'Lỗi khi lưu phòng' : 'Error saving room'));
     } finally {

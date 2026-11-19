@@ -101,6 +101,7 @@ export const RoomListPage: React.FC = () => {
       );
       setRoomEquipment(eqMap);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Không thể tải danh sách phòng họp' : 'Failed to load rooms list'),
@@ -146,6 +147,7 @@ export const RoomListPage: React.FC = () => {
       message.success(language === 'vi' ? `Đã xóa phòng ${room.name}` : `Deleted room ${room.name}`);
       fetchRoomList();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || (language === 'vi' ? 'Lỗi khi xóa phòng' : 'Error deleting room'));
     }
   };
@@ -168,6 +170,7 @@ export const RoomListPage: React.FC = () => {
       setReleaseReason('');
       fetchRoomList();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error releasing room');
     } finally {
       setReleasing(false);
@@ -189,6 +192,7 @@ export const RoomListPage: React.FC = () => {
       setMaintenanceReason('');
       fetchRoomList();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error toggling maintenance');
     } finally {
       setMaintaining(false);
@@ -473,9 +477,9 @@ export const RoomListPage: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Equipment List with Tooltip */}
+                      {/* Equipment List with Tooltip — DECOMMISSIONED excluded */}
                       {(() => {
-                        const items = roomEquipment[room.id] ?? [];
+                        const items = (roomEquipment[room.id] ?? []).filter((e) => e.status !== 'DECOMMISSIONED');
                         return (
                           <div className="mb-4">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">

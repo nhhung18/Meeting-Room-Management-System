@@ -54,6 +54,7 @@ export const PolicySettingsPage: React.FC = () => {
       setPolicyData(data);
       form.setFieldsValue(data);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Lỗi khi tải cấu hình quy định' : 'Error loading policy settings'),
@@ -74,6 +75,7 @@ export const PolicySettingsPage: React.FC = () => {
       setPolicyData(updated);
       message.success(t.savePolicySuccess);
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error saving policy settings');
     } finally {
       setSaving(false);
@@ -88,6 +90,7 @@ export const PolicySettingsPage: React.FC = () => {
       form.setFieldsValue(reset);
       message.success(t.resetPolicySuccess);
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error resetting policy settings');
     } finally {
       setSaving(false);

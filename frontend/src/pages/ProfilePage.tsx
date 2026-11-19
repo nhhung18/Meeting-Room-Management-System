@@ -63,7 +63,8 @@ export const ProfilePage: React.FC = () => {
       try {
         const res = await getBookings({ userId: user.id });
         setUserBookings(res.items);
-      } catch (err) {
+      } catch (err: any) {
+      if (err?.status === 401) return;
         console.error(err);
       }
     };
@@ -94,6 +95,7 @@ export const ProfilePage: React.FC = () => {
 
       message.success(t.profileUpdatedSuccess);
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (err?.errorFields) {
         message.error(language === 'vi' ? 'Vui lòng kiểm tra lại các trường thông tin' : 'Please verify all required fields');
       } else {

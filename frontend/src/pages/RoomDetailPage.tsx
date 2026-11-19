@@ -14,6 +14,7 @@ import {
   Input,
   Select,
   Popconfirm,
+  Tooltip,
 } from 'antd';
 import {
   TeamOutlined,
@@ -101,6 +102,7 @@ export const RoomDetailPage: React.FC = () => {
       setRoomEquipments(equipData);
       setAllRooms(allRoomsData.items);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Không tìm thấy thông tin phòng họp' : 'Failed to load room details'),
@@ -148,6 +150,7 @@ export const RoomDetailPage: React.FC = () => {
       const refreshed = await getEquipmentByRoom(Number(id));
       setRoomEquipments(refreshed);
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error deleting equipment');
     }
   };
@@ -192,6 +195,7 @@ export const RoomDetailPage: React.FC = () => {
       const refreshed = await getEquipmentByRoom(Number(id));
       setRoomEquipments(refreshed);
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (!err?.errorFields) {
         message.error(err.message || 'Error saving equipment');
       }
@@ -329,152 +333,93 @@ export const RoomDetailPage: React.FC = () => {
 
             {/* Equipment Section */}
             <div className="border-t border-slate-100 dark:border-white/10 pt-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <ToolOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
-                  <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-white">
-                    {t.equipmentInRoomTitle}
-                  </span>
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-zinc-300">
-                    {roomEquipments.length + (room.equipment?.length || 0)} {language === 'vi' ? 'mục' : 'items'}
-                  </span>
-                </div>
-
-                {(user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR') && (
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={handleOpenAddEquipment}
-                    style={{
-                      backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-                      borderColor: isDark ? '#0a84ff' : '#1e40af',
-                      borderRadius: 6,
-                      fontWeight: 600,
-                      fontSize: 11,
-                    }}
-                  >
-                    {language === 'vi' ? 'Thêm thiết bị' : 'Add Equipment'}
-                  </Button>
-                )}
+              <div className="flex items-center gap-2 mb-2.5">
+                <ToolOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
+                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-white">
+                  {t.equipmentInRoomTitle}
+                </span>
+                {(() => {
+                  const activeCount = roomEquipments.filter((e) => e.status !== 'DECOMMISSIONED').length;
+                  return activeCount > 0 ? (
+                    <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-zinc-300">
+                      {activeCount} {language === 'vi' ? 'thiết bị' : 'items'}
+                    </span>
+                  ) : null;
+                })()}
               </div>
 
-              {/* Standard Room Amenities */}
-              {room.equipment && room.equipment.length > 0 && (
-                <div className="mb-3 pb-3 border-b border-slate-100 dark:border-white/10">
-                  <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5">
-                    {t.availableAmenities} ({room.equipment.length})
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {room.equipment.map((item, idx) => (
-                      <span
-                        key={idx}
-                        className={`px-2 py-0.5 text-[11px] rounded-lg border font-medium flex items-center gap-1 ${
-                          isDark ? 'bg-[#242426] border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+              {/* Grouped equipment list — DECOMMISSIONED excluded */}
+              {(() => {
+                const active = roomEquipments.filter((e) => e.status !== 'DECOMMISSIONED');
+                if (active.length === 0) {
+                  return (
+                    <div className="text-xs text-slate-400 py-2 text-center">
+                      {language === 'vi' ? 'Phòng chưa có thiết bị nào' : 'No equipment registered'}
+                    </div>
+                  );
+                }
+
+                // Group by category
+                const grouped: Record<string, EquipmentItem[]> = {};
+                for (const item of active) {
+                  if (!grouped[item.category]) grouped[item.category] = [];
+                  grouped[item.category].push(item);
+                }
+
+                return (
+                  <div className="space-y-1.5">
+                    {Object.entries(grouped).map(([category, items]) => (
+                      <div
+                        key={category}
+                        className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${
+                          isDark ? 'bg-[#242426] border-white/8' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
-                        <ToolOutlined className="text-[10px] text-[#1e40af] dark:text-[#0a84ff]" />
-                        {getEquipmentLabel(item, language)}
-                      </span>
+                        {/* Category + count */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 truncate">
+                              {category}
+                            </span>
+                            <span className={`text-[10px] font-mono font-bold px-1 rounded ${
+                              isDark ? 'bg-white/10 text-zinc-400' : 'bg-slate-200 text-slate-500'
+                            }`}>
+                              ×{items.length}
+                            </span>
+                          </div>
+                          {/* Individual items */}
+                          <div className="flex flex-wrap gap-1">
+                            {items.map((item) => {
+                              const isUnderRepair = item.status === 'UNDER_REPAIR';
+                              return (
+                                <span
+                                  key={item.id}
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${
+                                    isUnderRepair
+                                      ? isDark
+                                        ? 'bg-amber-950/40 border-amber-700/50 text-amber-300'
+                                        : 'bg-amber-50 border-amber-200 text-amber-700'
+                                      : isDark
+                                        ? 'bg-white/5 border-white/10 text-zinc-300'
+                                        : 'bg-white border-slate-200 text-slate-600'
+                                  }`}
+                                >
+                                  {item.name}
+                                  {isUnderRepair && (
+                                    <Tooltip title={language === 'vi' ? 'Đang bảo dưỡng' : 'Under repair'}>
+                                      <ToolOutlined className="text-amber-500 text-[9px]" />
+                                    </Tooltip>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* Detailed Equipment Grid */}
-              {roomEquipments.length === 0 ? (
-                <div className="text-xs text-slate-400 py-2 text-center">
-                  {language === 'vi' ? 'Chưa có thiết bị chi tiết nào được phân bổ' : 'No dedicated equipment registered'}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {roomEquipments.map((item) => {
-                    const statusCfg = EQUIPMENT_STATUS_CONFIG[item.status];
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
-                          isDark ? 'bg-[#242426] border-white/10' : 'bg-slate-50 border-slate-200'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="font-mono text-[10px] font-bold text-slate-500 dark:text-zinc-400">
-                              {item.id}
-                            </span>
-                            <Tag color={statusCfg.color} className="m-0 text-[10px]" style={{ lineHeight: '16px', padding: '0 5px' }}>
-                              {language === 'vi' ? statusCfg.label : statusCfg.labelEn}
-                            </Tag>
-                          </div>
-
-                          <div className="font-semibold text-[11px] text-slate-800 dark:text-zinc-100 line-clamp-1 mb-0.5">
-                            {item.name}
-                          </div>
-
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <ToolOutlined />
-                            <span>{item.category}</span>
-                          </div>
-
-                          {item.serial_number && (
-                            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
-                              <BarcodeOutlined />
-                              <span className="truncate">{item.serial_number}</span>
-                            </div>
-                          )}
-
-                          {item.room_ids && item.room_ids.length > 1 && (
-                            <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-white/10">
-                              <Tag color="cyan" className="m-0 text-[10px] font-semibold mb-0.5">
-                                {t.sharedEquipmentBadge}
-                              </Tag>
-                              <div className="text-[10px] text-slate-400 line-clamp-1">
-                                <span>{t.sharedWithRooms}: </span>
-                                <span className="text-slate-700 dark:text-zinc-200 font-medium">
-                                  {(item.room_names || [])
-                                    .filter((name) => name !== room.name)
-                                    .join(', ') || `${item.room_ids.length - 1} ${language === 'vi' ? 'phòng khác' : 'other rooms'}`}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {(user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR') && (
-                          <div className="pt-1.5 border-t border-slate-200 dark:border-white/10 flex items-center justify-end gap-1 mt-1.5">
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenEditEquipment(item)}
-                              style={{ fontSize: 10, padding: '0 5px', height: 22 }}
-                            >
-                              {language === 'vi' ? 'Sửa' : 'Edit'}
-                            </Button>
-
-                            <Popconfirm
-                              title={t.deleteEquipmentConfirmTitle}
-                              description={t.deleteEquipmentConfirmDesc}
-                              okText={t.confirm}
-                              cancelText={t.cancel}
-                              okType="danger"
-                              onConfirm={() => handleDeleteEquipment(item)}
-                            >
-                              <Button
-                                size="small"
-                                type="text"
-                                danger
-                                icon={<DeleteOutlined />}
-                                style={{ fontSize: 10, padding: '0 5px', height: 22 }}
-                              />
-                            </Popconfirm>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Primary Action Button */}

@@ -78,6 +78,7 @@ export const UserManagementPage: React.FC = () => {
       });
       setUsers(data);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Lỗi khi tải danh sách người dùng' : 'Error loading users'),
@@ -106,6 +107,7 @@ export const UserManagementPage: React.FC = () => {
       message.success(t.changeRoleSuccess);
       fetchUsers();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error updating role');
     }
   };
@@ -118,6 +120,7 @@ export const UserManagementPage: React.FC = () => {
       message.success(t.toggleStatusSuccess);
       fetchUsers();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error updating status');
     }
   };
@@ -140,6 +143,7 @@ export const UserManagementPage: React.FC = () => {
       form.resetFields();
       fetchUsers();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error creating user');
     } finally {
       setSubmitting(false);

@@ -190,6 +190,7 @@ export const BookingFormPage: React.FC = () => {
         });
       }
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (isEditMode ? 'Không thể tải thông tin đặt phòng' : 'Không thể tải danh sách phòng họp'),
@@ -378,6 +379,7 @@ export const BookingFormPage: React.FC = () => {
         navigate('/my-bookings');
       }
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (err.status === 409 || err.message?.includes('409') || err.message?.includes('trùng lịch') || err.message?.includes('đã đặt')) {
         message.error(err.message || t.errBookingConflict);
       } else {

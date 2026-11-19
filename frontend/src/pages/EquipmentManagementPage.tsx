@@ -100,6 +100,7 @@ export const EquipmentManagementPage: React.FC = () => {
       setEquipment(eqData);
       setRooms(roomsData.items);
     } catch (err: any) {
+      if (err?.status === 401) return;
       console.error(err);
       message.error(err.message || 'Error fetching equipment');
     } finally {
@@ -122,6 +123,7 @@ export const EquipmentManagementPage: React.FC = () => {
       const cats = await getEquipmentCategoriesFull();
       setCategoryList(cats);
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error fetching categories');
     } finally {
       setCatLoading(false);
@@ -147,6 +149,7 @@ export const EquipmentManagementPage: React.FC = () => {
       fetchCategoryList();
       fetchCategories();
     } catch (err: any) {
+      if (err?.status === 401) return;
       const detail = err.message || '';
       if (detail.toLowerCase().includes('in use') || detail.toLowerCase().includes('still use')) {
         message.error(t.categoryInUseError);
@@ -177,6 +180,7 @@ export const EquipmentManagementPage: React.FC = () => {
       fetchCategoryList();
       fetchCategories();
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (!err?.errorFields) {
         const detail = err.message || '';
         if (detail.includes('409') || detail.toLowerCase().includes('already exists')) {
@@ -240,6 +244,7 @@ export const EquipmentManagementPage: React.FC = () => {
       message.success(t.deleteEquipmentSuccess);
       fetchData();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error deleting equipment');
     }
   };
@@ -286,6 +291,7 @@ export const EquipmentManagementPage: React.FC = () => {
       fetchData();
       fetchCategories();
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (!err?.errorFields) {
         message.error(err.message || 'Error saving equipment');
       }

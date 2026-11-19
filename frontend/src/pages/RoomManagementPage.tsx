@@ -78,6 +78,7 @@ export const RoomManagementPage: React.FC = () => {
       });
       setRooms(res.items);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Lỗi khi tải danh sách phòng' : 'Error loading rooms list'),
@@ -102,6 +103,7 @@ export const RoomManagementPage: React.FC = () => {
       );
       fetchRooms();
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (err.status === 400 || err.message?.includes('active booking')) {
         message.error(t.roomDeleteErrorHasBookings);
       } else {
@@ -129,6 +131,7 @@ export const RoomManagementPage: React.FC = () => {
       setReleaseReason('');
       fetchRooms();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error releasing room');
     } finally {
       setReleasing(false);
@@ -150,6 +153,7 @@ export const RoomManagementPage: React.FC = () => {
       setMaintenanceReason('');
       fetchRooms();
     } catch (err: any) {
+      if (err?.status === 401) return;
       message.error(err.message || 'Error toggling maintenance');
     } finally {
       setMaintaining(false);

@@ -67,6 +67,7 @@ export const MyBookingsPage: React.FC = () => {
       );
       setBookings(res.items);
     } catch (err: any) {
+      if (err?.status === 401) return;
       setError({
         status: err.status ?? 0,
         detail: err.detail || err.message || (language === 'vi' ? 'Không thể tải danh sách booking' : 'Failed to load bookings list'),
@@ -106,6 +107,7 @@ export const MyBookingsPage: React.FC = () => {
       );
       await fetchUserBookings();
     } catch (err: any) {
+      if (err?.status === 401) return;
       if (err.status === 400 || err.message?.includes('400')) {
         message.warning(t.checkInWindowHint);
       } else {
@@ -153,6 +155,7 @@ export const MyBookingsPage: React.FC = () => {
           message.success(t.cancelBookingSuccess);
           await fetchUserBookings();
         } catch (err: any) {
+      if (err?.status === 401) return;
           message.error(err.message || t.cancelBookingError);
         } finally {
           setActionLoadingId(null);
