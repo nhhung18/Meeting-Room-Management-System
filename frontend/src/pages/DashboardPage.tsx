@@ -33,9 +33,12 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
-import { Room, Booking } from '../types';
-import { getRooms, getBookings, checkInBooking, isCheckInEligible } from '../api/client';
+import { Room, Booking, EquipmentItem } from '../types';
+import { getRooms, getBookings, checkInBooking, isCheckInEligible, getEquipmentList } from '../api/client';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { BookingCalendar, BookingPreviewModal } from '../components/BookingCalendar';
 import { useAuth } from '../context/AuthContext';
@@ -57,6 +60,7 @@ export const DashboardPage: React.FC = () => {
   const [error, setError] = useState<{ status: number; detail: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
 
   // Anchor date and preview modal state for the shared Day-View calendar
@@ -77,12 +81,15 @@ export const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [roomsRes, bookingsRes] = await Promise.all([
+      const isManagerOrAdmin = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
+      const [roomsRes, bookingsRes, eqRes] = await Promise.all([
         getRooms(),
         getBookings(),
+        isManagerOrAdmin ? getEquipmentList({}) : Promise.resolve([]),
       ]);
       setRooms(roomsRes.items);
       setBookings(bookingsRes.items);
+      setEquipment(Array.isArray(eqRes) ? eqRes : []);
     } catch (err: any) {
       setError({
         status: err.status ?? 0,
@@ -110,6 +117,18 @@ export const DashboardPage: React.FC = () => {
     const todayCheckedInCount = todayBookings.filter((b) => b.status === 'CHECKED_IN').length;
 
     const myTodayBookings = todayBookings.filter((b) => b.user_id === user?.id).length;
+    const myPendingCheckIn = todayBookings.filter(
+      (b) => b.user_id === user?.id && b.status === 'CONFIRMED'
+    ).length;
+
+    const now = dayjs();
+    const availableNowCount = rooms.filter((room) => {
+      if (room.status !== 'AVAILABLE') return false;
+      return !bookings.some(
+        (b) => b.room_id === room.id && b.status !== 'CANCELLED'
+          && now.isAfter(dayjs(b.start_at)) && now.isBefore(dayjs(b.end_at))
+      );
+    }).length;
 
     const totalWorkingHours = (availableRoomsCount || 1) * 10;
     const bookedHours = todayBookings.reduce((sum, b) => {
@@ -126,9 +145,52 @@ export const DashboardPage: React.FC = () => {
       todayTotalBookings: todayBookings.length,
       todayCheckedIn: todayCheckedInCount,
       myTodayBookings,
-      utilizationRate: utilizationRate > 0 ? utilizationRate : 42,
+      myPendingCheckIn,
+      availableNowCount,
+      utilizationRate,
     };
   }, [rooms, bookings, user?.id]);
+
+  // Equipment stats cho Manager
+  const equipmentStats = useMemo(() => ({
+    functional: equipment.filter((e) => e.status === 'FUNCTIONAL').length,
+    underRepair: equipment.filter((e) => e.status === 'UNDER_REPAIR').length,
+    decommissioned: equipment.filter((e) => e.status === 'DECOMMISSIONED').length,
+    total: equipment.length,
+  }), [equipment]);
+
+  // Top 3 phòng được đặt nhiều nhất tuần này (cho Admin)
+  const topRooms = useMemo(() => {
+    const weekStart = dayjs().startOf('week');
+    const weekBookings = bookings.filter((b) =>
+      dayjs(b.start_at).isAfter(weekStart) && b.status !== 'CANCELLED'
+    );
+    const countByRoom: Record<number, { name: string; count: number }> = {};
+    for (const b of weekBookings) {
+      if (!countByRoom[b.room_id]) countByRoom[b.room_id] = { name: b.room_name || `Phòng #${b.room_id}`, count: 0 };
+      countByRoom[b.room_id].count++;
+    }
+    return Object.values(countByRoom)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  }, [bookings]);
+
+  // Chart data thật từ bookings (cho Admin)
+  const hourlyChartData = useMemo(() => {
+    const today = dayjs().format('YYYY-MM-DD');
+    const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+    return hours.map((h) => {
+      const start = dayjs(`${today} ${h.toString().padStart(2, '0')}:00`);
+      const end = start.add(1, 'hour');
+      const count = bookings.filter((b) => {
+        if (b.status === 'CANCELLED') return false;
+        const bs = dayjs(b.start_at);
+        const be = dayjs(b.end_at);
+        return bs.isBefore(end) && be.isAfter(start);
+      }).length;
+      return { hour: `${h}h`, rooms: count };
+    });
+  }, [bookings]);
 
   // Booking sắp tới có thể check-in ngay (chỉ hiện cho Employee)
   const checkInReadyBooking = useMemo(() => {
@@ -166,18 +228,6 @@ export const DashboardPage: React.FC = () => {
     });
   }, [rooms, bookings]);
 
-  // Hourly utilization chart data for today
-  const hourlyChartData = useMemo(() => {
-    return [
-      { hour: '08h', rooms: 2 },
-      { hour: '10h', rooms: 5 },
-      { hour: '12h', rooms: 1 },
-      { hour: '14h', rooms: 6 },
-      { hour: '16h', rooms: 4 },
-      { hour: '18h', rooms: 2 },
-      { hour: '20h', rooms: 0 },
-    ];
-  }, []);
 
   // Handle Check-in action
   const handleCheckIn = async (bookingId: number) => {
@@ -259,6 +309,33 @@ export const DashboardPage: React.FC = () => {
             >
               {t.myScheduleBtn}
             </Button>
+
+            {user?.role === 'ROOM_MANAGER' && (
+              <>
+                <Button
+                  onClick={() => navigate('/room-management')}
+                  style={{
+                    height: 40, borderRadius: 8, fontWeight: 500,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
+                    color: isDark ? '#ffffff' : '#334155',
+                  }}
+                >
+                  {language === 'vi' ? 'Quản lý phòng' : 'Manage Rooms'}
+                </Button>
+                <Button
+                  onClick={() => navigate('/equipment')}
+                  style={{
+                    height: 40, borderRadius: 8, fontWeight: 500,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
+                    color: isDark ? '#ffffff' : '#334155',
+                  }}
+                >
+                  {language === 'vi' ? 'Quản lý thiết bị' : 'Manage Equipment'}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -362,50 +439,184 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Col>
 
-        {/* Metric 3: Đã check-in */}
+        {/* Metric 3: Chờ check-in (employee) | Đã check-in hôm nay (others) */}
         <Col xs={12} sm={12} lg={6}>
           <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
             isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
           }`}>
             <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="font-medium uppercase tracking-wider text-[11px]">{t.statCheckedIn}</span>
+              <span className="font-medium uppercase tracking-wider text-[11px]">
+                {user?.role === 'EMPLOYEE'
+                  ? (language === 'vi' ? 'Chờ check-in' : 'Pending Check-in')
+                  : t.statCheckedIn}
+              </span>
               <CheckCircleOutlined className="text-[#30d158] text-sm" />
             </div>
             <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158]">
-              {stats.todayCheckedIn}{' '}
-              <span className="text-xs font-normal text-slate-400">/ {stats.todayTotalBookings || 1}</span>
+              {user?.role === 'EMPLOYEE' ? stats.myPendingCheckIn : stats.todayCheckedIn}{' '}
+              <span className="text-xs font-normal text-slate-400">
+                / {user?.role === 'EMPLOYEE' ? stats.myTodayBookings || 1 : stats.todayTotalBookings || 1}
+              </span>
             </div>
             <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-              <span>{t.statCheckedInSub}</span>
+              <span>
+                {user?.role === 'EMPLOYEE'
+                  ? (language === 'vi' ? 'Booking của tôi chưa check-in' : 'My unconfirmed bookings')
+                  : t.statCheckedInSub}
+              </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#30d158]" />
             </div>
           </div>
         </Col>
 
-        {/* Metric 4: Tỷ lệ sử dụng */}
+        {/* Metric 4: Phòng trống hiện tại (employee) | Donut thiết bị (manager) | Tỷ lệ sử dụng (admin) */}
         <Col xs={12} sm={12} lg={6}>
-          <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-            isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="font-medium uppercase tracking-wider text-[11px]">{t.statUtilization}</span>
-              <ThunderboltOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
+          {user?.role === 'EMPLOYEE' ? (
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">
+                  {language === 'vi' ? 'Phòng trống ngay bây giờ' : 'Rooms Available Now'}
+                </span>
+                <EnvironmentOutlined className="text-sky-500 text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-sky-600 dark:text-sky-400">
+                {stats.availableNowCount}{' '}
+                <span className="text-xs font-normal text-slate-400">/ {rooms.length}</span>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <span>{language === 'vi' ? 'Có thể đặt ngay' : 'Ready to book'}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
-              {stats.utilizationRate}%
+          ) : user?.role === 'ROOM_MANAGER' ? (
+            <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">
+                  {language === 'vi' ? 'Thiết bị' : 'Equipment'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 flex-1">
+                <PieChart width={64} height={64}>
+                  <Pie
+                    data={[
+                      { value: equipmentStats.functional || 0.01, fill: '#30d158' },
+                      { value: equipmentStats.underRepair || 0.01, fill: '#ffd60a' },
+                      { value: equipmentStats.decommissioned || 0.01, fill: '#ff453a' },
+                    ]}
+                    cx={28} cy={28} innerRadius={18} outerRadius={30}
+                    dataKey="value" strokeWidth={0}
+                  >
+                    {[{ fill: '#30d158' }, { fill: '#ffd60a' }, { fill: '#ff453a' }].map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+                <div className="text-[11px] space-y-1 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#30d158]" />{language === 'vi' ? 'Hoạt động' : 'OK'}</span>
+                    <span className="font-bold font-mono text-[#30d158]">{equipmentStats.functional}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffd60a]" />{language === 'vi' ? 'Đang sửa' : 'Repair'}</span>
+                    <span className="font-bold font-mono text-amber-500">{equipmentStats.underRepair}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff453a]" />{language === 'vi' ? 'Ngừng dùng' : 'Decom'}</span>
+                    <span className="font-bold font-mono text-red-500">{equipmentStats.decommissioned}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-              <Progress
-                percent={stats.utilizationRate}
-                showInfo={false}
-                strokeColor={isDark ? '#0a84ff' : '#1e40af'}
-                railColor={isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9'}
-                size={['100%', 4]}
-              />
+          ) : (
+            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statUtilization}</span>
+                <ThunderboltOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+                {stats.utilizationRate}%
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                <Progress
+                  percent={stats.utilizationRate}
+                  showInfo={false}
+                  strokeColor={isDark ? '#0a84ff' : '#1e40af'}
+                  railColor={isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9'}
+                  size={['100%', 4]}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </Col>
       </Row>
+
+      {/* Manager: 3 stat nhỏ + shortcuts */}
+      {user?.role === 'ROOM_MANAGER' && (
+        <Row gutter={[12, 12]}>
+          <Col xs={8}>
+            <div className={`p-3 rounded-xl border text-center transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
+            }`}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 mb-1">
+                {language === 'vi' ? 'Phòng bảo trì' : 'Maintenance'}
+              </div>
+              <div className="text-xl font-bold font-mono text-amber-500">
+                {rooms.filter((r) => r.status === 'MAINTENANCE').length}
+              </div>
+            </div>
+          </Col>
+          <Col xs={8}>
+            <div className={`p-3 rounded-xl border text-center transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
+            }`}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 mb-1">
+                {language === 'vi' ? 'Thiết bị hỏng' : 'Under Repair'}
+              </div>
+              <div className="text-xl font-bold font-mono text-amber-500">{equipmentStats.underRepair}</div>
+            </div>
+          </Col>
+          <Col xs={8}>
+            <div className={`p-3 rounded-xl border text-center transition-colors ${
+              isDark ? 'bg-[#1c1c1e] border-white/10' : 'bg-white border-slate-200'
+            }`}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-red-500 mb-1">
+                {language === 'vi' ? 'Ngừng sử dụng' : 'Decommissioned'}
+              </div>
+              <div className="text-xl font-bold font-mono text-red-500">{equipmentStats.decommissioned}</div>
+            </div>
+          </Col>
+        </Row>
+      )}
+
+      {/* Admin: Top 3 phòng được đặt nhiều nhất tuần */}
+      {user?.role === 'ADMINISTRATOR' && topRooms.length > 0 && (
+        <div className={`p-4 rounded-2xl border transition-colors ${
+          isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+        }`}>
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+            {language === 'vi' ? 'Top phòng tuần này' : 'Top Rooms This Week'}
+          </div>
+          <div className="space-y-2">
+            {topRooms.map((room, idx) => (
+              <div key={room.name} className="flex items-center gap-3">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                  idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-slate-100 text-slate-500' : 'bg-orange-50 text-orange-400'
+                }`}>{idx + 1}</span>
+                <span className="text-sm flex-1 truncate font-medium text-slate-700 dark:text-zinc-200">{room.name}</span>
+                <span className="text-xs font-mono font-bold text-[#1e40af] dark:text-[#0a84ff]">
+                  {room.count} {language === 'vi' ? 'booking' : 'bookings'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 3. LỊCH HỌP THEO NGÀY */}
       <div>
