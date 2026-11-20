@@ -27,10 +27,14 @@ import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
+  VideoCameraOutlined,
+  GlobalOutlined,
+  EnvironmentOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Room, BookingPolicyConfig, Booking } from '../types';
+import { Room, BookingPolicyConfig, Booking, MeetingType } from '../types';
 import { getRooms, createBooking, getBookingById, updateBooking, getBookings } from '../api/client';
 import { getBookingPolicies } from '../api/policies';
 import { ApiErrorState } from '../components/ApiErrorState';
@@ -58,6 +62,8 @@ interface BookingFormValues {
   num_attendees: number;
   title: string;
   purpose?: string;
+  meeting_type: MeetingType;
+  meeting_link?: string;
   attendees?: Array<{ name: string; attendee_email: string }>;
 }
 
@@ -130,6 +136,8 @@ export const BookingFormPage: React.FC = () => {
           num_attendees: existing.num_attendees,
           title: existing.title || '',
           purpose: existing.purpose || '',
+          meeting_type: (existing.meeting_type as MeetingType) || 'OFFLINE',
+          meeting_link: existing.meeting_link || '',
           attendees: existing.attendees?.map((att) => ({
             name: att.name,
             attendee_email: att.attendee_email,
@@ -359,6 +367,8 @@ export const BookingFormPage: React.FC = () => {
           num_attendees: values.num_attendees,
           title: values.title || undefined,
           purpose: values.purpose || undefined,
+          meeting_type: values.meeting_type,
+          meeting_link: values.meeting_link || null,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
             attendee_email: att.attendee_email,
@@ -374,6 +384,8 @@ export const BookingFormPage: React.FC = () => {
           num_attendees: values.num_attendees,
           title: values.title || undefined,
           purpose: values.purpose || undefined,
+          meeting_type: values.meeting_type,
+          meeting_link: values.meeting_link || null,
           attendees: (values.attendees || []).map((att) => ({
             name: att.name,
             attendee_email: att.attendee_email,
@@ -637,6 +649,77 @@ export const BookingFormPage: React.FC = () => {
             name="purpose"
           >
             <Input.TextArea size="large" placeholder={t.fieldPurposePlaceholder} rows={2} maxLength={500} />
+          </Form.Item>
+
+          {/* Hình thức họp */}
+          <Form.Item
+            label={<span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.fieldMeetingType}</span>}
+            name="meeting_type"
+            initialValue="OFFLINE"
+          >
+            <Select
+              size="large"
+              options={[
+                {
+                  value: 'OFFLINE',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <EnvironmentOutlined className="text-green-500" />
+                      {t.meetingTypeOffline}
+                    </span>
+                  ),
+                },
+                {
+                  value: 'ONLINE',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <GlobalOutlined className="text-blue-500" />
+                      {t.meetingTypeOnline}
+                    </span>
+                  ),
+                },
+                {
+                  value: 'HYBRID',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <VideoCameraOutlined className="text-purple-500" />
+                      {t.meetingTypeHybrid}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </Form.Item>
+
+          {/* Link họp — hiện khi Online/Hybrid */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.meeting_type !== curr.meeting_type}
+          >
+            {({ getFieldValue }) =>
+              getFieldValue('meeting_type') !== 'OFFLINE' ? (
+                <Form.Item
+                  label={
+                    <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      <LinkOutlined className="mr-1" />
+                      {t.fieldMeetingLink}
+                    </span>
+                  }
+                  name="meeting_link"
+                  rules={[
+                    { required: true, message: language === 'vi' ? 'Vui lòng nhập link họp' : 'Please enter meeting link' },
+                    { type: 'url', message: language === 'vi' ? 'Link không hợp lệ' : 'Invalid URL format' },
+                  ]}
+                >
+                  <Input
+                    size="large"
+                    placeholder={t.fieldMeetingLinkPlaceholder}
+                    maxLength={500}
+                    prefix={<LinkOutlined className="text-slate-400" />}
+                  />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
 
           <Divider style={{ margin: '14px 0 20px 0', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0' }} />

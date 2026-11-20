@@ -176,6 +176,12 @@ export interface Translations {
   fieldTitlePlaceholder: string;
   fieldPurpose: string;
   fieldPurposePlaceholder: string;
+  fieldMeetingType: string;
+  meetingTypeOffline: string;
+  meetingTypeOnline: string;
+  meetingTypeHybrid: string;
+  fieldMeetingLink: string;
+  fieldMeetingLinkPlaceholder: string;
   optionalAttendeesTitle: string;
   optionalAttendeesSub: string;
   attendeeNamePlaceholder: string;
@@ -650,6 +656,12 @@ const translations: Record<Language, Translations> = {
     fieldTitlePlaceholder: 'Ví dụ: Sprint Planning, Họp điều hành Q4...',
     fieldPurpose: 'Nội dung / Mô tả chi tiết',
     fieldPurposePlaceholder: 'Mô tả nội dung, agenda cuộc họp...',
+    fieldMeetingType: 'Hình thức họp',
+    meetingTypeOffline: 'Trực tiếp (Offline)',
+    meetingTypeOnline: 'Trực tuyến (Online)',
+    meetingTypeHybrid: 'Kết hợp (Hybrid)',
+    fieldMeetingLink: 'Link họp online',
+    fieldMeetingLinkPlaceholder: 'https://meet.google.com/... hoặc https://teams.microsoft.com/...',
     optionalAttendeesTitle: 'Thành viên tham dự (Optional)',
     optionalAttendeesSub: 'Thêm email đồng nghiệp để gửi thư mời và thông báo phòng họp',
     attendeeNamePlaceholder: 'Họ và tên người tham gia',
@@ -1122,6 +1134,12 @@ const translations: Record<Language, Translations> = {
     fieldTitlePlaceholder: 'e.g., Sprint Planning, Q4 Executive Review...',
     fieldPurpose: 'Description / Details',
     fieldPurposePlaceholder: 'Meeting agenda, notes, or details...',
+    fieldMeetingType: 'Meeting Format',
+    meetingTypeOffline: 'In-person (Offline)',
+    meetingTypeOnline: 'Remote (Online)',
+    meetingTypeHybrid: 'Hybrid',
+    fieldMeetingLink: 'Meeting Link',
+    fieldMeetingLinkPlaceholder: 'https://meet.google.com/... or https://teams.microsoft.com/...',
     optionalAttendeesTitle: 'Additional Attendees (Optional)',
     optionalAttendeesSub: 'Add colleague emails to send automated invites and room notifications',
     attendeeNamePlaceholder: 'Full name of attendee',

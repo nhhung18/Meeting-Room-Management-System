@@ -105,6 +105,8 @@ class BookingService:
             num_attendees=dto.num_attendees,
             title=dto.title,
             purpose=dto.purpose,
+            meeting_type=dto.meeting_type,
+            meeting_link=dto.meeting_link,
             status=BookingStatus.CONFIRMED,
         )
         booking.attendees = [
@@ -224,7 +226,16 @@ class BookingService:
                 raise BookingService.OverlapError("Updated time slot overlaps an existing booking")
 
         # Apply scalar field changes after validation
-        for field in ("num_attendees", "start_at", "end_at", "room_id", "title", "purpose"):
+        for field in (
+            "num_attendees",
+            "start_at",
+            "end_at",
+            "room_id",
+            "title",
+            "purpose",
+            "meeting_type",
+            "meeting_link",
+        ):
             if field in changes:
                 setattr(booking, field, changes[field])
 
@@ -262,6 +273,8 @@ class BookingService:
             num_attendees=booking.num_attendees,
             title=booking.title,
             purpose=booking.purpose,
+            meeting_type=booking.meeting_type,
+            meeting_link=booking.meeting_link,
             status=booking.status,
             checked_in_at=booking.checked_in_at,
             auto_cancelled_at=booking.auto_cancelled_at,

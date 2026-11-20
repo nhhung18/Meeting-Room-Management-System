@@ -57,6 +57,8 @@ def _make_booking(
     booking.num_attendees = num_attendees
     booking.title = None
     booking.purpose = None
+    booking.meeting_type = "OFFLINE"
+    booking.meeting_link = None
     booking.attendees = attendees if attendees is not None else []
     booking.checked_in_at = None
     booking.auto_cancelled_at = None
@@ -362,3 +364,84 @@ class TestUpdateBooking:
 
         with pytest.raises(BookingService.PastBookingError):
             service.update_booking(1, dto, user_id="user-1")
+
+
+# ---------------------------------------------------------------------------
+# TestMeetingTypeLink
+# ---------------------------------------------------------------------------
+
+
+class TestMeetingTypeLink:
+    def test_create_offline_no_link_ok(self):
+        """OFFLINE không cần link."""
+        now = datetime.now(UTC)
+        dto = BookingCreate(
+            room_id=1,
+            start_at=now + timedelta(hours=1),
+            end_at=now + timedelta(hours=2),
+            num_attendees=2,
+            meeting_type="OFFLINE",
+        )
+        assert dto.meeting_type == "OFFLINE"
+        assert dto.meeting_link is None
+
+    def test_create_online_without_link_raises(self):
+        """ONLINE mà thiếu meeting_link → 422."""
+        now = datetime.now(UTC)
+        with pytest.raises(Exception):
+            BookingCreate(
+                room_id=1,
+                start_at=now + timedelta(hours=1),
+                end_at=now + timedelta(hours=2),
+                num_attendees=2,
+                meeting_type="ONLINE",
+            )
+
+    def test_create_hybrid_without_link_raises(self):
+        """HYBRID mà thiếu meeting_link → 422."""
+        now = datetime.now(UTC)
+        with pytest.raises(Exception):
+            BookingCreate(
+                room_id=1,
+                start_at=now + timedelta(hours=1),
+                end_at=now + timedelta(hours=2),
+                num_attendees=2,
+                meeting_type="HYBRID",
+            )
+
+    def test_create_online_with_link_ok(self):
+        """ONLINE với meeting_link hợp lệ."""
+        now = datetime.now(UTC)
+        dto = BookingCreate(
+            room_id=1,
+            start_at=now + timedelta(hours=1),
+            end_at=now + timedelta(hours=2),
+            num_attendees=2,
+            meeting_type="ONLINE",
+            meeting_link="https://meet.google.com/abc-defg-hij",
+        )
+        assert dto.meeting_type == "ONLINE"
+        assert dto.meeting_link == "https://meet.google.com/abc-defg-hij"
+
+    def test_create_hybrid_with_link_ok(self):
+        """HYBRID với meeting_link hợp lệ."""
+        now = datetime.now(UTC)
+        dto = BookingCreate(
+            room_id=1,
+            start_at=now + timedelta(hours=1),
+            end_at=now + timedelta(hours=2),
+            num_attendees=2,
+            meeting_type="HYBRID",
+            meeting_link="https://teams.microsoft.com/l/meeting/xyz",
+        )
+        assert dto.meeting_type == "HYBRID"
+
+    def test_update_online_without_link_raises(self):
+        """Update đổi sang ONLINE mà không kèm link → 422."""
+        with pytest.raises(Exception):
+            BookingUpdate(meeting_type="ONLINE")
+
+    def test_update_offline_no_link_ok(self):
+        """Update đổi sang OFFLINE không cần link."""
+        dto = BookingUpdate(meeting_type="OFFLINE")
+        assert dto.meeting_type == "OFFLINE"

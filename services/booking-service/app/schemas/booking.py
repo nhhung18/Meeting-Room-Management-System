@@ -1,9 +1,11 @@
 """Pydantic v2 DTOs cho booking domain."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+
+MeetingType = Literal["OFFLINE", "ONLINE", "HYBRID"]
 
 
 class AttendeeInput(BaseModel):
@@ -26,6 +28,8 @@ class BookingCreate(BaseModel):
     num_attendees: int = Field(gt=0)
     title: str | None = Field(default=None, max_length=255)
     purpose: str | None = Field(default=None, max_length=500)
+    meeting_type: MeetingType = "OFFLINE"
+    meeting_link: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] = Field(default_factory=list)
 
     @field_validator("start_at", "end_at", mode="after")
@@ -41,6 +45,12 @@ class BookingCreate(BaseModel):
             raise ValueError("end_at must be after start_at")
         return self
 
+    @model_validator(mode="after")
+    def link_required_for_online(self) -> "BookingCreate":
+        if self.meeting_type in ("ONLINE", "HYBRID") and not self.meeting_link:
+            raise ValueError("meeting_link is required when meeting_type is ONLINE or HYBRID")
+        return self
+
 
 class BookingUpdate(BaseModel):
     room_id: int | None = Field(default=None, gt=0)
@@ -49,6 +59,8 @@ class BookingUpdate(BaseModel):
     num_attendees: int | None = Field(default=None, gt=0)
     title: str | None = Field(default=None, max_length=255)
     purpose: str | None = Field(default=None, max_length=500)
+    meeting_type: MeetingType | None = None
+    meeting_link: str | None = Field(default=None, max_length=500)
     attendees: list[AttendeeInput] | None = None
 
     @field_validator("start_at", "end_at", mode="after")
@@ -62,6 +74,13 @@ class BookingUpdate(BaseModel):
     def end_after_start(self) -> "BookingUpdate":
         if self.start_at is not None and self.end_at is not None and self.end_at <= self.start_at:
             raise ValueError("end_at must be after start_at")
+        return self
+
+    @model_validator(mode="after")
+    def link_required_for_online(self) -> "BookingUpdate":
+        # Chỉ validate khi meeting_type được set rõ ràng (không phải None = không thay đổi)
+        if self.meeting_type in ("ONLINE", "HYBRID") and not self.meeting_link:
+            raise ValueError("meeting_link is required when meeting_type is ONLINE or HYBRID")
         return self
 
 
@@ -85,6 +104,8 @@ class BookingResponse(BaseModel):
     num_attendees: int
     title: str | None = None
     purpose: str | None = None
+    meeting_type: str = "OFFLINE"
+    meeting_link: str | None = None
     status: str
     checked_in_at: datetime | None = None
     auto_cancelled_at: datetime | None = None

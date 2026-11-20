@@ -36,6 +36,10 @@ class Booking(Base):
     num_attendees: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     title: Mapped[str | None] = mapped_column(sa.VARCHAR(255), nullable=True)
     purpose: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
+    meeting_type: Mapped[str] = mapped_column(
+        sa.VARCHAR(10), nullable=False, server_default="OFFLINE"
+    )
+    meeting_link: Mapped[str | None] = mapped_column(sa.VARCHAR(500), nullable=True)
     status: Mapped[str] = mapped_column(
         sa.VARCHAR(20),
         nullable=False,

@@ -2,6 +2,8 @@ export type RoomStatus = 'AVAILABLE' | 'MAINTENANCE' | 'ARCHIVED';
 
 export type BookingStatus = 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
 
+export type MeetingType = 'OFFLINE' | 'ONLINE' | 'HYBRID';
+
 export type UserRole = 'EMPLOYEE' | 'ROOM_MANAGER' | 'ADMINISTRATOR';
 
 export interface User {
@@ -137,6 +139,9 @@ export interface Booking {
   attendees: Attendee[];
   title?: string;
   purpose?: string;
+  meeting_type?: MeetingType;
+  meeting_link?: string | null;
+  booker_email?: string | null;
 }
 
 export interface PaginatedResponse<T> {
