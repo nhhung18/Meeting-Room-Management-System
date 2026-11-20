@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit
-from app.core.security import TokenPayload, require_admin
+from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
 from app.repositories.system_policy_repository import SystemPolicyRepository
 from app.schemas.policy import (
@@ -73,7 +73,7 @@ def list_policies(
 
 @router.get("/config", response_model=PolicyBulkConfigResponse)
 def get_config(
-    _user: TokenPayload = Depends(require_admin),
+    _user: TokenPayload = Depends(current_user),
     db: Session = Depends(get_db),
 ):
     """Trả về toàn bộ policy config dưới dạng flat object — dùng bởi frontend."""
