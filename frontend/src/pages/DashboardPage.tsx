@@ -6,24 +6,26 @@ import {
   Tag,
   Button,
   Typography,
-  Empty,
   Spin,
   App,
-  Tooltip,
-  Avatar,
   Progress,
+  Segmented,
+  Badge,
 } from 'antd';
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
   CalendarOutlined,
-  TeamOutlined,
   ArrowRightOutlined,
   ThunderboltOutlined,
   EnvironmentOutlined,
   CheckOutlined,
   AppstoreOutlined,
   PlusOutlined,
+  UserOutlined,
+  SettingOutlined,
+  AuditOutlined,
+  RiseOutlined,
+  FallOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -35,9 +37,15 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
+  BarChart,
+  Bar,
 } from 'recharts';
-import { Room, Booking, EquipmentItem, EQUIPMENT_STATUS_CONFIG } from '../types';
+import { Room, Booking, EquipmentItem, EQUIPMENT_STATUS_CONFIG, UserAccount, BookingPolicyConfig, AuditLogEntry, AuditActionType } from '../types';
 import { getRooms, getBookings, checkInBooking, isCheckInEligible, getEquipmentList } from '../api/client';
+import { getReportStats, ReportStatsResponse } from '../api/reports';
+import { getUserAccounts } from '../api/users';
+import { getAuditLogs } from '../api/auditLogs';
+import { getBookingPolicies } from '../api/policies';
 import { ApiErrorState } from '../components/ApiErrorState';
 import { BookingCalendar, BookingPreviewModal } from '../components/BookingCalendar';
 import { useAuth } from '../context/AuthContext';
@@ -45,7 +53,21 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title } = Typography;
+
+type TimeRange = '7days' | '30days' | 'quarter';
+
+const ACTION_TAG_CONFIG: Partial<Record<AuditActionType, { color: string; labelVi: string; labelEn: string }>> = {
+  USER_ROLE_CHANGED: { color: 'purple', labelVi: 'Đổi vai trò', labelEn: 'Role Changed' },
+  USER_STATUS_TOGGLED: { color: 'orange', labelVi: 'Khóa/Mở TK', labelEn: 'Status Toggled' },
+  USER_CREATED: { color: 'green', labelVi: 'Tạo người dùng', labelEn: 'User Created' },
+  BOOKING_CREATED: { color: 'blue', labelVi: 'Đặt phòng', labelEn: 'Booking Created' },
+  BOOKING_CANCELLED: { color: 'orange', labelVi: 'Hủy đặt phòng', labelEn: 'Booking Cancelled' },
+  BOOKING_CHECKED_IN: { color: 'lime', labelVi: 'Check-in', labelEn: 'Checked In' },
+  ROOM_CREATED: { color: 'cyan', labelVi: 'Tạo phòng', labelEn: 'Room Created' },
+  ROOM_UPDATED: { color: 'geekblue', labelVi: 'Sửa phòng', labelEn: 'Room Updated' },
+  POLICY_CONFIG_UPDATED: { color: 'magenta', labelVi: 'Cập nhật cấu hình', labelEn: 'Policy Updated' },
+};
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,7 +77,11 @@ export const DashboardPage: React.FC = () => {
   const { isMobile } = useBreakpoint();
   const { message } = App.useApp();
 
+  const isManagerOrAdmin = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
+  const isAdmin = user?.role === 'ADMINISTRATOR';
+
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [error, setError] = useState<{ status: number; detail: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -63,10 +89,15 @@ export const DashboardPage: React.FC = () => {
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
   const [systemUpcomingCheckInCount, setSystemUpcomingCheckInCount] = useState(0);
 
-  // Anchor date and preview modal state for the shared Day-View calendar
-  const [calendarDate, setCalendarDate] = useState<dayjs.Dayjs>(() =>
-    dayjs().startOf('day')
-  );
+  // Admin/Manager stats
+  const [statsData, setStatsData] = useState<ReportStatsResponse | null>(null);
+  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [recentLogs, setRecentLogs] = useState<AuditLogEntry[]>([]);
+  const [policyConfig, setPolicyConfig] = useState<BookingPolicyConfig | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>('7days');
+
+  // Calendar state
+  const [calendarDate, setCalendarDate] = useState<dayjs.Dayjs>(() => dayjs().startOf('day'));
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
@@ -76,12 +107,28 @@ export const DashboardPage: React.FC = () => {
     setPreviewModalOpen(true);
   };
 
+  const fetchStats = async (range: TimeRange) => {
+    if (!isManagerOrAdmin) return;
+    try {
+      setStatsLoading(true);
+      const daysAgo = range === '7days' ? 7 : range === '30days' ? 30 : 90;
+      const endDate = dayjs().format('YYYY-MM-DD');
+      const startDate = dayjs().subtract(daysAgo, 'day').format('YYYY-MM-DD');
+      const data = await getReportStats(startDate, endDate);
+      setStatsData(data);
+    } catch (err: any) {
+      if (err?.status === 401) return;
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const isManagerOrAdmin = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
       const now = dayjs();
+
       const [roomsRes, bookingsRes, eqRes, confirmedRes] = await Promise.all([
         getRooms(),
         getBookings(),
@@ -90,18 +137,32 @@ export const DashboardPage: React.FC = () => {
           ? getBookings({ status: 'CONFIRMED', limit: 100 })
           : Promise.resolve({ items: [], total: 0, limit: 0, offset: 0 }),
       ]);
+
       setRooms(roomsRes.items);
       setBookings(bookingsRes.items);
       setEquipment(Array.isArray(eqRes) ? eqRes : []);
+
       if (isManagerOrAdmin) {
         const upcomingCount = confirmedRes.items.filter((b) => dayjs(b.start_at).isAfter(now)).length;
         setSystemUpcomingCheckInCount(upcomingCount);
       }
+
+      // Admin-only supplementary data
+      if (isAdmin) {
+        const [usersRes, logsRes, policiesRes] = await Promise.all([
+          getUserAccounts(),
+          getAuditLogs({ limit: 5 }),
+          getBookingPolicies(),
+        ]);
+        setUsers(usersRes);
+        setRecentLogs(logsRes);
+        setPolicyConfig(policiesRes);
+      }
     } catch (err: any) {
       if (err?.status === 401) return;
       setError({
-        status: err.status ?? 0,
-        detail: err.detail || err.message || (language === 'vi' ? 'Không thể tải dữ liệu trang tổng quan' : 'Failed to load dashboard data'),
+        status: err?.status ?? 0,
+        detail: err?.detail || err?.message || (language === 'vi' ? 'Không thể tải dữ liệu trang tổng quan' : 'Failed to load dashboard data'),
       });
     } finally {
       setLoading(false);
@@ -110,9 +171,14 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    fetchStats(timeRange);
   }, []);
 
-  // Compute Statistics
+  useEffect(() => {
+    fetchStats(timeRange);
+  }, [timeRange]);
+
+  // ── Core stats ──────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const today = dayjs().format('YYYY-MM-DD');
     const availableRoomsCount = rooms.filter((r) => r.status === 'AVAILABLE').length;
@@ -123,7 +189,6 @@ export const DashboardPage: React.FC = () => {
     });
 
     const todayCheckedInCount = todayBookings.filter((b) => b.status === 'CHECKED_IN').length;
-
     const myTodayBookings = todayBookings.filter((b) => b.user_id === user?.id).length;
     const myPendingCheckIn = todayBookings.filter(
       (b) => b.user_id === user?.id && b.status === 'CONFIRMED'
@@ -142,8 +207,7 @@ export const DashboardPage: React.FC = () => {
     const bookedHours = todayBookings.reduce((sum, b) => {
       const start = dayjs(b.start_at);
       const end = dayjs(b.end_at);
-      const hours = Math.max(0.5, end.diff(start, 'minute') / 60);
-      return sum + hours;
+      return sum + Math.max(0.5, end.diff(start, 'minute') / 60);
     }, 0);
 
     const utilizationRate = Math.min(100, Math.round((bookedHours / (totalWorkingHours || 1)) * 100));
@@ -159,7 +223,6 @@ export const DashboardPage: React.FC = () => {
     };
   }, [rooms, bookings, user?.id]);
 
-  // Equipment stats cho Manager
   const equipmentStats = useMemo(() => ({
     functional: equipment.filter((e) => e.status === 'FUNCTIONAL').length,
     underRepair: equipment.filter((e) => e.status === 'UNDER_REPAIR').length,
@@ -167,40 +230,48 @@ export const DashboardPage: React.FC = () => {
     total: equipment.length,
   }), [equipment]);
 
-  // Top 3 phòng được đặt nhiều nhất tuần này (cho Admin)
-  const topRooms = useMemo(() => {
-    const weekStart = dayjs().startOf('week');
-    const weekBookings = bookings.filter((b) =>
-      dayjs(b.start_at).isAfter(weekStart) && b.status !== 'CANCELLED'
-    );
-    const countByRoom: Record<number, { name: string; count: number }> = {};
-    for (const b of weekBookings) {
-      if (!countByRoom[b.room_id]) countByRoom[b.room_id] = { name: b.room_name || `Phòng #${b.room_id}`, count: 0 };
-      countByRoom[b.room_id].count++;
-    }
-    return Object.values(countByRoom)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-  }, [bookings]);
+  // ── Chart data ───────────────────────────────────────────────────────────────
+  const dailyChartData = useMemo(() => {
+    if (!statsData) return [];
+    return statsData.daily_stats.map((d) => ({
+      name: dayjs(d.date).format('DD/MM'),
+      [language === 'vi' ? 'Đã xác nhận' : 'Confirmed']: d.total - d.checked_in - d.cancelled,
+      [language === 'vi' ? 'Đã check-in' : 'Checked In']: d.checked_in,
+      [language === 'vi' ? 'Đã hủy' : 'Cancelled']: d.cancelled,
+    }));
+  }, [statsData, language]);
 
-  // Chart data thật từ bookings (cho Admin)
-  const hourlyChartData = useMemo(() => {
-    const today = dayjs().format('YYYY-MM-DD');
-    const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
-    return hours.map((h) => {
-      const start = dayjs(`${today} ${h.toString().padStart(2, '0')}:00`);
-      const end = start.add(1, 'hour');
-      const count = bookings.filter((b) => {
-        if (b.status === 'CANCELLED') return false;
-        const bs = dayjs(b.start_at);
-        const be = dayjs(b.end_at);
-        return bs.isBefore(end) && be.isAfter(start);
-      }).length;
-      return { hour: `${h}h`, rooms: count };
-    });
-  }, [bookings]);
+  const statusDonutData = useMemo(() => {
+    if (!statsData) return [];
+    return [
+      { name: language === 'vi' ? 'Xác nhận' : 'Confirmed', value: statsData.confirmed || 0, fill: '#1e5bef' },
+      { name: language === 'vi' ? 'Check-in' : 'Checked In', value: statsData.checked_in || 0, fill: '#52c41a' },
+      { name: language === 'vi' ? 'Đã hủy' : 'Cancelled', value: statsData.cancelled || 0, fill: '#ff4d4f' },
+    ];
+  }, [statsData, language]);
 
-  // Booking sắp tới có thể check-in ngay (chỉ hiện cho Employee)
+  const peakHoursData = useMemo(() => {
+    if (!statsData) return [];
+    return statsData.peak_hours
+      .filter((h) => h.hour >= 7 && h.hour <= 19)
+      .map((h) => ({ hour: `${h.hour}h`, total: h.total }));
+  }, [statsData]);
+
+  const topRoomsData = useMemo(() => {
+    if (!statsData) return [];
+    return statsData.top_rooms.slice(0, 5);
+  }, [statsData]);
+
+  // ── User stats ───────────────────────────────────────────────────────────────
+  const userStats = useMemo(() => ({
+    total: users.length,
+    employee: users.filter((u) => u.role === 'EMPLOYEE').length,
+    manager: users.filter((u) => u.role === 'ROOM_MANAGER').length,
+    admin: users.filter((u) => u.role === 'ADMINISTRATOR').length,
+    suspended: users.filter((u) => u.status === 'SUSPENDED').length,
+  }), [users]);
+
+  // ── Check-in eligible ────────────────────────────────────────────────────────
   const checkInReadyBooking = useMemo(() => {
     if (user?.role !== 'EMPLOYEE') return null;
     return bookings.find(
@@ -208,36 +279,6 @@ export const DashboardPage: React.FC = () => {
     ) ?? null;
   }, [bookings, user]);
 
-  // Upcoming 4 confirmed bookings of current user (or all if admin)
-  const upcomingBookings = useMemo(() => {
-    const now = dayjs();
-    return bookings
-      .filter((b) => {
-        const isUserMatch = user?.role === 'ADMINISTRATOR' ? true : b.user_id === user?.id;
-        const isUpcoming = dayjs(b.end_at).isAfter(now) && b.status === 'CONFIRMED';
-        return isUserMatch && isUpcoming;
-      })
-      .sort((a, b) => dayjs(a.start_at).valueOf() - dayjs(b.start_at).valueOf())
-      .slice(0, 4);
-  }, [bookings, user]);
-
-  // Rooms currently AVAILABLE with no active booking right now
-  const availableNowRooms = useMemo(() => {
-    const now = dayjs();
-    return rooms.filter((room) => {
-      if (room.status !== 'AVAILABLE') return false;
-      const hasActiveBooking = bookings.some((b) => {
-        if (b.room_id !== room.id || b.status === 'CANCELLED') return false;
-        const start = dayjs(b.start_at);
-        const end = dayjs(b.end_at);
-        return now.isAfter(start) && now.isBefore(end);
-      });
-      return !hasActiveBooking;
-    });
-  }, [rooms, bookings]);
-
-
-  // Handle Check-in action
   const handleCheckIn = async (bookingId: number) => {
     try {
       setCheckingInId(bookingId);
@@ -260,75 +301,64 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
+  // ── Shared card wrapper ───────────────────────────────────────────────────────
+  const card = (className?: string) =>
+    `p-4 rounded-2xl border flex flex-col transition-colors ${
+      isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
+    } ${className ?? ''}`;
+
+  const labelClass = 'font-medium uppercase tracking-wider text-[11px] text-slate-400';
+
+  const timeRangeOptions = [
+    { label: language === 'vi' ? '7 ngày' : '7 Days', value: '7days' },
+    { label: language === 'vi' ? '30 ngày' : '30 Days', value: '30days' },
+    { label: language === 'vi' ? 'Quý' : 'Quarter', value: 'quarter' },
+  ];
+
   return (
     <div className="space-y-5 pb-4">
-      {/* 1. HERO BANNER: Apple HIG Level 1 */}
+
+      {/* ── HERO BANNER ───────────────────────────────────────────────────────── */}
       <div className={`p-5 sm:p-6 rounded-2xl border transition-colors ${
-        isDark
-          ? 'bg-[#1c1c1e] border-white/15 text-white'
-          : 'bg-white border-slate-200 text-slate-800'
+        isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
       }`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            {/* Clean Date Indicator */}
             <div className="flex items-center gap-2 mb-2 text-xs">
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium ${
-                isDark
-                  ? 'bg-white/5 border-white/10 text-zinc-300'
-                  : 'bg-slate-50 border-slate-200 text-slate-600'
+                isDark ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}>
                 <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
                 <span>{(() => { const s = dayjs().format(language === 'vi' ? 'dddd, [ngày] DD/MM/YYYY' : 'dddd, MMMM D, YYYY'); return s.charAt(0).toUpperCase() + s.slice(1); })()}</span>
               </span>
             </div>
-
             <Title level={isMobile ? 4 : 3} style={{ margin: 0, fontWeight: 700, color: isDark ? '#ffffff' : '#141b54' }}>
               {t.welcomeUser} {user?.name || (language === 'vi' ? 'bạn' : 'there')}
             </Title>
           </div>
-
-          {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => navigate('/rooms')}
-              style={{
-                backgroundColor: isDark ? '#0a84ff' : '#1e40af',
-                borderColor: isDark ? '#0a84ff' : '#1e40af',
-                height: 40,
-                padding: '0 18px',
-                fontWeight: 600,
-                borderRadius: 8,
-              }}
+              style={{ backgroundColor: isDark ? '#0a84ff' : '#1e40af', borderColor: isDark ? '#0a84ff' : '#1e40af', height: 40, padding: '0 18px', fontWeight: 600, borderRadius: 8 }}
             >
               {t.newBooking}
             </Button>
-
             <Button
               onClick={() => navigate('/my-bookings')}
-              style={{
-                height: 40,
-                borderRadius: 8,
-                fontWeight: 500,
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
-                color: isDark ? '#ffffff' : '#334155',
-              }}
+              style={{ height: 40, borderRadius: 8, fontWeight: 500, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f8fafc', borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#cbd5e1', color: isDark ? '#ffffff' : '#334155' }}
             >
               {t.myScheduleBtn}
             </Button>
-
           </div>
         </div>
       </div>
 
-      {/* Quick check-in banner — chỉ hiện cho Employee khi có booking sắp bắt đầu */}
+      {/* ── QUICK CHECK-IN BANNER (Employee) ──────────────────────────────────── */}
       {checkInReadyBooking && (
         <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
-          isDark
-            ? 'bg-emerald-950/40 border-emerald-700/50'
-            : 'bg-emerald-50 border-emerald-200'
+          isDark ? 'bg-emerald-950/40 border-emerald-700/50' : 'bg-emerald-50 border-emerald-200'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-[#30d158] animate-pulse shrink-0" />
@@ -342,84 +372,59 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <Button
-            type="primary"
-            size="small"
-            icon={<CheckOutlined />}
+            type="primary" size="small" icon={<CheckOutlined />}
             loading={checkingInId === checkInReadyBooking.id}
             onClick={() => handleCheckIn(checkInReadyBooking.id)}
-            style={{
-              backgroundColor: '#30d158',
-              borderColor: '#30d158',
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 12,
-              flexShrink: 0,
-            }}
+            style={{ backgroundColor: '#30d158', borderColor: '#30d158', borderRadius: 6, fontWeight: 600, fontSize: 12, flexShrink: 0 }}
           >
             {t.checkInNow}
           </Button>
         </div>
       )}
 
-      {/* 2. TOP ROW STAT METRICS */}
+      {/* ── KPI CARDS ─────────────────────────────────────────────────────────── */}
       {user?.role === 'EMPLOYEE' ? (
-        /* Employee: 3 cards */
         <Row gutter={[12, 12]}>
-          {/* E-Card 1: Phòng trống ngay */}
           <Col xs={24} sm={8}>
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Phòng trống ngay bây giờ' : 'Rooms Available Now'}
-                </span>
+            <div className={card('justify-between h-full')}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{language === 'vi' ? 'Phòng trống ngay bây giờ' : 'Rooms Available Now'}</span>
                 <EnvironmentOutlined className="text-sky-500 text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-sky-400">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-[#1e40af] dark:text-sky-400">
                 {stats.availableNowCount}{' '}
                 <span className="text-xs font-normal text-slate-400">/ {rooms.length}</span>
               </div>
               <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <span>{language === 'vi' ? 'Có thể đặt ngay' : 'Ready to book'}</span>
+                {language === 'vi' ? 'Có thể đặt ngay' : 'Ready to book'}
               </div>
             </div>
           </Col>
-
-          {/* E-Card 2: Lịch của tôi hôm nay */}
           <Col xs={24} sm={8}>
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Lịch của tôi hôm nay' : 'My Schedule Today'}
-                </span>
+            <div className={card('justify-between h-full')}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{language === 'vi' ? 'Lịch của tôi hôm nay' : 'My Schedule Today'}</span>
                 <CalendarOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-[#1e40af] dark:text-[#0a84ff]">
                 {stats.myTodayBookings}
               </div>
               <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <span>{language === 'vi' ? 'Phòng đã đặt trong ngày' : 'Rooms booked today'}</span>
+                {language === 'vi' ? 'Phòng đã đặt trong ngày' : 'Rooms booked today'}
               </div>
             </div>
           </Col>
-
-          {/* E-Card 3: Chờ check-in — hiện count + nút nếu có booking eligible */}
           <Col xs={24} sm={8}>
             <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
               checkInReadyBooking
                 ? isDark ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-emerald-50 border-emerald-200'
                 : isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
             }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Chờ check-in' : 'Pending Check-in'}
-                </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{language === 'vi' ? 'Chờ check-in' : 'Pending Check-in'}</span>
                 <CheckCircleOutlined className="text-[#30d158] text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158] flex-1">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-emerald-600 dark:text-[#30d158] flex-1">
                 {stats.myPendingCheckIn}
               </div>
               <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
@@ -428,20 +433,10 @@ export const DashboardPage: React.FC = () => {
                     <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
                       {checkInReadyBooking.room_name} · {dayjs(checkInReadyBooking.start_at).format('HH:mm')}
                     </span>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<CheckOutlined />}
+                    <Button type="primary" size="small" icon={<CheckOutlined />}
                       loading={checkingInId === checkInReadyBooking.id}
                       onClick={() => handleCheckIn(checkInReadyBooking.id)}
-                      style={{
-                        backgroundColor: '#30d158',
-                        borderColor: '#30d158',
-                        borderRadius: 6,
-                        fontWeight: 600,
-                        fontSize: 11,
-                        flexShrink: 0,
-                      }}
+                      style={{ backgroundColor: '#30d158', borderColor: '#30d158', borderRadius: 6, fontWeight: 600, fontSize: 11, flexShrink: 0 }}
                     >
                       {t.checkInNow}
                     </Button>
@@ -456,115 +451,86 @@ export const DashboardPage: React.FC = () => {
           </Col>
         </Row>
       ) : (
-        /* Manager / Admin: 4 cards */
         <Row gutter={[12, 12]}>
-          {/* Card 1: Phòng hoạt động */}
           <Col xs={12} sm={12} lg={6}>
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statActiveRooms}</span>
+            <div className={card('justify-between h-full')}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{t.statActiveRooms}</span>
                 <AppstoreOutlined className="text-sky-500 text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-[#1e40af] dark:text-[#0a84ff]">
                 {stats.availableRooms}{' '}
                 <span className="text-xs font-normal text-slate-400">/ {rooms.length} {t.totalRoomsUnit}</span>
               </div>
               <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <span>{t.statActiveRoomsSub}</span>
+                {t.statActiveRoomsSub}
               </div>
             </div>
           </Col>
-
-          {/* Card 2: Booking hôm nay (tổng) */}
           <Col xs={12} sm={12} lg={6}>
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">{t.statTodayBookings}</span>
+            <div className={card('justify-between h-full')}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{t.statTodayBookings}</span>
                 <CalendarOutlined className="text-amber-500 text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-slate-800 dark:text-white">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-slate-800 dark:text-white">
                 {stats.todayTotalBookings}
               </div>
               <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <span>{t.statTodayBookingsSub}</span>
+                {t.statTodayBookingsSub}
               </div>
             </div>
           </Col>
-
-          {/* Card 3: Check-in sắp tới của tất cả booking (real data) */}
           <Col xs={12} sm={12} lg={6}>
-            <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-              isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span className="font-medium uppercase tracking-wider text-[11px]">
-                  {language === 'vi' ? 'Check-in sắp tới' : 'Upcoming Check-ins'}
-                </span>
+            <div className={card('justify-between h-full')}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={labelClass}>{language === 'vi' ? 'Check-in sắp tới' : 'Upcoming Check-ins'}</span>
                 <CheckCircleOutlined className="text-[#30d158] text-sm" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-emerald-600 dark:text-[#30d158]">
+              <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-emerald-600 dark:text-[#30d158]">
                 {systemUpcomingCheckInCount}
               </div>
               <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                <span>{language === 'vi' ? 'Booking đã xác nhận, chưa check-in' : 'Confirmed, not yet checked in'}</span>
+                {language === 'vi' ? 'Booking đã xác nhận, chưa check-in' : 'Confirmed, not yet checked in'}
               </div>
             </div>
           </Col>
-
-          {/* Card 4: Donut thiết bị (manager) | Tỷ lệ sử dụng (admin) */}
           <Col xs={12} sm={12} lg={6}>
             {user?.role === 'ROOM_MANAGER' ? (
-              <div className={`p-4 rounded-2xl border flex flex-col h-full transition-colors ${
-                isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-              }`}>
-                <div className="text-xs text-slate-400 mb-1">
-                  <span className="font-medium uppercase tracking-wider text-[11px]">
-                    {language === 'vi' ? 'Thiết bị' : 'Equipment'}
-                  </span>
+              <div className={card('h-full')}>
+                <div className="mb-1">
+                  <span className={labelClass}>{language === 'vi' ? 'Thiết bị' : 'Equipment'}</span>
                 </div>
-                <div className="flex items-center justify-center flex-1">
-                  <PieChart width={110} height={110}>
-                    <Pie
-                      data={[
-                        { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
-                        { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
-                        { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
-                      ]}
-                      cx={51} cy={51} innerRadius={30} outerRadius={48}
-                      dataKey="value" strokeWidth={0}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: isDark ? '#2c2c2e' : '#fff',
-                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`,
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
+                <div className="flex items-center justify-center flex-1 py-1">
+                  <PieChart width={110} height={90}>
+                    <Pie data={[
+                      { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
+                      { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
+                      { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
+                    ]} cx={51} cy={43} innerRadius={28} outerRadius={42} dataKey="value" strokeWidth={0} />
+
+                    <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
                   </PieChart>
+                </div>
+                <div className="flex justify-around text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-white/5">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">{equipmentStats.functional} {language === 'vi' ? 'HĐ' : 'OK'}</span>
+                  <span className="text-amber-500 font-medium">{equipmentStats.underRepair} {language === 'vi' ? 'Sửa' : 'Fix'}</span>
+                  <span className="text-red-500 font-medium">{equipmentStats.decommissioned} {language === 'vi' ? 'Ngừng' : 'Off'}</span>
                 </div>
               </div>
             ) : (
-              <div className={`p-4 rounded-2xl border flex flex-col justify-between h-full transition-colors ${
-                isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-medium uppercase tracking-wider text-[11px]">{t.statUtilization}</span>
+              <div className={card('justify-between h-full')}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={labelClass}>{t.statUtilization}</span>
                   <ThunderboltOutlined className="text-[#1e40af] dark:text-[#0a84ff] text-sm" />
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums leading-none text-[#1e40af] dark:text-[#0a84ff]">
+                <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-[#1e40af] dark:text-[#0a84ff]">
                   {stats.utilizationRate}%
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                  <Progress
-                    percent={stats.utilizationRate}
-                    showInfo={false}
+                  <Progress percent={stats.utilizationRate} showInfo={false}
                     strokeColor={isDark ? '#0a84ff' : '#1e40af'}
-                    railColor={isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9'}
+                    railColor={isDark ? 'rgba(255,255,255,0.1)' : '#f1f5f9'}
                     size={['100%', 4]}
                   />
                 </div>
@@ -574,32 +540,424 @@ export const DashboardPage: React.FC = () => {
         </Row>
       )}
 
+      {/* ── MANAGER / ADMIN STATS SECTION ─────────────────────────────────────── */}
+      {isManagerOrAdmin && (
+        <>
+          {/* Time range selector */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              {language === 'vi' ? 'Thống kê hệ thống' : 'System Statistics'}
+            </span>
+            <Segmented
+              options={timeRangeOptions}
+              value={timeRange}
+              onChange={(v) => setTimeRange(v as TimeRange)}
+              style={{ fontSize: 12 }}
+            />
+          </div>
 
-      {/* Admin: Top 3 phòng được đặt nhiều nhất tuần */}
-      {user?.role === 'ADMINISTRATOR' && topRooms.length > 0 && (
-        <div className={`p-4 rounded-2xl border transition-colors ${
-          isDark ? 'bg-[#1c1c1e] border-white/15' : 'bg-white border-slate-200'
-        }`}>
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-            {language === 'vi' ? 'Top phòng tuần này' : 'Top Rooms This Week'}
-          </div>
-          <div className="space-y-2">
-            {topRooms.map((room, idx) => (
-              <div key={room.name} className="flex items-center gap-3">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                  idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-slate-100 text-slate-500' : 'bg-orange-50 text-orange-400'
-                }`}>{idx + 1}</span>
-                <span className="text-sm flex-1 truncate font-medium text-slate-700 dark:text-zinc-200">{room.name}</span>
-                <span className="text-xs font-mono font-bold text-[#1e40af] dark:text-[#0a84ff]">
-                  {room.count} {language === 'vi' ? 'booking' : 'bookings'}
-                </span>
+          {/* Row 2: Area chart + Status donut */}
+          <Row gutter={[12, 12]}>
+            {/* Area chart xu hướng booking */}
+            <Col xs={24} lg={15}>
+              <div className={card('h-full')}>
+                <div className={`${labelClass} mb-3`}>
+                  {language === 'vi' ? 'Xu hướng booking' : 'Booking Trend'}
+                </div>
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-40"><Spin /></div>
+                ) : dailyChartData.length === 0 ? (
+                  <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
+                    {language === 'vi' ? 'Chưa có dữ liệu' : 'No data yet'}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={dailyChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gConfirmed" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#1e5bef" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#1e5bef" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gCheckedIn" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#52c41a" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#52c41a" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gCancelled" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ff4d4f" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#ff4d4f" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
+                      <Area type="monotone" dataKey={language === 'vi' ? 'Đã xác nhận' : 'Confirmed'} stroke="#1e5bef" strokeWidth={2} fill="url(#gConfirmed)" />
+                      <Area type="monotone" dataKey={language === 'vi' ? 'Đã check-in' : 'Checked In'} stroke="#52c41a" strokeWidth={2} fill="url(#gCheckedIn)" />
+                      <Area type="monotone" dataKey={language === 'vi' ? 'Đã hủy' : 'Cancelled'} stroke="#ff4d4f" strokeWidth={1.5} fill="url(#gCancelled)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+                <div className="flex gap-4 mt-2 flex-wrap">
+                  {[{ color: '#1e5bef', label: language === 'vi' ? 'Xác nhận' : 'Confirmed' }, { color: '#52c41a', label: language === 'vi' ? 'Check-in' : 'Checked In' }, { color: '#ff4d4f', label: language === 'vi' ? 'Hủy' : 'Cancelled' }].map((item) => (
+                    <div key={item.label} className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-[11px] text-slate-400">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </Col>
+
+            {/* Status donut */}
+            <Col xs={24} lg={9}>
+              <div className={card('h-full items-center')}>
+                <div className={`${labelClass} mb-2 self-start`}>
+                  {language === 'vi' ? 'Phân bổ trạng thái' : 'Status Distribution'}
+                </div>
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-40"><Spin /></div>
+                ) : (
+                  <>
+                    <PieChart width={150} height={150}>
+                      <Pie data={statusDonutData.length && statusDonutData.some(d => d.value > 0) ? statusDonutData : [{ name: '', value: 1, fill: isDark ? '#3a3a3c' : '#f1f5f9' }]}
+                        cx={71} cy={71} innerRadius={42} outerRadius={65} dataKey="value" strokeWidth={0}
+                      />
+                      <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
+                    </PieChart>
+                    <div className="space-y-2 w-full mt-1">
+                      {statusDonutData.map((item) => (
+                        <div key={item.name} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
+                            <span className="text-slate-500 dark:text-slate-400">{item.name}</span>
+                          </div>
+                          <span className="font-mono font-bold text-slate-700 dark:text-zinc-200">{item.value}</span>
+                        </div>
+                      ))}
+                      {statsData && (
+                        <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-white/5">
+                          {language === 'vi' ? 'Tổng' : 'Total'}: <strong className="text-slate-700 dark:text-zinc-100">{statsData.total}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </Col>
+          </Row>
+
+          {/* Row 3: Peak hours + Top rooms + Equipment */}
+          <Row gutter={[12, 12]}>
+            {/* Peak hours */}
+            <Col xs={24} sm={12} lg={9}>
+              <div className={card('h-full')}>
+                <div className={`${labelClass} mb-3`}>
+                  {language === 'vi' ? 'Giờ cao điểm' : 'Peak Hours'}
+                </div>
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-32"><Spin /></div>
+                ) : peakHoursData.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    {language === 'vi' ? 'Chưa có dữ liệu' : 'No data yet'}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={140}>
+                    <BarChart data={peakHoursData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                      <XAxis type="number" tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="hour" tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} width={28} />
+                      <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={12} fill={isDark ? '#0a84ff' : '#1e40af'} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </Col>
+
+            {/* Top rooms */}
+            <Col xs={24} sm={12} lg={9}>
+              <div className={card('h-full')}>
+                <div className={`${labelClass} mb-3`}>
+                  {language === 'vi' ? 'Top 5 phòng được đặt nhiều nhất' : 'Top 5 Most Booked Rooms'}
+                </div>
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-32"><Spin /></div>
+                ) : topRoomsData.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
+                    {language === 'vi' ? 'Chưa có dữ liệu' : 'No data yet'}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {topRoomsData.map((room, idx) => {
+                      const max = topRoomsData[0]?.total || 1;
+                      const pct = Math.round((room.total / max) * 100);
+                      return (
+                        <div key={room.room_id} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                              idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-zinc-300' : 'bg-orange-50 dark:bg-orange-900/20 text-orange-400'
+                            }`}>{idx + 1}</span>
+                            <span className="text-xs flex-1 truncate font-medium text-slate-700 dark:text-zinc-200">{room.room_name}</span>
+                            <span className="text-xs font-mono font-bold text-[#1e40af] dark:text-[#0a84ff]">{room.total}</span>
+                          </div>
+                          <div className="ml-7">
+                            <div className="h-1 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                              <div className="h-full rounded-full bg-[#1e40af] dark:bg-[#0a84ff] transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Col>
+
+            {/* Equipment donut (admin sees it here too, manager already has it in KPI) */}
+            <Col xs={24} sm={24} lg={6}>
+              <div className={card('h-full items-center')}>
+                <div className={`${labelClass} mb-2 self-start`}>
+                  {language === 'vi' ? 'Thiết bị' : 'Equipment'}
+                </div>
+                <PieChart width={120} height={100}>
+                  <Pie data={[
+                    { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
+                    { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
+                    { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
+                  ]} cx={56} cy={46} innerRadius={28} outerRadius={44} dataKey="value" strokeWidth={0} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+                <div className="w-full space-y-1.5 mt-1">
+                  {[
+                    { label: language === 'vi' ? 'Hoạt động' : 'Functional', count: equipmentStats.functional, color: '#52c41a' },
+                    { label: language === 'vi' ? 'Đang sửa' : 'Under Repair', count: equipmentStats.underRepair, color: '#faad14' },
+                    { label: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', count: equipmentStats.decommissioned, color: '#ff4d4f' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-slate-400">{item.label}</span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-600 dark:text-zinc-300">{item.count}</span>
+                    </div>
+                  ))}
+                  <div className="text-[11px] pt-1 border-t border-slate-100 dark:border-white/5 text-slate-400">
+                    {language === 'vi' ? 'Tổng' : 'Total'}: <strong className="text-slate-600 dark:text-zinc-200">{equipmentStats.total}</strong>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+
+          {/* Row 4: On-time rate + Cancel rate */}
+          <Row gutter={[12, 12]}>
+            <Col xs={24} sm={12}>
+              <div className={card('justify-between')}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={labelClass}>{language === 'vi' ? 'Tỷ lệ check-in đúng giờ' : 'On-Time Check-in Rate'}</span>
+                  <RiseOutlined className="text-emerald-500 text-sm" />
+                </div>
+                <div className="flex items-end gap-3">
+                  <span className="text-3xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {statsData ? `${Math.round(statsData.on_time_rate)}%` : '—'}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mb-1">
+                    {language === 'vi' ? 'trong kỳ đã chọn' : 'in selected period'}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <Progress
+                    percent={statsData ? Math.round(statsData.on_time_rate) : 0}
+                    showInfo={false}
+                    strokeColor={isDark ? '#30d158' : '#10b981'}
+                    railColor={isDark ? 'rgba(255,255,255,0.1)' : '#f1f5f9'}
+                    size={['100%', 6]}
+                  />
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} sm={12}>
+              <div className={card('justify-between')}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={labelClass}>{language === 'vi' ? 'Tỷ lệ hủy booking' : 'Cancellation Rate'}</span>
+                  <FallOutlined className="text-red-400 text-sm" />
+                </div>
+                <div className="flex items-end gap-3">
+                  <span className="text-3xl font-bold font-mono tabular-nums text-red-500 dark:text-red-400">
+                    {statsData ? `${Math.round(statsData.cancel_rate)}%` : '—'}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mb-1">
+                    {language === 'vi' ? 'trong kỳ đã chọn' : 'in selected period'}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <Progress
+                    percent={statsData ? Math.round(statsData.cancel_rate) : 0}
+                    showInfo={false}
+                    strokeColor={isDark ? '#ff453a' : '#ef4444'}
+                    railColor={isDark ? 'rgba(255,255,255,0.1)' : '#f1f5f9'}
+                    size={['100%', 6]}
+                  />
+                </div>
+              </div>
+            </Col>
+          </Row>
+
+          {/* Row 5 (admin only): Users + Audit logs + Policy config */}
+          {isAdmin && (
+            <Row gutter={[12, 12]}>
+              {/* Users widget */}
+              <Col xs={24} sm={8}>
+                <div className={card('h-full')}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <UserOutlined className="text-[#1e40af] dark:text-[#0a84ff]" />
+                      <span className={labelClass}>{language === 'vi' ? 'Người dùng' : 'Users'}</span>
+                    </div>
+                    <Button type="link" size="small" onClick={() => navigate('/admin/users')}
+                      style={{ padding: 0, fontSize: 11, color: isDark ? '#0a84ff' : '#1e40af' }}
+                    >
+                      {language === 'vi' ? 'Quản lý' : 'Manage'} <ArrowRightOutlined />
+                    </Button>
+                  </div>
+                  <div className="text-2xl font-bold font-mono tabular-nums text-slate-800 dark:text-white mb-3">
+                    {userStats.total}
+                    <span className="text-xs font-normal text-slate-400 ml-1.5">
+                      {language === 'vi' ? 'tài khoản' : 'accounts'}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: 'Employee', count: userStats.employee, color: '#1e40af' },
+                      { label: 'Room Manager', count: userStats.manager, color: '#7c3aed' },
+                      { label: 'Administrator', count: userStats.admin, color: '#ea580c' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 dark:text-slate-400">{item.label}</span>
+                        <span className="font-mono font-bold" style={{ color: item.color }}>{item.count}</span>
+                      </div>
+                    ))}
+                    {userStats.suspended > 0 && (
+                      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                        <Badge status="error" />
+                        <span className="text-[11px] text-red-500 dark:text-red-400">
+                          {userStats.suspended} {language === 'vi' ? 'tài khoản bị khóa' : 'suspended accounts'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Col>
+
+              {/* Recent audit logs */}
+              <Col xs={24} sm={8}>
+                <div className={card('h-full')}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <AuditOutlined className="text-amber-500" />
+                      <span className={labelClass}>{language === 'vi' ? 'Nhật ký gần đây' : 'Recent Audit Logs'}</span>
+                    </div>
+                    <Button type="link" size="small" onClick={() => navigate('/admin/audit-logs')}
+                      style={{ padding: 0, fontSize: 11, color: isDark ? '#0a84ff' : '#1e40af' }}
+                    >
+                      {language === 'vi' ? 'Xem tất cả' : 'View all'} <ArrowRightOutlined />
+                    </Button>
+                  </div>
+                  {recentLogs.length === 0 ? (
+                    <div className="flex items-center justify-center flex-1 text-slate-400 text-xs">
+                      {language === 'vi' ? 'Chưa có log nào' : 'No logs yet'}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recentLogs.slice(0, 5).map((log) => {
+                        const cfg = ACTION_TAG_CONFIG[log.action_type];
+                        return (
+                          <div key={log.id} className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {cfg && (
+                                  <Tag color={cfg.color} style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', margin: 0 }}>
+                                    {language === 'vi' ? cfg.labelVi : cfg.labelEn}
+                                  </Tag>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                {log.actor_name}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0 mt-0.5">
+                              {dayjs(log.timestamp).format('HH:mm DD/MM')}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </Col>
+
+              {/* Policy config */}
+              <Col xs={24} sm={8}>
+                <div className={card('h-full')}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <SettingOutlined className="text-slate-500" />
+                      <span className={labelClass}>{language === 'vi' ? 'Cấu hình hiện tại' : 'Current Config'}</span>
+                    </div>
+                    <Button type="link" size="small" onClick={() => navigate('/admin/settings')}
+                      style={{ padding: 0, fontSize: 11, color: isDark ? '#0a84ff' : '#1e40af' }}
+                    >
+                      {language === 'vi' ? 'Chỉnh sửa' : 'Edit'} <ArrowRightOutlined />
+                    </Button>
+                  </div>
+                  {policyConfig ? (
+                    <div className="space-y-1.5 text-xs">
+                      {[
+                        {
+                          label: language === 'vi' ? 'Đặt trước tối đa' : 'Max advance',
+                          value: `${policyConfig.max_advance_days} ${language === 'vi' ? 'ngày' : 'days'}`,
+                        },
+                        {
+                          label: language === 'vi' ? 'Thời lượng tối đa' : 'Max duration',
+                          value: `${policyConfig.max_duration_minutes} ${language === 'vi' ? 'phút' : 'min'}`,
+                        },
+                        {
+                          label: language === 'vi' ? 'Thời lượng tối thiểu' : 'Min duration',
+                          value: `${policyConfig.min_duration_minutes} ${language === 'vi' ? 'phút' : 'min'}`,
+                        },
+                        {
+                          label: language === 'vi' ? 'Cửa sổ check-in' : 'Check-in window',
+                          value: `±${policyConfig.check_in_window_minutes} ${language === 'vi' ? 'phút' : 'min'}`,
+                        },
+                        {
+                          label: language === 'vi' ? 'Hủy tự động' : 'Auto-release',
+                          value: policyConfig.enable_auto_release_no_show
+                            ? `${policyConfig.auto_release_grace_minutes} ${language === 'vi' ? 'phút' : 'min'}`
+                            : (language === 'vi' ? 'Tắt' : 'Off'),
+                        },
+                        {
+                          label: language === 'vi' ? 'Buffer giữa các họp' : 'Buffer between',
+                          value: `${policyConfig.buffer_minutes_between_meetings} ${language === 'vi' ? 'phút' : 'min'}`,
+                        },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center justify-between gap-2 py-0.5 border-b border-slate-50 dark:border-white/5 last:border-0">
+                          <span className="text-slate-500 dark:text-slate-400">{item.label}</span>
+                          <span className="font-mono font-semibold text-slate-700 dark:text-zinc-200 shrink-0">{item.value}</span>
+                        </div>
+                      ))}
+                      <div className="text-[10px] text-slate-400 pt-1">
+                        {language === 'vi' ? 'Cập nhật bởi' : 'Updated by'}: {policyConfig.updated_by_name}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center flex-1"><Spin size="small" /></div>
+                  )}
+                </div>
+              </Col>
+            </Row>
+          )}
+        </>
       )}
 
-      {/* 3. LỊCH HỌP THEO NGÀY */}
+      {/* ── BOOKING CALENDAR ──────────────────────────────────────────────────── */}
       <BookingCalendar
         bookings={bookings}
         currentDate={calendarDate}
@@ -623,140 +981,6 @@ export const DashboardPage: React.FC = () => {
           navigate(`/rooms/${b.room_id}/book`);
         }}
       />
-
-      {/* 4. BOOKING CỦA BẠN SẮP TỚI */}
-      <div className={`p-4 sm:p-5 rounded-2xl border transition-colors ${
-        isDark ? 'bg-[#1c1c1e] border-white/15 text-white' : 'bg-white border-slate-200 text-slate-800'
-      }`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-white/10">
-          <div>
-            <span className="font-bold text-sm sm:text-base flex items-center gap-2">
-              {/* <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-[#0a84ff]' : 'bg-[#1e40af]'}`} /> */}
-              {t.upcomingMeetingsTitle}
-            </span>
-            <span className="text-xs text-slate-400 mt-0.5 block">
-              {t.upcomingMeetingsSub}
-            </span>
-          </div>
-
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate('/my-bookings')}
-            style={{ padding: 0, color: isDark ? '#0a84ff' : '#1e40af', fontSize: 12, fontWeight: 500 }}
-          >
-            {t.viewAllBookings} <ArrowRightOutlined />
-          </Button>
-        </div>
-
-        {/* List of upcoming bookings */}
-        {loading ? (
-          <div className="py-12 text-center">
-            <Spin description={t.loadingRooms} />
-          </div>
-        ) : upcomingBookings.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={t.noUpcomingMeetings}
-            >
-            </Empty>
-          </div>
-        ) : (
-          <Row gutter={[12, 12]}>
-            {upcomingBookings.map((b) => {
-              const eligible = isCheckInEligible(b.start_at);
-
-              return (
-                <Col xs={24} sm={12} lg={8} key={b.id}>
-                  <div
-                    className={`p-3.5 rounded-xl border flex flex-col justify-between h-full transition-all ${
-                      eligible
-                        ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-xs'
-                        : isDark
-                        ? 'bg-[#242426] border-white/15 hover:border-[#0a84ff] hover:bg-[#2c2c2e]'
-                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
-                    }`}
-                  >
-                    <div>
-                      {/* Top Header */}
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <div
-                          className="font-bold text-sm hover:text-[#1e40af] dark:hover:text-[#0a84ff] transition-colors cursor-pointer truncate"
-                          onClick={() => navigate(`/rooms/${b.room_id}`)}
-                        >
-                          {b.room_name}
-                        </div>
-                        {eligible ? (
-                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md animate-pulse shrink-0">
-                            {t.needsCheckInNow}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/10 dark:text-zinc-200 px-2 py-0.5 rounded-md shrink-0">
-                            {dayjs(b.start_at).format('DD/MM')}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Purpose */}
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-2.5 truncate">
-                        {b.purpose || t.internalWorkMeeting}
-                      </div>
-
-                      {/* Time & Attendees */}
-                      <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100 dark:border-white/10">
-                        <div className="flex items-center gap-1.5 font-mono font-medium text-[#1e40af] dark:text-[#0a84ff] tabular-nums">
-                          <ClockCircleOutlined />
-                          <span>
-                            {dayjs(b.start_at).format('HH:mm')} - {dayjs(b.end_at).format('HH:mm')}
-                          </span>
-                        </div>
-
-                        <div className="text-slate-400 flex items-center gap-1 text-[11px]">
-                          <TeamOutlined />
-                          <span>{b.num_attendees} {t.peopleUnit}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between mt-2">
-                      <span className="text-[10px] font-mono text-slate-400">#{b.id}</span>
-                      {eligible ? (
-                        <Button
-                          type="primary"
-                          size="small"
-                          icon={<CheckOutlined />}
-                          loading={checkingInId === b.id}
-                          onClick={() => handleCheckIn(b.id)}
-                          style={{
-                            backgroundColor: '#30d158',
-                            borderColor: '#30d158',
-                            borderRadius: 6,
-                            fontWeight: 600,
-                            fontSize: 11,
-                          }}
-                        >
-                          {t.checkInNow}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="small"
-                          type="text"
-                          onClick={() => navigate('/my-bookings')}
-                          style={{ fontSize: 11, color: isDark ? '#0a84ff' : '#64748b' }}
-                        >
-                          {t.viewDetails}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-              );
-            })}
-          </Row>
-        )}
-      </div>
     </div>
   );
 };
