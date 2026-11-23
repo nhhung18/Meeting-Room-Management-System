@@ -7,8 +7,9 @@ Create Date: 2026-11-20
 FR-04: cuộc họp online/offline/hybrid + link họp online
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0015"
 down_revision = "0014"
