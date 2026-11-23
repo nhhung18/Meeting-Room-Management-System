@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { request } from './http';
 import { toAttendeeInput, toTzAwareIso } from './mappers';
-import type { Booking, BookingFilterParams, PaginatedResponse, Attendee } from '../types';
+import type { Booking, BookingFilterParams, MeetingType, PaginatedResponse, Attendee } from '../types';
 
 export interface BookingWriteInput {
   room_id: number;
@@ -10,6 +10,8 @@ export interface BookingWriteInput {
   num_attendees: number;
   title?: string;
   purpose?: string;
+  meeting_type?: MeetingType;
+  meeting_link?: string | null;
   attendees?: Pick<Attendee, 'attendee_email' | 'name'>[];
 }
 
@@ -67,6 +69,8 @@ export async function createBooking(data: BookingWriteInput): Promise<Booking> {
     num_attendees: data.num_attendees,
     title: data.title ?? null,
     purpose: data.purpose ?? null,
+    meeting_type: data.meeting_type ?? 'OFFLINE',
+    meeting_link: data.meeting_link ?? null,
     attendees: (data.attendees ?? []).map(toAttendeeInput),
   };
   return request<Booking>('/bookings/', { method: 'POST', body });

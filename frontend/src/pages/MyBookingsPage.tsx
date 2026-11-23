@@ -188,7 +188,28 @@ export const MyBookingsPage: React.FC = () => {
               <span className="text-slate-400">{t.notYetCheckedIn}</span>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label={t.fieldPurpose} span={2}>{record.purpose || (language === 'vi' ? 'Họp nội bộ' : 'Internal Meeting')}</Descriptions.Item>
+          <Descriptions.Item label={t.fieldMeetingType}>
+            {record.meeting_type === 'ONLINE' ? (
+              <span className="text-blue-500 font-medium">🌐 {t.meetingTypeOnline}</span>
+            ) : record.meeting_type === 'HYBRID' ? (
+              <span className="text-purple-500 font-medium">📹 {t.meetingTypeHybrid}</span>
+            ) : (
+              <span className="text-green-500 font-medium">📍 {t.meetingTypeOffline}</span>
+            )}
+          </Descriptions.Item>
+          {record.meeting_link && (
+            <Descriptions.Item label={t.fieldMeetingLink} span={2}>
+              <a
+                href={record.meeting_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:underline break-all"
+              >
+                {record.meeting_link}
+              </a>
+            </Descriptions.Item>
+          )}
+          <Descriptions.Item label={t.fieldPurpose} span={record.meeting_link ? 3 : 2}>{record.purpose || (language === 'vi' ? 'Họp nội bộ' : 'Internal Meeting')}</Descriptions.Item>
           <Descriptions.Item label={t.autoCancelLabel}>
             {record.auto_cancelled_at ? (
               <span className="text-rose-400">{dayjs(record.auto_cancelled_at).format('HH:mm DD/MM')}</span>
