@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.booking import Booking, BookingAttendee, BookingStatus
 from app.models.room_snapshot import RoomSnapshot
@@ -388,7 +389,7 @@ class TestMeetingTypeLink:
     def test_create_online_without_link_raises(self):
         """ONLINE mà thiếu meeting_link → 422."""
         now = datetime.now(UTC)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BookingCreate(
                 room_id=1,
                 start_at=now + timedelta(hours=1),
@@ -400,7 +401,7 @@ class TestMeetingTypeLink:
     def test_create_hybrid_without_link_raises(self):
         """HYBRID mà thiếu meeting_link → 422."""
         now = datetime.now(UTC)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BookingCreate(
                 room_id=1,
                 start_at=now + timedelta(hours=1),
@@ -438,7 +439,7 @@ class TestMeetingTypeLink:
 
     def test_update_online_without_link_raises(self):
         """Update đổi sang ONLINE mà không kèm link → 422."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BookingUpdate(meeting_type="ONLINE")
 
     def test_update_offline_no_link_ok(self):
