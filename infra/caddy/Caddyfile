@@ -1,4 +1,4 @@
-{$MRMS_DOMAIN} {
+http://{$MRMS_DOMAIN} {
 	encode gzip
 	reverse_proxy nginx:80
 }
