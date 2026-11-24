@@ -253,3 +253,33 @@ class TestSyncRooms:
     def test_sync_rooms_employee_forbidden(self, client, employee_user):
         resp = client.post("/api/bookings/admin/sync-rooms")
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# TestBookingAudit — FR-08: mỗi thao tác tạo/sửa phải để lại đúng 1 audit entry
+# ---------------------------------------------------------------------------
+
+
+def _audit_actions(mock_db) -> list[str]:
+    from app.models.audit_log import AuditLog
+
+    return [
+        c.args[0].action_type
+        for c in mock_db.add.call_args_list
+        if isinstance(c.args[0], AuditLog)
+    ]
+
+
+class TestBookingAudit:
+    def test_create_writes_booking_created_audit(self, client, admin_user, mock_service, mock_db):
+        mock_service.create_booking.return_value = _booking_response()
+        resp = client.post("/api/bookings/", json=_valid_body())
+        assert resp.status_code == 201
+        assert _audit_actions(mock_db) == ["BOOKING_CREATED"]
+
+    def test_update_writes_booking_updated_audit(self, client, admin_user, mock_service, mock_db):
+        mock_service.get_booking.return_value = _booking_response(user_id="emp1")
+        mock_service.update_booking.return_value = _booking_response(num_attendees=8)
+        resp = client.patch("/api/bookings/1", json={"num_attendees": 8})
+        assert resp.status_code == 200
+        assert _audit_actions(mock_db) == ["BOOKING_UPDATED"]

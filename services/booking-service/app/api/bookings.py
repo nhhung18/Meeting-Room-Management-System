@@ -178,6 +178,20 @@ def create_booking(
                     ),
                 )
             )
+        # Cùng transaction với booking + outbox: không có booking nào thiếu dấu vết audit
+        write_audit(
+            db,
+            user.sub,
+            user.roles,
+            "BOOKING_CREATED",
+            actor_name=user.email or user.sub,
+            target_id=result.id,
+            target_name=result.room_name,
+            details=(
+                f"Đặt phòng từ {result.start_at.strftime('%H:%M')}"
+                f" đến {result.end_at.strftime('%H:%M')} — {result.purpose or ''}"
+            ),
+        )
         db.commit()
         return result
     except BookingService.DomainError as exc:
@@ -267,13 +281,13 @@ def update_booking(
             db,
             user.sub,
             user.roles,
-            "BOOKING_CREATED",
+            "BOOKING_UPDATED",
             actor_name=user.email or user.sub,
             target_id=result.id,
             target_name=result.room_name,
             details=(
-                f"Đặt phòng từ {result.start_at.strftime('%H:%M')}"
-                f" đến {result.end_at.strftime('%H:%M')} — {result.purpose or ''}"
+                f"Cập nhật booking #{result.id}: {result.start_at.strftime('%H:%M')}"
+                f" – {result.end_at.strftime('%H:%M')}"
             ),
         )
         db.commit()
