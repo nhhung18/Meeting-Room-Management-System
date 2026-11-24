@@ -264,9 +264,7 @@ def _audit_actions(mock_db) -> list[str]:
     from app.models.audit_log import AuditLog
 
     return [
-        c.args[0].action_type
-        for c in mock_db.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0].action_type for c in mock_db.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
 
 
