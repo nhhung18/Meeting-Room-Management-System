@@ -21,7 +21,7 @@ from app.schemas.report import (
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
-# Giả định 7 (docs/assumptions.md): mỗi phòng khả dụng 08:00–18:00 mỗi ngày lịch trong kỳ.
+# Giả định 8 (docs/assumptions.md): mỗi phòng khả dụng 08:00–18:00 mỗi ngày lịch trong kỳ.
 # Mẫu số của tỷ lệ sử dụng; chưa có policy giờ làm việc nên để hằng số, đổi ở một chỗ.
 AVAILABLE_HOURS_PER_DAY = 10
 
