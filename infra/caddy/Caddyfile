@@ -1,8 +1,4 @@
-{
-	auto_https off
-}
-
-http://{$MRMS_DOMAIN} {
+{$MRMS_DOMAIN} {
 	encode gzip
 	reverse_proxy nginx:80
 }
