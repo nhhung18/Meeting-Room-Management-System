@@ -171,9 +171,9 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-    fetchStats(timeRange);
   }, []);
 
+  // fetchStats gọi khi mount (timeRange mặc định '7days') và khi user đổi kỳ
   useEffect(() => {
     fetchStats(timeRange);
   }, [timeRange]);
