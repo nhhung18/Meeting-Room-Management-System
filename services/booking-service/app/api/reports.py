@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.core.security import TokenPayload, require_admin
+from app.core.security import TokenPayload, require_manager_or_admin
 from app.db.session import get_db
 from app.models.booking import Booking
 from app.models.room_snapshot import RoomSnapshot
@@ -25,7 +25,7 @@ def get_report_stats(
     start_date: date = Query(..., description="Start date (inclusive)"),
     end_date: date = Query(..., description="End date (inclusive)"),
     db: Session = Depends(get_db),
-    _: TokenPayload = Depends(require_admin),
+    _: TokenPayload = Depends(require_manager_or_admin),
 ) -> ReportStatsResponse:
     start_dt = datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC)
     end_dt = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=UTC)
