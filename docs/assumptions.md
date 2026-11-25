@@ -416,5 +416,33 @@ Message drop âm thầm. Không có lỗi nào xuất hiện trong log. User kh�
 
 ---
 
+## 8. Báo cáo (FR-07): Tỷ lệ sử dụng phòng và "không check-in"
+
+### Giả định
+
+1. **Giờ khả dụng**: mỗi phòng khả dụng **08:00–18:00 = 10 giờ/ngày**, tính **mọi ngày lịch** trong kỳ báo cáo.
+2. **Tỷ lệ sử dụng** = `giờ đã đặt / (số ngày × 10h) × 100`, làm tròn 1 chữ số, **tối đa 100%**.
+   Chỉ tính booking `CONFIRMED` và `CHECKED_IN`; booking `CANCELLED` không chiếm giờ.
+3. **Không check-in (no-show)** = booking có `auto_cancelled_at` (hệ thống tự hủy do quá hạn check-in).
+   `cancelled` vẫn là **tổng** hủy (hủy tay + hủy tự động) để khớp tỷ lệ hủy đã có.
+4. Phòng chưa có booking nào vẫn xuất hiện trong báo cáo với **0%** (lấy danh sách từ `room_snapshots`).
+
+### Ví dụ
+
+```
+Kỳ 01–10/03/2020 → 10 ngày × 10h = 100h khả dụng
+Phòng P101: đặt 2h (CHECKED_IN) + 3h (CONFIRMED) + 1h (CANCELLED)
+→ hours_booked = 5.0 (booking hủy bị loại), utilisation_rate = 5.0%
+```
+
+### Hệ quả nếu giả định sai
+
+- Công ty làm việc khác 08:00–18:00 hoặc cuối tuần ít dùng → mẫu số lệch, tỷ lệ thấp/cao hơn thực tế.
+  Hằng số `AVAILABLE_HOURS_PER_DAY` ở `app/api/reports.py` là điểm sửa duy nhất; nếu cần chính xác
+  hơn thì chuyển thành policy trong `system_policies`.
+- Nếu admin tắt `enable_auto_release_no_show`, booking vắng mặt **không** bị hủy nên không được đếm là no-show.
+
+---
+
 **Người viết:** Hùng (với sự hỗ trợ của Claude)  
 **Ngày:** 2026-10-09

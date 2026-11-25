@@ -86,6 +86,9 @@ export const ReportsPage: React.FC = () => {
   // Time range for Stats tab ('7days' | '30days' | 'quarter')
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | 'quarter'>('7days');
 
+  // FR-07: số lượt đặt theo ngày hoặc theo tháng
+  const [granularity, setGranularity] = useState<'day' | 'month'>('day');
+
   const fetchHistoryData = async () => {
     try {
       setLoading(true);
@@ -177,6 +180,7 @@ export const ReportsPage: React.FC = () => {
       totalBookings: statsData.total,
       checkedIn: statsData.checked_in,
       cancelled: statsData.cancelled,
+      autoCancelled: statsData.auto_cancelled,
       confirmed: statsData.confirmed,
       onTimeRate: statsData.on_time_rate,
       cancelRate: statsData.cancel_rate,
@@ -194,6 +198,29 @@ export const ReportsPage: React.FC = () => {
       [t.barCancelled]: d.cancelled,
     }));
   }, [statsData, t]);
+
+  // Chart 1 (chế độ tháng): cùng 3 series, gộp theo tháng từ backend
+  const chartMonthlyData = useMemo(() => {
+    if (!statsData) return [];
+    return statsData.monthly_stats.map((m) => ({
+      name: dayjs(`${m.month}-01`).format('MM/YYYY'),
+      [t.barConfirmed]: m.total - m.checked_in - m.cancelled,
+      [t.barCheckedIn]: m.checked_in,
+      [t.barCancelled]: m.cancelled,
+    }));
+  }, [statsData, t]);
+
+  const chartTrendData = granularity === 'day' ? chartDailyData : chartMonthlyData;
+
+  // Chart 4: tỷ lệ sử dụng của MỌI phòng — từ backend API
+  const chartUtilisationData = useMemo(() => {
+    if (!statsData) return [];
+    return statsData.room_utilisation.map((r) => ({
+      room: r.room_name,
+      rate: r.utilisation_rate,
+      hours: r.hours_booked,
+    }));
+  }, [statsData]);
 
   // Chart 2: Status distribution (Pie Chart) — from backend API
   const chartStatusData = useMemo(() => {
@@ -329,7 +356,7 @@ export const ReportsPage: React.FC = () => {
 
             {/* Stat Cards Row */}
             <Row gutter={[12, 12]}>
-              <Col xs={12} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={{ flex: '1 1 0' }}>
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiTotalBookings}</span>}
@@ -341,7 +368,7 @@ export const ReportsPage: React.FC = () => {
                 </div>
               </Col>
 
-              <Col xs={12} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={{ flex: '1 1 0' }}>
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiOnTimeRate}</span>}
@@ -354,7 +381,7 @@ export const ReportsPage: React.FC = () => {
                 </div>
               </Col>
 
-              <Col xs={12} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={{ flex: '1 1 0' }}>
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <Statistic
                     title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiCancelRate}</span>}
@@ -367,7 +394,19 @@ export const ReportsPage: React.FC = () => {
                 </div>
               </Col>
 
-              <Col xs={12} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={{ flex: '1 1 0' }}>
+                <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
+                  <Statistic
+                    title={<span className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider">{t.kpiNoShow}</span>}
+                    value={statsMetrics?.autoCancelled ?? '--'}
+                    valueStyle={{ color: '#ff9f0a', fontWeight: 700, fontSize: '22px' }}
+                    prefix={<CloseCircleOutlined style={{ fontSize: 16, marginRight: 6, color: '#ff9f0a' }} />}
+                  />
+                  <div className="text-[11px] text-slate-400 dark:text-zinc-400 mt-1 truncate">{t.kpiNoShowSub}</div>
+                </div>
+              </Col>
+
+              <Col xs={12} sm={12} lg={{ flex: '1 1 0' }}>
                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="text-[11px] uppercase text-slate-400 dark:text-zinc-400 font-semibold tracking-wider mb-1">
                     {t.kpiMostPopularRoom}
@@ -388,10 +427,23 @@ export const ReportsPage: React.FC = () => {
               {/* Chart 1: Bar Chart */}
               <Col xs={24} lg={12}>
                 <div className={`p-4 rounded-xl border h-full ${isDark ? 'bg-[#242426] border-white/15' : 'bg-white border-slate-200'}`}>
-                  <span className="font-bold text-sm block mb-3">{t.chartDailyTitle}</span>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="font-bold text-sm">
+                      {granularity === 'day' ? t.chartDailyTitle : t.chartMonthlyTitle}
+                    </span>
+                    <Radio.Group
+                      value={granularity}
+                      onChange={(e) => setGranularity(e.target.value)}
+                      buttonStyle="solid"
+                      size="small"
+                    >
+                      <Radio.Button value="day">{t.granularityDay}</Radio.Button>
+                      <Radio.Button value="month">{t.granularityMonth}</Radio.Button>
+                    </Radio.Group>
+                  </div>
                   <div className="h-[260px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartDailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <BarChart data={chartTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? 'rgba(255, 255, 255, 0.10)' : '#f0f0f0'} />
                         <XAxis dataKey="name" stroke={isDark ? '#a1a1a6' : '#64748b'} fontSize={11} />
                         <YAxis stroke={isDark ? '#a1a1a6' : '#64748b'} fontSize={11} allowDecimals={false} />
@@ -483,6 +535,42 @@ export const ReportsPage: React.FC = () => {
                           itemStyle={{ color: isDark ? '#ffffff' : '#141b54' }}
                         />
                         <Bar dataKey={t.metricBookingsCount} fill="#00c2e8" radius={[0, 6, 6, 0]} barSize={18} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </Col>
+
+              {/* Chart 4: Utilisation of every room (FR-07) */}
+              <Col xs={24}>
+                <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#242426] border-white/15' : 'bg-white border-slate-200'}`}>
+                  <span className="font-bold text-sm block mb-3">{t.chartUtilisationTitle}</span>
+                  <div className="w-full" style={{ height: Math.max(120, chartUtilisationData.length * 30 + 40) }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartUtilisationData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 30, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={isDark ? 'rgba(255, 255, 255, 0.10)' : '#f0f0f0'} />
+                        <XAxis type="number" domain={[0, 100]} unit="%" stroke={isDark ? '#a1a1a6' : '#64748b'} fontSize={11} />
+                        <YAxis dataKey="room" type="category" stroke={isDark ? '#a1a1a6' : '#64748b'} fontSize={11} width={130} />
+                        <RechartsTooltip
+                          formatter={(value, _name, item) => [
+                            `${value}% (${item.payload.hours} ${t.utilisationHoursBooked.toLowerCase()})`,
+                            t.utilisationRate,
+                          ]}
+                          contentStyle={{
+                            backgroundColor: isDark ? '#2c2c2e' : '#ffffff',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : '#e2e8f0',
+                            color: isDark ? '#ffffff' : '#141b54',
+                            borderRadius: 8,
+                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+                            fontSize: 12,
+                          }}
+                          itemStyle={{ color: isDark ? '#ffffff' : '#141b54' }}
+                        />
+                        <Bar dataKey="rate" fill="#30d158" radius={[0, 6, 6, 0]} barSize={16} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

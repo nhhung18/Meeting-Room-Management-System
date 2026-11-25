@@ -299,6 +299,14 @@ export interface Translations {
   barCheckedIn: string;
   barCancelled: string;
   metricBookingsCount: string;
+  kpiNoShow: string;
+  kpiNoShowSub: string;
+  chartMonthlyTitle: string;
+  granularityDay: string;
+  granularityMonth: string;
+  chartUtilisationTitle: string;
+  utilisationHoursBooked: string;
+  utilisationRate: string;
   filterHistorySearch: string;
   allMeetingRoomsOption: string;
   noDataAvailable: string;
@@ -779,6 +787,14 @@ const translations: Record<Language, Translations> = {
     barCheckedIn: 'Đã check-in',
     barCancelled: 'Đã hủy',
     metricBookingsCount: 'Số lượt đặt',
+    kpiNoShow: 'Không check-in',
+    kpiNoShowSub: 'Hệ thống tự hủy do vắng mặt',
+    chartMonthlyTitle: 'Số booking theo tháng',
+    granularityDay: 'Theo ngày',
+    granularityMonth: 'Theo tháng',
+    chartUtilisationTitle: 'Tỷ lệ sử dụng từng phòng (giờ đặt / giờ khả dụng 08:00–18:00)',
+    utilisationHoursBooked: 'Giờ đã đặt',
+    utilisationRate: 'Tỷ lệ sử dụng',
     filterHistorySearch: 'Tìm theo phòng, tên người đặt, mục đích...',
     allMeetingRoomsOption: 'Tất cả phòng họp',
     noDataAvailable: 'Chưa có dữ liệu',
@@ -1257,6 +1273,14 @@ const translations: Record<Language, Translations> = {
     barCheckedIn: 'Checked In',
     barCancelled: 'Cancelled',
     metricBookingsCount: 'Bookings Count',
+    kpiNoShow: 'No-shows',
+    kpiNoShowSub: 'Auto-cancelled for no check-in',
+    chartMonthlyTitle: 'Bookings by Month',
+    granularityDay: 'By day',
+    granularityMonth: 'By month',
+    chartUtilisationTitle: 'Room Utilisation (booked hours / available 08:00–18:00)',
+    utilisationHoursBooked: 'Hours booked',
+    utilisationRate: 'Utilisation',
     filterHistorySearch: 'Search room, organizer, purpose...',
     allMeetingRoomsOption: 'All Meeting Rooms',
     noDataAvailable: 'No data available',

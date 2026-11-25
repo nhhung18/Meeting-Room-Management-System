@@ -49,6 +49,7 @@ def current_user(
 
 
 _require_admin_check = require_roles("Administrator")
+_require_manager_or_admin_check = require_roles("Room Manager")
 
 
 def require_admin(
@@ -57,5 +58,15 @@ def require_admin(
     """Dependency: chỉ Administrator."""
     try:
         return _require_admin_check(user)
+    except AuthError as e:
+        raise HTTPException(e.status_code, detail=e.detail) from None
+
+
+def require_manager_or_admin(
+    user: TokenPayload = Depends(current_user),
+) -> TokenPayload:
+    """Dependency: RoomManager hoặc Administrator."""
+    try:
+        return _require_manager_or_admin_check(user)
     except AuthError as e:
         raise HTTPException(e.status_code, detail=e.detail) from None
