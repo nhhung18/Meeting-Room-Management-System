@@ -5,10 +5,15 @@ Dùng write_audit() ngay trước db.commit() để entry và data chính cùng 
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from common.request_id import request_id_ctx
 from sqlalchemy.orm import Session
 
 from app.repositories.audit_log_repository import AuditLogRepository
+
+# Set bởi middleware trong main.py; đọc tự động trong write_audit().
+client_ip_ctx: ContextVar[str | None] = ContextVar("client_ip_ctx", default=None)
 
 _ROLE_MAP = {
     "Administrator": "ADMINISTRATOR",
@@ -34,9 +39,11 @@ def write_audit(
     target_id: str | int | None = None,
     target_name: str | None = None,
     details: str | None = None,
+    result: str | None = "SUCCESS",
 ) -> None:
     """Thêm 1 AuditLog entry vào session (chưa commit)."""
     rid = request_id_ctx.get("-")
+    ip = client_ip_ctx.get(None)
     AuditLogRepository(db).create(
         actor_id=actor_id,
         actor_name=actor_name or actor_id,
@@ -46,4 +53,6 @@ def write_audit(
         target_name=target_name,
         details=details,
         request_id=rid if rid != "-" else None,
+        ip_address=ip,
+        result=result,
     )

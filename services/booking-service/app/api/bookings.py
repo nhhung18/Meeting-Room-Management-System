@@ -86,12 +86,23 @@ def _domain_to_http(exc: BookingService.DomainError) -> HTTPException:
 # ---------------------------------------------------------------------------
 
 
-def _check_ownership(booking: BookingResponse, user: TokenPayload) -> None:
+def _check_ownership(booking: BookingResponse, user: TokenPayload, db: Session) -> None:
     """Raise 403 if user is not the owner and not an admin."""
     if "Administrator" in user.roles:
         return
     if booking.user_id == user.sub:
         return
+    write_audit(
+        db,
+        user.sub,
+        user.roles,
+        "ACCESS_DENIED",
+        actor_name=user.email or user.sub,
+        target_id=booking.id,
+        details=f"Truy cập booking #{booking.id} không phải của mình",
+        result="DENIED",
+    )
+    db.commit()
     raise HTTPException(status_code=403, detail="Access forbidden")
 
 
@@ -230,6 +241,7 @@ def list_bookings(
 @router.get("/{booking_id}", response_model=BookingResponse)
 def get_booking(
     booking_id: int,
+    db: Session = Depends(get_db),
     user: TokenPayload = Depends(current_user),
     service: BookingService = Depends(_get_booking_service),
 ) -> BookingResponse:
@@ -237,7 +249,7 @@ def get_booking(
         booking = service.get_booking(booking_id)
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
-    _check_ownership(booking, user)
+    _check_ownership(booking, user, db)
     return booking
 
 
@@ -254,7 +266,7 @@ def update_booking(
         existing = service.get_booking(booking_id)
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
-    _check_ownership(existing, user)
+    _check_ownership(existing, user, db)
 
     try:
         result = service.update_booking(booking_id, body, user_id=user.sub)
@@ -313,7 +325,7 @@ def cancel_booking(
         existing = service.get_booking(booking_id)
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
-    _check_ownership(existing, user)
+    _check_ownership(existing, user, db)
 
     try:
         result = service.cancel_booking(booking_id)
@@ -357,7 +369,7 @@ def check_in_booking(
         existing = service.get_booking(booking_id)
     except BookingService.DomainError as exc:
         raise _domain_to_http(exc) from exc
-    _check_ownership(existing, user)
+    _check_ownership(existing, user, db)
 
     try:
         result = service.check_in_booking(booking_id)

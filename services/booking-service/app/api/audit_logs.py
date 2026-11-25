@@ -2,10 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.security import TokenPayload, require_admin
+from app.core.audit import write_audit
+from app.core.security import TokenPayload, current_user, require_admin
 from app.db.session import get_db
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.schemas.audit_log import AuditLogListResponse, AuditLogResponse
@@ -13,6 +14,27 @@ from app.schemas.audit_log import AuditLogListResponse, AuditLogResponse
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/audit-logs", tags=["audit-logs"])
+
+
+@router.post("/login-audit", status_code=status.HTTP_204_NO_CONTENT)
+def login_audit(
+    user: TokenPayload = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Ghi audit LOGIN_SUCCESS khi user đăng nhập thành công qua Auth0.
+    Gọi bởi frontend ngay sau khi isAuthenticated = true.
+    """
+    write_audit(
+        db,
+        user.sub,
+        user.roles,
+        "LOGIN_SUCCESS",
+        actor_name=user.email or user.sub,
+        details="Đăng nhập thành công",
+        result="SUCCESS",
+    )
+    db.commit()
+    logger.info("login audit recorded", extra={"fields": {"user": user.sub}})
 
 
 @router.get("/", response_model=AuditLogListResponse)

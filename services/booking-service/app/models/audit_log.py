@@ -22,3 +22,4 @@ class AuditLog(Base):
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(50), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    result: Mapped[str | None] = mapped_column(String(20), nullable=True, default="SUCCESS")

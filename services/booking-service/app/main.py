@@ -4,6 +4,7 @@ import time
 from fastapi import FastAPI, Request
 
 from app.api import audit_logs, bookings, health, policies, reports, users
+from app.core.audit import client_ip_ctx
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import REQUEST_ID_HEADER, request_id_ctx, resolve_request_id
@@ -26,6 +27,7 @@ async def request_context(request: Request, call_next):
     """Gắn request ID vào context, đo thời gian xử lý và ghi một dòng access log."""
     request_id = resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
     token = request_id_ctx.set(request_id)
+    ip_token = client_ip_ctx.set(request.client.host if request.client else None)
     started = time.perf_counter()
     try:
         response = await call_next(request)
@@ -44,6 +46,7 @@ async def request_context(request: Request, call_next):
         return response
     finally:
         request_id_ctx.reset(token)
+        client_ip_ctx.reset(ip_token)
 
 
 # /health nội bộ cho Docker healthcheck; /api/bookings/health cho truy cập qua Nginx.

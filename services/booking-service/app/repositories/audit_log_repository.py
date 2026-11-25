@@ -22,6 +22,7 @@ class AuditLogRepository:
         details: str | None = None,
         ip_address: str | None = None,
         request_id: str | None = None,
+        result: str | None = "SUCCESS",
     ) -> AuditLog:
         entry = AuditLog(
             actor_id=actor_id,
@@ -33,6 +34,7 @@ class AuditLogRepository:
             details=details,
             ip_address=ip_address,
             request_id=request_id,
+            result=result,
         )
         self.db.add(entry)
         return entry

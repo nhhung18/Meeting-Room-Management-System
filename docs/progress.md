@@ -1,6 +1,6 @@
 # Tiến trình dự án — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-11-25
+> Cập nhật lần cuối: 2026-11-26
 
 ## Tuần 1–2: Foundation & Skeleton
 
@@ -71,13 +71,13 @@
 | FR-05 | Admin cấu hình runtime policy (check-in window) | ✅ Done | system_policies table; PolicyService cache 60s; PATCH /api/bookings/policies/{key} |
 | FR-06 | Thông báo async (booking.created, cancelled, reminders) | ✅ Done | 7 event types; outbox pattern; DLQ; 3-email lifecycle (confirmation + 1-day + 15-min check-in alert); room-outbox-relay |
 | FR-07 | Báo cáo quản trị viên | ✅ Done | `GET /api/bookings/reports/stats` (Admin + Room Manager): theo ngày/tháng, top phòng, tỷ lệ sử dụng từng phòng, hủy, no-show (`auto_cancelled`), giờ cao điểm; aggregate SQL; giả định ở assumptions.md §8; 5 integration test |
-| FR-08 | Nhật ký kiểm toán | 🔄 Partial | Bảng `audit_logs` trong booking_db + `GET /api/bookings/audit-logs` + AuditLogPage + CSV. Đã ghi: tạo/sửa/hủy/check-in booking, user, policy, room. **Còn thiếu**: đăng nhập, truy cập bị từ chối (403) |
+| FR-08 | Nhật ký kiểm toán | ✅ Done | Bảng `audit_logs` + cột `result`/`ip_address`; đã ghi: LOGIN_SUCCESS, ACCESS_DENIED (403), tạo/sửa/hủy/check-in booking, user, policy, room status. POST /audit-logs/login-audit; migration 0016; 7 unit + 4 integration tests |
 
 ## Tuần 8: Hoàn thiện & Demo
 
 | # | Task | Trạng thái | Ghi chú |
 |---|---|---|---|
-| 31 | Nhật ký kiểm toán (audit log — FR-08) | 🔄 | Đã có bảng + API + UI; sửa bug PATCH ghi nhầm BOOKING_CREATED và POST thiếu audit (2026-11-25). Còn: audit đăng nhập + 403 |
+| 31 | Nhật ký kiểm toán (audit log — FR-08) | ✅ Done | Hoàn thiện 2026-11-26: LOGIN_SUCCESS, ACCESS_DENIED (403), cột `result`, `ip_address` tự động, migration 0016; 224 unit + 21 integration pass |
 | 32 | API docs hoàn chỉnh (Swagger) | ⏳ | |
 | 33 | README hướng dẫn chạy + kiến trúc | ⏳ | |
 | 34 | Demo video | ⏳ | |

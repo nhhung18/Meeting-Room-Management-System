@@ -74,6 +74,8 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
     return profileOverride ? { ...base, ...profileOverride } : base;
   }, [isAuthenticated, auth0User, profileOverride]);
 
+  const loginAuditSentRef = useRef(false);
+
   useEffect(() => {
     if (isAuthenticated) {
       const onLoginRequired = () => {
@@ -81,8 +83,22 @@ const Auth0Inner: React.FC<{ audience: string; children: React.ReactNode }> = ({
         loginWithRedirect({ authorizationParams: { audience } });
       };
       setTokenProvider(createAuth0TokenProvider(getAccessTokenSilently, onLoginRequired));
+
+      // Ghi audit LOGIN_SUCCESS một lần sau khi đăng nhập (fire-and-forget)
+      if (!loginAuditSentRef.current) {
+        loginAuditSentRef.current = true;
+        getAccessTokenSilently()
+          .then((token) =>
+            fetch('/bookings/audit-logs/login-audit', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          )
+          .catch(() => {/* không block luồng đăng nhập */});
+      }
     } else {
       setTokenProvider(null);
+      loginAuditSentRef.current = false;
     }
     return () => setTokenProvider(null);
   }, [isAuthenticated, getAccessTokenSilently, loginWithRedirect, audience]);

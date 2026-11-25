@@ -11,8 +11,11 @@ from functools import lru_cache
 
 from common.auth import AuthError, JWTValidator, TokenPayload, require_roles
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
+from app.core.audit import write_audit
 from app.core.config import get_settings
+from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -54,19 +57,41 @@ _require_manager_or_admin_check = require_roles("Room Manager")
 
 def require_admin(
     user: TokenPayload = Depends(current_user),
+    db: Session = Depends(get_db),
 ) -> TokenPayload:
     """Dependency: chỉ Administrator."""
     try:
         return _require_admin_check(user)
     except AuthError as e:
+        write_audit(
+            db,
+            user.sub,
+            user.roles,
+            "ACCESS_DENIED",
+            actor_name=user.email or user.sub,
+            details=f"Yêu cầu Administrator; thực tế: {', '.join(user.roles) or 'unknown'}",
+            result="DENIED",
+        )
+        db.commit()
         raise HTTPException(e.status_code, detail=e.detail) from None
 
 
 def require_manager_or_admin(
     user: TokenPayload = Depends(current_user),
+    db: Session = Depends(get_db),
 ) -> TokenPayload:
     """Dependency: RoomManager hoặc Administrator."""
     try:
         return _require_manager_or_admin_check(user)
     except AuthError as e:
+        write_audit(
+            db,
+            user.sub,
+            user.roles,
+            "ACCESS_DENIED",
+            actor_name=user.email or user.sub,
+            details=f"Yêu cầu Room Manager; thực tế: {', '.join(user.roles) or 'unknown'}",
+            result="DENIED",
+        )
+        db.commit()
         raise HTTPException(e.status_code, detail=e.detail) from None

@@ -1,9 +1,13 @@
 """Unit tests for security module — anonymous dev mode and require_admin."""
 
+from unittest.mock import MagicMock
+
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.core.security import TokenPayload, current_user, require_admin
+from app.db.session import get_db
 
 
 def _app_with_routes() -> FastAPI:
@@ -55,12 +59,17 @@ class TestAnonymousMode:
         self._clear_caches()
 
 
+def _mock_db():
+    return MagicMock(spec=Session)
+
+
 class TestRequireAdmin:
     def test_non_admin_gets_403(self):
         app = _app_with_routes()
         app.dependency_overrides[current_user] = lambda: TokenPayload(
             sub="emp1", roles=["Employee"]
         )
+        app.dependency_overrides[get_db] = _mock_db
         client = TestClient(app)
         resp = client.get("/admin-only")
         assert resp.status_code == 403
@@ -71,6 +80,7 @@ class TestRequireAdmin:
         app.dependency_overrides[current_user] = lambda: TokenPayload(
             sub="admin1", roles=["Administrator"]
         )
+        app.dependency_overrides[get_db] = _mock_db
         client = TestClient(app)
         resp = client.get("/admin-only")
         assert resp.status_code == 200
@@ -81,6 +91,7 @@ class TestRequireAdmin:
         app.dependency_overrides[current_user] = lambda: TokenPayload(
             sub="mgr1", roles=["Room Manager"]
         )
+        app.dependency_overrides[get_db] = _mock_db
         client = TestClient(app)
         resp = client.get("/admin-only")
         assert resp.status_code == 403

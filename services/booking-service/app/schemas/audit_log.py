@@ -17,6 +17,7 @@ class AuditLogResponse(BaseModel):
     details: str | None
     ip_address: str | None
     request_id: str | None = None
+    result: str | None = None
 
     @classmethod
     def from_model(cls, m) -> "AuditLogResponse":
@@ -34,6 +35,7 @@ class AuditLogResponse(BaseModel):
             details=m.details,
             ip_address=m.ip_address,
             request_id=getattr(m, "request_id", None),
+            result=getattr(m, "result", None),
         )
 
 
