@@ -1,6 +1,6 @@
 # Báo cáo công nghệ — Meeting Room Management System
 
-> Cập nhật lần cuối: 2026-11-12
+> Cập nhật lần cuối: 2026-11-25
 
 Tài liệu này giải thích các công nghệ đang dùng trong dự án, lý do chọn, và quy trình (workflow) từ lúc code đến lúc chạy production-like. Đọc kèm `CLAUDE.md` để biết quyết định kiến trúc (ADR) chi tiết.
 
@@ -161,3 +161,244 @@ room-event-consumer (worker bên booking-service)
 - Chưa có observability tập trung (metrics, tracing) — hiện chỉ có JSON log với `request_id`.
 - Chưa có CD (Continuous Deployment) tự động, CI dừng ở build + test.
 - FR-07 (báo cáo) và FR-08 (audit log) chưa có code backend — xem `docs/progress.md`.
+
+## 6. Luồng hoạt động của các công nghệ
+
+Các sơ đồ vẽ theo code hiện tại (Mermaid, render trực tiếp trên GitHub). Mỗi sơ đồ kèm ghi chú về lý do thiết kế hoặc rủi ro cần biết.
+
+### 6.1 Kiến trúc tổng thể
+
+```mermaid
+flowchart LR
+  B["Trình duyệt<br/>React SPA"]
+  subgraph EDGE["Biên (chỉ profile prod)"]
+    C["Caddy :443<br/>TLS tự động"]
+  end
+  subgraph NET["Docker network nội bộ"]
+    N["Nginx :80<br/>routing, limit_req"]
+    BS["booking-service x2"]
+    RS["room-service"]
+    NW["notification-worker"]
+    WK["Worker nền<br/>auto-cancel, reminder,<br/>outbox-relay, room-event-consumer"]
+    PG[("PostgreSQL<br/>booking_db, room_db")]
+    MQ{{"RabbitMQ"}}
+  end
+  A0["Auth0<br/>SSO, JWKS"]
+  CL["Cloudinary"]
+  SMTP["SMTP"]
+
+  B -->|"HTTPS (prod)"| C
+  C --> N
+  B -->|"HTTP :8080 (local)"| N
+  B -.->|"đăng nhập, lấy token"| A0
+  N -->|"/api/bookings/"| BS
+  N -->|"/api/rooms/"| RS
+  N -->|"/api/notifications/"| NW
+  BS --> PG
+  RS --> PG
+  WK --> PG
+  BS -->|"publish / consume"| MQ
+  RS -->|"publish"| MQ
+  WK -->|"publish / consume"| MQ
+  MQ -->|"notifications"| NW
+  NW -->|"gửi email"| SMTP
+  RS -->|"upload ảnh"| CL
+  BS -.->|"kiểm tra JWT (JWKS)"| A0
+  RS -.->|"kiểm tra JWT (JWKS)"| A0
+```
+
+Ghi chú: Nginx là điểm vào duy nhất, chỉ Nginx mở port ra host. Nginx không kiểm tra token; mỗi service tự xác thực (ADR-0001). Ở prod, Caddy đứng trước Nginx, xem mục 6.9 về hệ quả với rate limit.
+
+### 6.2 Đăng nhập và xác thực JWT (Auth0 + RBAC)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Người dùng
+  participant SPA as React SPA<br/>@auth0/auth0-react
+  participant A0 as Auth0
+  participant GW as Nginx
+  participant SVC as Service<br/>libs/common JWTValidator
+  participant JW as Auth0 JWKS
+
+  U->>SPA: Mở trang đăng nhập
+  SPA->>A0: loginWithRedirect, audience và scope offline_access
+  A0->>U: Form đăng nhập hoặc SSO doanh nghiệp
+  U->>A0: Xác thực
+  A0->>SPA: Redirect về /callback với authorization code
+  SPA->>A0: SDK tự đổi code lấy access token và refresh token
+  A0-->>SPA: access token có claim https://mrms.api/roles
+  SPA->>GW: GET /api/bookings/... với Authorization Bearer
+  GW->>SVC: proxy, không kiểm tra token
+  SVC->>JW: lấy public key (PyJWKClient cache)
+  JW-->>SVC: JWKS
+  SVC->>SVC: jwt.decode RS256, kiểm tra aud, iss, exp
+  alt token sai, hết hạn hoặc sai audience
+    SVC-->>SPA: 401
+  else role không đủ (require_roles)
+    SVC-->>SPA: 403
+  else hợp lệ
+    SVC-->>SPA: 200
+  end
+  Note over SPA: Token hết hạn thì SDK dùng refresh token.<br/>Lỗi login_required thì chuyển về trang đăng nhập.
+```
+
+Ghi chú: Administrator luôn được bypass trong `require_roles`. Frontend chỉ dùng role để ẩn hoặc hiện UI (`roleMapper.ts`); quyết định cuối cùng luôn ở backend.
+
+### 6.3 Đặt phòng: transaction đồng bộ và thông báo bất đồng bộ
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor E as Employee
+  participant FE as React SPA
+  participant GW as Nginx
+  participant BS as booking-service
+  participant DB as PostgreSQL booking_db
+  participant OR as outbox-relay
+  participant MQ as RabbitMQ queue notifications
+  participant NW as notification-worker
+  participant SM as SMTP
+
+  E->>FE: Chọn phòng, thời gian, người tham dự
+  FE->>GW: POST /api/bookings/ với Bearer
+  GW->>BS: proxy
+  BS->>BS: Pydantic kiểm tra end sau start, tz-aware, link khi ONLINE hoặc HYBRID
+  BS->>DB: has_overlap và tra room_snapshots
+  BS->>DB: INSERT bookings, booking_attendees
+  BS->>DB: INSERT outbox_events booking.created và booking.invitation
+  BS->>DB: COMMIT, một transaction duy nhất
+  alt EXCLUDE constraint bị vi phạm (race giữa 2 instance)
+    DB-->>BS: IntegrityError, ROLLBACK
+    BS-->>FE: 409 Conflict
+  else thành công
+    BS-->>FE: 201 Created
+  end
+  loop mỗi 5 giây
+    OR->>DB: SELECT outbox chưa gửi, LIMIT 100
+    OR->>MQ: publish, delivery_mode persistent
+    OR->>DB: đặt sent_at
+  end
+  MQ->>NW: deliver, prefetch 1
+  NW->>DB: event_id đã có trong processed_events?
+  NW->>SM: gửi email
+  NW->>DB: INSERT processed_events
+  NW->>MQ: ack
+```
+
+Ghi chú: email được gửi sau khi request đã trả 201, nên request đặt phòng không bị chậm bởi SMTP. Chống double booking nằm ở DB (EXCLUDE constraint), không phải ở lock trong process.
+
+### 6.4 Transactional outbox
+
+```mermaid
+flowchart TD
+  T["Service mở transaction"] --> R1["Ghi bảng nghiệp vụ<br/>bookings hoặc rooms"]
+  T --> R2["Ghi outbox_events<br/>sent_at = NULL"]
+  R1 --> C{"COMMIT"}
+  R2 --> C
+  C -->|"lỗi, ROLLBACK"| X["Không có dữ liệu, không có event"]
+  C -->|"thành công"| Q[("outbox_events")]
+  Q --> L["relay_once: SELECT chưa gửi, LIMIT 100"]
+  L --> P{"publish RabbitMQ thành công?"}
+  P -->|"có"| S["sent_at = now"]
+  P -->|"không, broker down"| K["Giữ sent_at = NULL<br/>thử lại chu kỳ sau"]
+  S --> CL["cleanup_old: xóa event đã gửi sau 7 ngày"]
+```
+
+Ghi chú: nếu publish trực tiếp trong request và broker down sau khi DB đã commit thì hai service lệch dữ liệu vĩnh viễn. Outbox đảm bảo event và dữ liệu nghiệp vụ cùng sống hoặc cùng chết. Lưu ý: ghi thẳng vào `rooms` bằng SQL (không qua service) sẽ không tạo event.
+
+### 6.5 Đồng bộ dữ liệu phòng sang booking-service (ADR-0003)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor RM as Room Manager
+  participant RS as room-service
+  participant RDB as PostgreSQL room_db
+  participant ROR as room-outbox-relay
+  participant MQ as RabbitMQ queue room_events
+  participant REC as room-event-consumer
+  participant BDB as PostgreSQL booking_db
+
+  RM->>RS: PATCH /api/rooms/id
+  RS->>RDB: UPDATE rooms và INSERT outbox room.updated trong một transaction
+  RS-->>RM: 200
+  loop mỗi 5 giây
+    ROR->>RDB: đọc outbox chưa gửi
+    ROR->>MQ: publish durable
+    ROR->>RDB: đặt sent_at
+  end
+  MQ->>REC: deliver
+  REC->>BDB: upsert room_snapshots, bỏ qua event cũ theo version
+  REC->>MQ: ack, hoặc nack requeue nếu lỗi
+  Note over BDB: Khi room-service down, booking vẫn đọc snapshot cũ.<br/>Admin có thể kéo thủ công: POST /api/bookings/admin/sync-rooms.
+```
+
+### 6.6 Worker nền: tự hủy khi không check-in và nhắc lịch
+
+```mermaid
+flowchart LR
+  subgraph AC["auto-cancel-worker, mỗi 60 giây"]
+    A1["Tìm CONFIRMED<br/>quá hạn check-in<br/>(cửa sổ từ system_policies)"] --> A2["status = CANCELLED<br/>auto_cancelled_at = now"]
+    A2 --> A3["outbox booking.auto_cancelled"]
+  end
+  subgraph RM["booking-reminder, mỗi 60 giây"]
+    R1["CONFIRMED bắt đầu trong 15 phút<br/>chưa gửi nhắc"] --> R2["outbox booking.reminder<br/>reminder_sent_at = now"]
+    R3["CONFIRMED bắt đầu sau 23 đến 25 giờ<br/>chưa gửi nhắc"] --> R4["outbox booking.daily_reminder"]
+  end
+  A3 --> C[("COMMIT trong cùng session")]
+  R2 --> C
+  R4 --> C
+  C --> OR["outbox-relay, RabbitMQ, notification-worker, SMTP"]
+```
+
+Ghi chú: mỗi worker là một process riêng cùng image với booking-service, chạy bằng `python -m app.workers.<tên>`. Cả hai đều ghi outbox trong cùng transaction với cập nhật trạng thái, nên không có trường hợp booking bị hủy mà email không được gửi.
+
+### 6.7 Xử lý thông báo: idempotency, retry và DLQ
+
+```mermaid
+flowchart TD
+  M["Message từ queue notifications"] --> J{"JSON hợp lệ?"}
+  J -->|"không"| D1["reject requeue=false, vào DLQ"]
+  J -->|"có"| I{"event_id đã có trong processed_events?"}
+  I -->|"có"| AK1["ack, bỏ qua"]
+  I -->|"chưa"| S["Dispatch theo event_type, gửi email qua SMTP"]
+  S -->|"thành công"| P["INSERT processed_events, ack"]
+  S -->|"exception"| X{"x-death count ≥ max_retries (3)?"}
+  X -->|"có"| D2["reject requeue=false, vào DLQ"]
+  X -->|"không"| RQ["reject requeue=true, quay lại queue"]
+  RQ --> M
+```
+
+**Cảnh báo (cần kiểm chứng bằng test):** nhánh `requeue=true` không tạo entry `x-death` trong RabbitMQ, vì message chỉ được ghi `x-death` khi bị dead-letter. Do đó `_get_retry_count` luôn trả 0 với message lỗi do exception, và message lỗi có thể lặp vô hạn. Chi tiết ở mục 6.9.
+
+### 6.8 CI/CD
+
+```mermaid
+flowchart LR
+  P["git push hoặc PR"] --> CI
+  subgraph CI["ci.yml, các job chạy song song"]
+    direction TB
+    J1["libs-common: lint, unit test"]
+    J2["booking-service: lint, unit test"]
+    J3["room-service: lint, unit test"]
+    J4["notification-worker: lint, unit test"]
+    J5["smoke-test: compose up --wait,<br/>gọi API thật qua Nginx"]
+  end
+  T["git tag v*"] --> CD
+  subgraph CD["cd.yml"]
+    direction TB
+    D1["SSH vào VPS, git checkout tag"] --> D2["docker compose --profile prod<br/>up --build -d --wait"]
+    D2 --> D3["alembic upgrade head<br/>booking-service và room-service"]
+    D3 --> D4["docker image prune"]
+  end
+```
+
+### 6.9 Các điểm phát hiện khi vẽ sơ đồ
+
+| # | Vấn đề | Vị trí | Ảnh hưởng | Hướng xử lý |
+|---|---|---|---|---|
+| 1 | Retry đếm qua `x-death` nhưng nhánh requeue không tạo `x-death` | `services/notification-worker/app/worker.py` (`_get_retry_count`, nhánh `reject(requeue=True)`) | Message lỗi có thể lặp vô hạn, không bao giờ vào DLQ. Cần xác nhận bằng test thật | Dùng retry queue có TTL và dead-letter về queue chính, hoặc tự đếm số lần retry trong header |
+| 2 | Rate limit theo `$binary_remote_addr`, không có `set_real_ip_from` | `infra/nginx/nginx.conf:26` | Ở prod Caddy đứng trước Nginx, mọi client có cùng IP nguồn, nên 20 req/s thành giới hạn dùng chung cho cả hệ thống | Khai báo `set_real_ip_from` cho IP của Caddy và `real_ip_header X-Forwarded-For` |
+| 3 | Integration test không chạy trong CI | `pyproject.toml` có `addopts = -m 'not integration'`, `ci.yml` chỉ chạy `pytest` | Lỗi DB, EXCLUDE constraint và concurrency không được bắt tự động | Thêm job chạy `make test-integration` có Postgres service |
+| 4 | Idempotency ghi sau khi gửi email | `worker.py`, `ProcessedEvent` được INSERT sau `handler(payload)` | Nếu worker crash giữa lúc gửi và lúc ghi, email có thể gửi lại (at-least-once) | Chấp nhận ở MVP, ghi rõ trong phần hạn chế của báo cáo |
