@@ -237,9 +237,9 @@ export const DashboardPage: React.FC = () => {
     if (!statsData) return [];
     return statsData.daily_stats.map((d) => ({
       name: dayjs(d.date).format('DD/MM'),
+      // Q1=a: bỏ series "Đã hủy" — tỷ lệ hủy đã có card riêng; donut đã có số đếm
       [language === 'vi' ? 'Đã xác nhận' : 'Confirmed']: d.total - d.checked_in - d.cancelled,
       [language === 'vi' ? 'Đã check-in' : 'Checked In']: d.checked_in,
-      [language === 'vi' ? 'Đã hủy' : 'Cancelled']: d.cancelled,
     }));
   }, [statsData, language]);
 
@@ -584,28 +584,18 @@ export const DashboardPage: React.FC = () => {
                           <stop offset="5%" stopColor="#52c41a" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="#52c41a" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="gCancelled" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ff4d4f" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="#ff4d4f" stopOpacity={0} />
-                        </linearGradient>
+                        {/* gCancelled bỏ — Q1=a: series hủy không hiện trên area */}
                       </defs>
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: isDark ? '#a1a1a6' : '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
                       <Area type="monotone" dataKey={language === 'vi' ? 'Đã xác nhận' : 'Confirmed'} stroke="#1e5bef" strokeWidth={2} fill="url(#gConfirmed)" />
                       <Area type="monotone" dataKey={language === 'vi' ? 'Đã check-in' : 'Checked In'} stroke="#52c41a" strokeWidth={2} fill="url(#gCheckedIn)" />
-                      <Area type="monotone" dataKey={language === 'vi' ? 'Đã hủy' : 'Cancelled'} stroke="#ff4d4f" strokeWidth={1.5} fill="url(#gCancelled)" />
+                      {/* Area "Đã hủy" bỏ — Q1=a; số đếm hủy ở donut, tỷ lệ ở card riêng */}
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
-                <div className="flex gap-4 mt-2 flex-wrap">
-                  {[{ color: '#1e5bef', label: language === 'vi' ? 'Xác nhận' : 'Confirmed' }, { color: '#52c41a', label: language === 'vi' ? 'Check-in' : 'Checked In' }, { color: '#ff4d4f', label: language === 'vi' ? 'Hủy' : 'Cancelled' }].map((item) => (
-                    <div key={item.label} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-[11px] text-slate-400">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
+                {/* Legend tự viết bỏ — Q3=a: donut bên cạnh đã có list màu + số đếm */}
               </div>
             </Col>
 
