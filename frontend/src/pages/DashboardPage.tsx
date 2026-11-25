@@ -52,6 +52,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { getDashboardWidgets } from '../utils/dashboardLayout';
 
 const { Title } = Typography;
 
@@ -79,6 +80,7 @@ export const DashboardPage: React.FC = () => {
 
   const isManagerOrAdmin = user?.role === 'ROOM_MANAGER' || user?.role === 'ADMINISTRATOR';
   const isAdmin = user?.role === 'ADMINISTRATOR';
+  const widgets = new Set(getDashboardWidgets(user?.role));
 
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -496,7 +498,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Col>
           <Col xs={12} sm={12} lg={6}>
-            {user?.role === 'ROOM_MANAGER' ? (
+            {widgets.has('kpi.equipment') ? (
               <div className={card('h-full')}>
                 <div className="mb-1">
                   <span className={labelClass}>{language === 'vi' ? 'Thiết bị' : 'Equipment'}</span>
@@ -647,8 +649,8 @@ export const DashboardPage: React.FC = () => {
 
           {/* Row 3: Peak hours + Top rooms + Equipment */}
           <Row gutter={[12, 12]}>
-            {/* Peak hours */}
-            <Col xs={24} sm={12} lg={9}>
+            {/* Peak hours — khi không có col thiết bị (manager), nới rộng lên lg={12} */}
+            <Col xs={24} sm={12} lg={widgets.has('stats.equipment') ? 9 : 12}>
               <div className={card('h-full')}>
                 <div className={`${labelClass} mb-3`}>
                   {language === 'vi' ? 'Giờ cao điểm' : 'Peak Hours'}
@@ -672,8 +674,8 @@ export const DashboardPage: React.FC = () => {
               </div>
             </Col>
 
-            {/* Top rooms */}
-            <Col xs={24} sm={12} lg={9}>
+            {/* Top rooms — cùng logic nới rộng khi không có col thiết bị */}
+            <Col xs={24} sm={12} lg={widgets.has('stats.equipment') ? 9 : 12}>
               <div className={card('h-full')}>
                 <div className={`${labelClass} mb-3`}>
                   {language === 'vi' ? 'Top 5 phòng được đặt nhiều nhất' : 'Top 5 Most Booked Rooms'}
@@ -711,40 +713,42 @@ export const DashboardPage: React.FC = () => {
               </div>
             </Col>
 
-            {/* Equipment donut (admin sees it here too, manager already has it in KPI) */}
-            <Col xs={24} sm={24} lg={6}>
-              <div className={card('h-full items-center')}>
-                <div className={`${labelClass} mb-2 self-start`}>
-                  {language === 'vi' ? 'Thiết bị' : 'Equipment'}
-                </div>
-                <PieChart width={120} height={100}>
-                  <Pie data={[
-                    { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
-                    { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
-                    { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
-                  ]} cx={56} cy={46} innerRadius={28} outerRadius={44} dataKey="value" strokeWidth={0} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
-                </PieChart>
-                <div className="w-full space-y-1.5 mt-1">
-                  {[
-                    { label: language === 'vi' ? 'Hoạt động' : 'Functional', count: equipmentStats.functional, color: '#52c41a' },
-                    { label: language === 'vi' ? 'Đang sửa' : 'Under Repair', count: equipmentStats.underRepair, color: '#faad14' },
-                    { label: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', count: equipmentStats.decommissioned, color: '#ff4d4f' },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-slate-400">{item.label}</span>
+            {/* Thiết bị ở Row 3: chỉ Admin (Manager đã có donut ở KPI card 4) */}
+            {widgets.has('stats.equipment') && (
+              <Col xs={24} sm={24} lg={6}>
+                <div className={card('h-full items-center')}>
+                  <div className={`${labelClass} mb-2 self-start`}>
+                    {language === 'vi' ? 'Thiết bị' : 'Equipment'}
+                  </div>
+                  <PieChart width={120} height={100}>
+                    <Pie data={[
+                      { name: language === 'vi' ? 'Hoạt động' : 'Functional', value: equipmentStats.functional || 0.01, fill: EQUIPMENT_STATUS_CONFIG.FUNCTIONAL.tagColor },
+                      { name: language === 'vi' ? 'Đang sửa' : 'Under Repair', value: equipmentStats.underRepair || 0.01, fill: EQUIPMENT_STATUS_CONFIG.UNDER_REPAIR.tagColor },
+                      { name: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', value: equipmentStats.decommissioned || 0.01, fill: EQUIPMENT_STATUS_CONFIG.DECOMMISSIONED.tagColor },
+                    ]} cx={56} cy={46} innerRadius={28} outerRadius={44} dataKey="value" strokeWidth={0} />
+                    <RechartsTooltip contentStyle={{ backgroundColor: isDark ? '#2c2c2e' : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`, borderRadius: 8, fontSize: 12 }} />
+                  </PieChart>
+                  <div className="w-full space-y-1.5 mt-1">
+                    {[
+                      { label: language === 'vi' ? 'Hoạt động' : 'Functional', count: equipmentStats.functional, color: '#52c41a' },
+                      { label: language === 'vi' ? 'Đang sửa' : 'Under Repair', count: equipmentStats.underRepair, color: '#faad14' },
+                      { label: language === 'vi' ? 'Ngừng dùng' : 'Decommissioned', count: equipmentStats.decommissioned, color: '#ff4d4f' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span className="text-slate-400">{item.label}</span>
+                        </div>
+                        <span className="font-mono font-bold text-slate-600 dark:text-zinc-300">{item.count}</span>
                       </div>
-                      <span className="font-mono font-bold text-slate-600 dark:text-zinc-300">{item.count}</span>
+                    ))}
+                    <div className="text-[11px] pt-1 border-t border-slate-100 dark:border-white/5 text-slate-400">
+                      {language === 'vi' ? 'Tổng' : 'Total'}: <strong className="text-slate-600 dark:text-zinc-200">{equipmentStats.total}</strong>
                     </div>
-                  ))}
-                  <div className="text-[11px] pt-1 border-t border-slate-100 dark:border-white/5 text-slate-400">
-                    {language === 'vi' ? 'Tổng' : 'Total'}: <strong className="text-slate-600 dark:text-zinc-200">{equipmentStats.total}</strong>
                   </div>
                 </div>
-              </div>
-            </Col>
+              </Col>
+            )}
           </Row>
 
           {/* Row 4: On-time rate + Cancel rate */}
